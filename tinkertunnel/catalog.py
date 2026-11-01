@@ -44,7 +44,8 @@ def validate(recipe: dict) -> dict:
     _check(isinstance(platforms, list) and bool(platforms), "platforms required")
     for platform in platforms:
         _check(isinstance(platform, dict) and set(platform) == {"os", "arch"} and
-               platform["os"] in _OS and platform["arch"] in _ARCH, "unsupported platform")
+               isinstance(platform["os"], str) and platform["os"] in _OS and
+               isinstance(platform["arch"], str) and platform["arch"] in _ARCH, "unsupported platform")
     _check(isinstance(recipe["provides"], list) and bool(recipe["provides"]) and
            all(isinstance(c, str) and bool(_ID.fullmatch(c)) for c in recipe["provides"]),
            "invalid capabilities")
@@ -56,7 +57,7 @@ def validate(recipe: dict) -> dict:
     install = recipe["install"]
     _check(isinstance(install, dict) and set(install) == {"adapter", "strategy", "approval"},
            "install must use a fixed adapter, not arbitrary commands")
-    _check(install["adapter"] in _ADAPTERS, "unknown installation adapter")
+    _check(isinstance(install["adapter"], str) and install["adapter"] in _ADAPTERS, "unknown installation adapter")
     _check(install["strategy"] == "verify-existing", "installer execution is not enabled")
     _check(install["approval"] == "required", "installation approval cannot be bypassed")
     return recipe
@@ -75,6 +76,7 @@ def load_catalog(directory: Path | None = None) -> list[dict]:
         _check(key not in seen, f"duplicate recipe: {key}")
         seen.add(key)
         recipes.append(recipe)
+    _check(bool(recipes), "framework catalog is empty or missing")
     return recipes
 
 
