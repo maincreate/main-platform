@@ -6,6 +6,7 @@ Do not expose this stdio server as an unauthenticated public HTTP endpoint.
 from mcp.server import MCPServer
 
 from tinkertunnel.catalog import inspect, plan_install, search
+from tinkertunnel.runners import inspect_profile, list_profiles
 
 mcp = MCPServer("TinkerTunnel Marketplace Preview")
 
@@ -27,6 +28,18 @@ def framework_inspect(framework_id: str, version: str) -> dict:
 def framework_install_plan(framework_id: str, version: str, os: str, arch: str) -> dict:
     """Preview prerequisites and fixed adapter checks. NEVER executes installation."""
     return plan_install(framework_id, version, os, arch)
+
+
+@mcp.tool()
+def runner_profile_list() -> list[dict]:
+    """List supported runner types; these are templates, not online machines."""
+    return list_profiles()
+
+
+@mcp.tool()
+def runner_profile_inspect(profile_id: str) -> dict:
+    """Inspect a validated platform profile, required SDKs and capability labels."""
+    return inspect_profile(profile_id)
 
 
 if __name__ == "__main__":
