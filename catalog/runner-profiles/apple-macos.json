@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "apple-macos",
+  "os": "macos",
+  "arch": "arm64",
+  "runner_labels": [
+    "self-hosted",
+    "macOS",
+    "ARM64",
+    "tt-apple"
+  ],
+  "frameworks": [
+    "swift@6.1.2"
+  ],
+  "capabilities": [
+    "app.build"
+  ],
+  "default_concurrency": 1,
+  "device_access": false
+}
