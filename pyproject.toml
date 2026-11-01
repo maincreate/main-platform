@@ -13,4 +13,7 @@ dependencies = []
 mcp = ["mcp>=2,<3"]
 
 [tool.setuptools.packages.find]
-include = ["tinkertunnel*"]
+include = ["tinkertunnel*", "catalog*"]
+
+[tool.setuptools.package-data]
+catalog = ["frameworks/*.json", "runner-profiles/*.json"]
