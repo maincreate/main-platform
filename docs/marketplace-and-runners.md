@@ -18,6 +18,7 @@ Chat tools, organized by lifecycle:
 | --- | --- | --- | --- |
 | Discover | `framework_search`, `framework_inspect` | Local MCP preview | Read only |
 | Plan | `framework_install_plan` | Local MCP preview | Read only, no host access |
+| Profile discovery | `runner_profile_list`, `runner_profile_inspect` | Local MCP preview | Read only; templates, not live nodes |
 | Prepare | `node_list`, `node_capabilities`, `framework_install` | Future | Bound node, scoped identity, user approval |
 | Build | `project_list`, `build_submit`, `job_status`, `job_logs` | Future | Repo and ref allowlist, job isolation |
 | Devices | `device_list`, `device_flash_plan`, `device_flash` | Future | Human approval + identity + exclusive lock |
@@ -33,7 +34,7 @@ requests the action. Tool descriptions are not authorization.
 
 `catalog/frameworks/*.json` describes: id, exact version, classification,
 supported OS/architecture, capabilities provided, upstream provenance and a
-hardcoded implementation adapter. All fields are validated and unknown fields
+hardcoded implementation adapter. Framework and runner-profile fields are validated and unknown fields
 are rejected. There is no `shell` or `command` field. Current installation
 strategy is `verify-existing` only: managed installation is an explicit next
 milestone after authenticated agents, execution sandboxing, and approvals exist.
@@ -114,8 +115,8 @@ trusted regression reference until the new setup passes parity tests.
 
 ## MCP remote access boundary
 
-`tinkertunnel.mcp_server` is **local stdio only** and exposes three read-only
-marketplace tools. It is not deployed and not wired into ChatGPT. Remote
+`tinkertunnel.mcp_server` is **local stdio only** and exposes five read-only
+marketplace and runner-profile tools. It is not deployed and not wired into ChatGPT. Remote
 ChatGPT integration requires a public HTTPS MCP entry point with supported
 OAuth, per-user identity, short-lived scoped authorizations, tenant isolation,
 audit records, and agent-to-control-plane outbound connection. Auth and
