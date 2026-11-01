@@ -19,7 +19,7 @@ def validate_profile(profile: dict) -> dict:
         raise CatalogError("runner profile must have exactly the approved fields")
     if profile["schema_version"] != 1 or not isinstance(profile["id"], str) or not _ID.fullmatch(profile["id"]):
         raise CatalogError("invalid runner profile identity")
-    if profile["os"] not in {"linux", "macos"} or profile["arch"] not in {"arm64", "x86_64"}:
+    if not isinstance(profile["os"], str) or profile["os"] not in {"linux", "macos"} or not isinstance(profile["arch"], str) or profile["arch"] not in {"arm64", "x86_64"}:
         raise CatalogError("unsupported runner platform")
     labels = profile["runner_labels"]
     if not isinstance(labels, list) or not labels or any(
@@ -60,6 +60,8 @@ def list_profiles() -> list[dict]:
             raise CatalogError(f"duplicate runner profile {profile['id']}")
         seen.add(profile["id"])
         profiles.append(profile)
+    if not profiles:
+        raise CatalogError("runner profile catalog is empty or missing")
     return profiles
 
 
