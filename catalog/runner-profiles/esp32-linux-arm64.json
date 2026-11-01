@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "esp32-linux-arm64",
+  "os": "linux",
+  "arch": "arm64",
+  "runner_labels": [
+    "self-hosted",
+    "Linux",
+    "ARM64",
+    "tt-esp32"
+  ],
+  "frameworks": [
+    "esp-idf@5.5.6"
+  ],
+  "capabilities": [
+    "firmware.build"
+  ],
+  "default_concurrency": 1,
+  "device_access": false
+}
