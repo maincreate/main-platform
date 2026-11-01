@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "swift",
+  "version": "6.1.2",
+  "title": "Swift 6.1.2",
+  "summary": "Swift compiler verification for macOS development runners; Xcode signing is separate",
+  "category": "app-sdk",
+  "tags": [
+    "apple",
+    "swift",
+    "macos"
+  ],
+  "platforms": [
+    {
+      "os": "macos",
+      "arch": "arm64"
+    },
+    {
+      "os": "macos",
+      "arch": "x86_64"
+    }
+  ],
+  "provides": [
+    "swift-build"
+  ],
+  "source": {
+    "publisher": "Swift Project",
+    "url": "https://www.swift.org/download/",
+    "reference": "6.1.2"
+  },
+  "install": {
+    "adapter": "swift",
+    "strategy": "verify-existing",
+    "approval": "required"
+  }
+}
