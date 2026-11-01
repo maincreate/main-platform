@@ -33,7 +33,8 @@ python -m tinkertunnel.mcp_server
 ```
 
 Connect an MCP-compatible local stdio client. Exposed tools:
-`framework_search`, `framework_inspect`, `framework_install_plan`.
+`framework_search`, `framework_inspect`, `framework_install_plan`,
+`runner_profile_list`, `runner_profile_inspect`.
 No remote HTTP endpoint or privileged tools are enabled.
 
 The catalog deliberately rejects arbitrary commands and scripts. Existing
