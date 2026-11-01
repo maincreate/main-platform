@@ -1,0 +1,30 @@
+name: Marketplace recipe checks
+
+on:
+  pull_request:
+    paths:
+      - 'catalog/**'
+      - 'tinkertunnel/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/catalog-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate marketplace and security contract
+        run: |
+          python -m tinkertunnel.catalog validate
+          python -m unittest discover -s tests -p 'test_*.py' -v
