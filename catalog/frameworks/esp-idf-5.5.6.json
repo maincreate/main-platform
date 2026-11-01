@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "esp-idf",
+  "version": "5.5.6",
+  "title": "Espressif ESP-IDF 5.5.6",
+  "summary": "Pinned ESP32 firmware SDK for verified ARM64 Linux builders",
+  "category": "firmware-sdk",
+  "tags": [
+    "esp32",
+    "firmware",
+    "toolchain"
+  ],
+  "platforms": [
+    {
+      "os": "linux",
+      "arch": "arm64"
+    }
+  ],
+  "provides": [
+    "esp32-build",
+    "esp32s3-build"
+  ],
+  "source": {
+    "publisher": "Espressif Systems",
+    "url": "https://github.com/espressif/esp-idf/releases/tag/v5.5.6",
+    "reference": "v5.5.6"
+  },
+  "install": {
+    "adapter": "esp-idf",
+    "strategy": "verify-existing",
+    "approval": "required"
+  }
+}
