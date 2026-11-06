@@ -13,7 +13,7 @@ docker compose ps
 curl -fsS http://127.0.0.1:3000/healthz
 ```
 
-Open **http://127.0.0.1:3000** on the Docker host. Until PR #1 merges, check out branch `feat/portal-onboarding-marketplace` first.
+Open **http://127.0.0.1:3000** on the Docker host. Until the portal PR merges, check out branch `feat/docker-portal-foundation` first.
 
 On a different laptop, use an SSH tunnel to the Docker host instead of exposing the HTTP service:
 
@@ -72,8 +72,8 @@ Run the same contracts in a thin hosted control plane that stores only identity,
 
 Use the Git-based **Docker Compose Application** flow (not the Docker Compose Empty service); this portal image needs a Docker build context from the repository. Choose the private repository via the authorized GitHub App or deployment key.
 
-- **Repository:** `TinkerTunnel/tinkertunnel.github.io`
-- **Branch for current preview:** `feat/portal-onboarding-marketplace`
+- **Repository:** `TinkerTunnel/tinkertunnel`
+- **Branch for current preview:** `feat/docker-portal-foundation`
 - **Build strategy:** Docker Compose
 - **Base directory:** `/portal`
 - **Compose file:** `compose.coolify.yaml` relative to that directory
