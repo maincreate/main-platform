@@ -1,0 +1,46 @@
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+    init: true
+
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+
+    expose:
+      - "3000"
+
+    # Host-only access for initial testing.
+    # Do not configure a public Coolify domain before authentication exists.
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-13000}:3000"
+
+    read_only: true
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.5
+
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
