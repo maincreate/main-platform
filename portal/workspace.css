@@ -90,3 +90,17 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-show-hidden{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--muted)}
 .tt-show-hidden input{accent-color:var(--accent)}
 @media(max-width:730px){.tt-refresh-controls{justify-content:flex-start}}
+
+.tt-inline-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 20px}
+.tt-inline-form label{font-size:12px;color:var(--muted)}
+.tt-inline-form select,.tt-repo-dialog input,.tt-repo-dialog select{font:inherit;padding:10px 12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px}
+.tt-approval-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--line)}
+.tt-approval-row strong{display:block;font-size:13px}
+.tt-approval-row small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.tt-approval-actions,.tt-toolbar-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tt-repo-dialog{max-width:560px;width:calc(100% - 24px);background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:25px}
+.tt-repo-dialog::backdrop{background:#000a}
+.tt-repo-dialog form{display:grid;gap:11px}
+.tt-repo-dialog label{font-size:13px;font-weight:600}
+.tt-repo-dialog p{font-size:13px;color:var(--muted)}
+.tt-repo-dialog .tt-toolbar-actions{justify-content:flex-end}
