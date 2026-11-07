@@ -1,0 +1,38 @@
+.jobs-page{max-width:1120px;padding-top:38px}
+.jobs-page h1{font-size:clamp(30px,4vw,45px);letter-spacing:-.045em;margin:4px 0 8px}
+.page-description{color:var(--muted);font-size:14px;max-width:740px;margin:0 0 28px}
+.jobs-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:25px;margin-bottom:24px}
+.jobs-panel h2{font-size:22px;margin:0 0 4px}
+.jobs-panel h3{font-size:16px;margin:0 0 5px}
+.jobs-panel p{font-size:13px;color:var(--muted);margin:0}
+.notification:not(:empty){padding:13px;border-radius:10px;background:var(--soft);margin-bottom:18px;color:var(--text);font-size:13px;white-space:pre-wrap}
+.runner-list{display:grid;gap:10px}
+.runner-entry,.job-entry{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg)}
+.runner-entry{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.runner-entry strong{display:block;font-size:14px}
+.runner-entry small{color:var(--muted);font-size:12px}
+.enroll-panel{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-top:20px;padding-top:17px;border-top:1px solid var(--line)}
+.enroll-panel button{flex-shrink:0}
+#enrollment{padding:14px;margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:11px}
+#enrollCommand{display:block;white-space:pre-wrap;word-break:break-all;margin-top:12px;color:var(--accent);font-size:12px}
+.plan-form{display:grid;gap:8px;max-width:600px}
+.plan-form label{font-size:12px;color:var(--muted);font-weight:600;margin-top:8px}
+.plan-form input,.plan-form select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:12px;font:inherit}
+.plan-form .action{justify-content:center;margin-top:12px;border:none;cursor:pointer}
+.plan-result{margin-top:22px;border-top:1px solid var(--line);padding-top:17px}
+.plan-result pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:12px;max-height:280px;overflow:auto}
+.plan-result .action{border:0;cursor:pointer}
+.jobs-list{display:grid;gap:12px}
+.job-title{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center}
+.job-title strong{font-size:14px}
+.job-meta{font-size:12px;color:var(--muted);margin-top:5px}
+.job-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.job-actions button{font-size:12px}
+.job-entry details{margin-top:12px;font-size:12px;color:var(--muted)}
+.job-entry pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:280px;overflow:auto;border-radius:9px;background:var(--surface);padding:12px}
+.asset-link{display:block;margin-top:8px;font-size:12px;color:var(--accent);text-align:left;border:0;background:transparent;padding:0}
+.asset-link:hover{text-decoration:underline}
+.job-status{padding:4px 10px;border-radius:99px;background:var(--tag);color:var(--text);font-size:11px}
+.job-status[data-status="completed"]{color:var(--accent)}
+.job-status[data-status="awaiting_approval"]{border:1px solid var(--accent)}
+@media(max-width:650px){.jobs-panel{padding:17px}.enroll-panel{flex-direction:column;align-items:flex-start}}
