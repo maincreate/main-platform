@@ -205,6 +205,14 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
   }
+  if(path==="/jobs"&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/jobs.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if((path==="/jobs.js"||path==="/jobs.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
+  }
   if(path==="/topology"&&method==="GET"){
     if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/topology.html",import.meta.url),"utf8"),{headers:htmlHeaders});
@@ -403,7 +411,7 @@ export async function localRoute(req) {
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
             })),
             truncated:stored.runners.length>24,
-            executionEnabled:false
+            executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
           },
           assistant:{connected:false},
           topology:{
