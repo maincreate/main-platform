@@ -5,40 +5,28 @@ import {join} from "node:path";
 const root=process.env.TT_DATA_DIR||"./.tinkertunnel-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
 const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
-const CAPS=[
- {id:"host.snapshot",version:"1.0.0",kind:"action",risk:"read",state:"available",
-  description:"Read bounded OS, CPU, memory and runtime data from an enrolled runner. No shell commands.",
-  platforms:["linux","macos","windows"],parameters:{type:"object",properties:{},additionalProperties:false},
-  steps:[{capability:"host.snapshot"}]},
- {id:"firmware.esp_idf.build",version:"1.0.0",kind:"action",risk:"build",state:"available",
-  description:"Compile an operator-allowlisted local ESP-IDF checkout without downloading, flashing or changing its revision. The runner must opt into builds.",
-  platforms:["linux","macos","windows"],
-  parameters:{type:"object",properties:{
-   repository:{type:"string",pattern:"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
-   revision:{type:"string",pattern:"^[a-fA-F0-9]{40}$"}
-  },required:["repository"],additionalProperties:false},
-  steps:[{capability:"firmware.esp_idf.build"}]},
- {id:"workflow.esp_idf.preflight_build",version:"1.0.0",kind:"workflow",risk:"build",state:"available",
-  description:"Run a read-only host snapshot followed by an approved ESP-IDF build on the same allowlisted runner.",
-  platforms:["linux","macos","windows"],
-  parameters:{type:"object",properties:{
-   repository:{type:"string",pattern:"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
-   revision:{type:"string",pattern:"^[a-fA-F0-9]{40}$"}
-  },required:["repository"],additionalProperties:false},
-  steps:[{capability:"host.snapshot"},{capability:"firmware.esp_idf.build"}]},
- {id:"firmware.esp_idf.flash",version:"0.0.0",kind:"action",risk:"device-write",state:"unavailable",
-  description:"Reserved for a future device-specific, approval-gated flashing adapter; not executable.",
-  platforms:[],parameters:{type:"object",properties:{},additionalProperties:false},steps:[]}
-];
-const TOOLKITS=[
- {id:"esp-idf",displayName:"Espressif IoT Development Framework",category:"firmware",
-  state:"catalog-only",installation:"operator-managed",
-  description:"Version is detected and validated on a registered builder at execution time; no automatic SDK installation in this release.",
-  capabilities:["firmware.esp_idf.build","workflow.esp_idf.preflight_build"]},
- {id:"nodejs",displayName:"Node.js",category:"runtime",state:"catalog-only",
-  installation:"operator-managed",description:"Runner agent uses Node.js 22 or newer; version inventory is available through host.snapshot.",
-  capabilities:["host.snapshot"]}
-];
+// The MCP surface is stable. These versioned, curated files define what it can discover.
+// Only adapters implemented in the runner may be marked executable.
+const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
+const CAPS=readManifest("capabilities.json");
+const TOOLKITS=readManifest("toolkits.json");
+const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build"]);
+function validateRegistry(){
+ const ids=new Set();
+ for(const c of CAPS){
+  if(!c||typeof c.id!=="string"||!/^[a-z][a-z0-9_.]+$/.test(c.id)||ids.has(c.id)||
+    typeof c.version!=="string"||!/^\\d+\\.\\d+\\.\\d+$/.test(c.version)||
+    !["action","workflow"].includes(c.kind)||!["available","unavailable"].includes(c.state)||
+    !Array.isArray(c.steps)||c.steps.length>8||!Array.isArray(c.platforms)||
+    !c.parameters||c.parameters.type!=="object")
+   throw new Error("Invalid or duplicate capability manifest");
+  if(c.state==="available"&&
+     (c.steps.length===0||c.steps.some(st=>!RUNNER_ADAPTERS.has(st.capability))))
+   throw new Error("Capability cannot be enabled without a reviewed runner adapter");
+  ids.add(c.id);
+ }
+}
+validateRegistry();
 const uid=()=>randomBytes(16).toString("hex");
 const sha=x=>createHash("sha256").update(x).digest("hex");
 const error=(code,message)=>Object.assign(new Error(message),{status:code});
