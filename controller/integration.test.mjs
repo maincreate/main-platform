@@ -133,3 +133,36 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    rmSync(dir,{recursive:true,force:true});
  }
 });
+
+test("first administrator persists across server restarts without a login environment secret",{timeout:30000},async()=>{
+ const dir=mkdtempSync(join(tmpdir(),"tt-auth-persist-"));
+ const p=await freePort(),base="http://127.0.0.1:"+p;
+ const password="persistent-account-password-2026";
+ const env={...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:"",TT_MASTER_KEY:"",TT_REQUIRE_LOGIN:"1"};
+ let child;
+ const launch=async()=>{
+   child=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env,stdio:["ignore","pipe","pipe"]});
+   let out="";
+   child.stdout.on("data",b=>{out+=b.toString();});
+   await ready(base);
+   return ()=>out;
+ };
+ try {
+   const firstOutput=await launch();
+   const setupCode=firstOutput().match(/first-run setup code: ([A-Za-z0-9_-]+)/)?.[1];
+   assert(setupCode,"First boot must issue a setup code");
+   const registered=await json(base,"/api/local/bootstrap",{username:"owner",password,setupCode});
+   assert.equal(registered.status,200);
+   const keyBefore=readFileSync(join(dir,"master.key")).toString("hex");
+   await new Promise(resolve=>{child.once("exit",resolve);child.kill("SIGTERM");});
+   const secondOutput=await launch();
+   assert(!secondOutput().includes("first-run setup code:"),"Claimed instance must not reopen registration");
+   assert.equal((await (await fetch(base+"/api/local/public")).json()).claimed,true);
+   assert.equal((await json(base,"/api/local/bootstrap",{username:"intruder",password,setupCode})).status,409);
+   assert.equal((await json(base,"/api/local/login",{username:"owner",password})).status,200);
+   assert.equal(readFileSync(join(dir,"master.key")).toString("hex"),keyBefore);
+ } finally {
+   if(child&&!child.killed)child.kill("SIGTERM");
+   rmSync(dir,{recursive:true,force:true});
+ }
+});
