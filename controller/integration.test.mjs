@@ -125,6 +125,18 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(ghStatus.usingDefaultApp,true);
    assert.equal(ghStatus.connected,false);
    const ghHeaders={cookie,"x-tt-csrf":csrf};
+   // Repository creation defaults to private; changes are authenticated and CSRF-protected.
+   const prefPath="/api/local/github/repository/preferences";
+   assert.equal((await json(base,prefPath,{defaultVisibility:"public"})).status,401);
+   assert.equal((await json(base,prefPath,{defaultVisibility:"public"},{cookie})).status,403);
+   assert.equal((await json(base,prefPath,{defaultVisibility:"internal"},ghHeaders)).status,422);
+   assert.equal((await json(base,prefPath,{defaultVisibility:"public"},ghHeaders)).status,200);
+   const preference=await (await fetch(base+prefPath,{headers:{cookie}})).json();
+   assert.equal(preference.defaultVisibility,"public");
+   const noOrganization=await json(base,"/api/local/github/repository/create",{name:"firmware" },ghHeaders);
+   assert.equal(noOrganization.status,409);
+   const unauthenticatedMcp=await json(base,"/api/internal/github/repository/request",{name:"firmware"});
+   assert([401,503].includes(unauthenticatedMcp.status));
    const sampleClientId="sample-public-github-app-id";
    assert.equal((await json(base,"/api/local/github/device/config",{clientId:sampleClientId})).status,401);
    assert.equal((await json(base,"/api/local/github/device/config",{clientId:sampleClientId},{cookie})).status,403);
@@ -247,7 +259,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(init.status,200);
    assert.equal(init.data.result.serverInfo.name,"tinkertunnel");
    const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
-   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tt_discover","tt_inspect","tt_plan","tt_execute","tt_jobs","tt_assets"]);
+   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tt_discover","tt_inspect","tt_plan","tt_execute","tt_jobs","tt_github_repository_request","tt_assets"]);
    const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"tinkertunnel_list_runners",arguments:{}}},authorized);
    assert.equal(runners.data.result.isError,false);
    assert.match(runners.data.result.content[0].text,/build-pi/);

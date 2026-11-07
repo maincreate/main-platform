@@ -13,6 +13,23 @@
  <div class="setting-meta" id="githubState">Checking connection…</div></div>
  <a href="/github" class="plain-button">Edit GitHub Connection</a></div>
 </section>
+<section class="settings-panel" aria-labelledby="repoDefaultsTitle">
+ <h2 id="repoDefaultsTitle">GitHub repository creation</h2>
+ <p>Default visibility for new repositories in the connected organization. Individual requests can explicitly override this choice.</p>
+ <form id="visibilityForm" class="tt-inline-form">
+  <label for="defaultVisibility">Default repository visibility</label>
+  <select id="defaultVisibility" name="defaultVisibility">
+   <option value="private">Private — recommended</option>
+   <option value="public">Public</option>
+  </select>
+  <button type="submit" class="plain-button">Save default</button>
+ </form>
+ <p id="visibilityNotice" role="status" aria-live="polite"></p>
+ <div class="panel-heading"><div><h3>AI repository requests</h3>
+ <p>ChatGPT and other MCP clients can request a repository; only a signed-in administrator can approve its creation.</p></div>
+ <button type="button" id="refreshRepoRequests" class="plain-button">Refresh requests</button></div>
+ <div id="repoRequests" aria-live="polite">Loading requests…</div>
+</section>
 <section class="settings-panel" aria-labelledby="aiTitle">
  <h2 id="aiTitle">AI Connections — Tunnel &amp; MCP</h2>
  <p>Configure secure ChatGPT tunnel connectivity first, then register and validate MCP tools. Claude and Gemini support is planned.</p>

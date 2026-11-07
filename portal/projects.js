@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null;
+let csrf=null,selectedOrg=null;
 try{const t=localStorage.getItem("tt-theme");if(["midnight","paper","graphite"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
@@ -39,6 +39,8 @@ async function load(){
  try{
   if(!csrf){const overview=await api("/api/local/overview");csrf=overview.csrf;$("username").textContent=overview.username||"administrator";}
   const projects=await api("/api/local/projects");
+  selectedOrg=projects.organization;
+  $("newRepo").disabled=!selectedOrg;
   $("sync").disabled=!projects.organization;
   render(projects);
   $("notice").textContent="";
@@ -51,3 +53,32 @@ $("sync").addEventListener("click",async()=>{
  finally{$("sync").disabled=false;}
 });
 load();
+
+$("newRepo").addEventListener("click",async()=>{
+ if(!selectedOrg){$("notice").textContent="Connect a GitHub organization first.";return;}
+ try{
+  const defaults=await api("/api/local/github/repository/preferences");
+  $("newRepoOrg").textContent=selectedOrg;
+  $("newRepoVisibility").value=defaults.defaultVisibility||"private";
+  $("newRepoNotice").textContent="";
+  $("newRepoForm").reset();
+  $("newRepoVisibility").value=defaults.defaultVisibility||"private";
+  $("newRepoDialog").showModal();
+ }catch(e){$("notice").textContent=e.message;}
+});
+$("cancelRepo").addEventListener("click",()=>$("newRepoDialog").close());
+$("newRepoForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const name=$("newRepoName").value.trim(),visibility=$("newRepoVisibility").value;
+ const description=$("newRepoDescription").value.trim(),org=selectedOrg;
+ if(!confirm("Create "+org+"/"+name+" as a "+visibility+" GitHub repository?"))return;
+ const button=$("createRepo");button.disabled=true;
+ try{
+  const result=await api("/api/local/github/repository/create",{organization:org,name,description,visibility});
+  $("newRepoDialog").close();
+  $("notice").textContent="Created "+result.repository.fullName+". Synchronizing repository inventory…";
+  try{await api("/api/local/projects/sync",{});await load();$("notice").textContent="Created "+result.repository.fullName+".";}
+  catch{await load();$("notice").textContent="Created "+result.repository.fullName+". Repository inventory synchronization may need a manual refresh.";}
+ }catch(e){$("newRepoNotice").textContent=e.message;}
+ finally{button.disabled=false;}
+});

@@ -5,12 +5,14 @@ import {join} from "node:path";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
+import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
 const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
 let bootstrapBusy = false;
+const provisioningNames=new Set();
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
@@ -191,6 +193,45 @@ async function verifyGithub(s) {
   if(!repos.repositories?.some(r=>r.full_name.toLowerCase()===s.github.repository.toLowerCase()))throw new Error("Configured repository not in first 100 accessible installation repositories");
   return {app:app.slug,repository:s.github.repository};
 }
+
+function selectedRepositoryOrganization(s){
+ const g=s.github||{};
+ if(!githubIdentityCurrent(g)||!g.selectedOrganization)throw Object.assign(new Error("Connect a GitHub organization first"),{status:409});
+ if(!g.oauthOrganizations?.some(o=>o.login===g.selectedOrganization&&Number.isSafeInteger(o.installationId)))
+   throw Object.assign(new Error("Refresh and select an authorized GitHub App organization installation"),{status:409});
+ return g.selectedOrganization;
+}
+async function provisionRepository(input,actor){
+ const stored=state(),organization=selectedRepositoryOrganization(stored);
+ const request=validateRepositoryRequest(input,organization,stored.github.defaultVisibility);
+ const lock=organization.toLowerCase()+"/"+request.name.toLowerCase();
+ if(provisioningNames.has(lock))throw Object.assign(new Error("Repository creation is already in progress"),{status:409});
+ provisioningNames.add(lock);
+ try{
+   const created=await createOrganizationRepository(request,unseal(stored.github.oauthToken));
+   const next=state();
+   next.github.repositoryAudit=(next.github.repositoryAudit||[]).slice(-99);
+   next.github.repositoryAudit.push({at:new Date().toISOString(),actor,repository:created.fullName,visibility:created.visibility});
+   save(next);
+   return created;
+ }finally{provisioningNames.delete(lock);}
+}
+function repositoryRequests(s){return Array.isArray(s.github?.repositoryRequests)?s.github.repositoryRequests:[];}
+function requestRepositoryFromMcp(input){
+ const stored=state(),org=selectedRepositoryOrganization(stored);
+ const spec=validateRepositoryRequest(input,org,stored.github.defaultVisibility);
+ const queued=repositoryRequests(stored).filter(r=>r.status==="pending");
+ if(queued.length>=25)throw Object.assign(new Error("Too many pending repository approvals"),{status:429});
+ if(queued.some(r=>r.organization.toLowerCase()===org.toLowerCase()&&r.name.toLowerCase()===spec.name.toLowerCase()))
+   throw Object.assign(new Error("An approval request already exists for this repository"),{status:409});
+ const request={id:randomBytes(16).toString("hex"),...spec,status:"pending",source:"mcp",requestedAt:new Date().toISOString()};
+ stored.github.repositoryRequests=[...repositoryRequests(stored).slice(-99),request];
+ save(stored);
+ return {requestId:request.id,repository:spec.organization+"/"+spec.name,
+   visibility:spec.visibility,status:"awaiting_admin_approval",
+   instruction:"Open TinkerTunnel > Settings > GitHub to approve. An MCP client cannot approve its own request."};
+}
+
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
@@ -403,6 +444,57 @@ export async function localRoute(req) {
         save(stored);githubDeviceFlows.delete(session(req).csrf);
         return reply({ok:true});
       }
+      if(path==="/api/local/github/repository/preferences"&&method==="GET"){
+        const g=state().github||{};
+        return reply({defaultVisibility:visibilityDefault(g.defaultVisibility),
+          organization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
+          requests:repositoryRequests({github:g}).filter(r=>["pending","creating","failed","created","rejected"].includes(r.status)).slice(-40).reverse().map(r=>({
+            id:r.id,name:r.name,description:r.description,organization:r.organization,
+            visibility:r.visibility,status:r.status,source:r.source,requestedAt:r.requestedAt,
+            result:r.result||null
+          }))});
+      }
+      if(path==="/api/local/github/repository/preferences"&&method==="POST"){
+        const input=await body(req);
+        if(!["private","public"].includes(input.defaultVisibility))return deny(422,"Default visibility must be private or public");
+        const stored=state();stored.github.defaultVisibility=input.defaultVisibility;
+        save(stored);return reply({defaultVisibility:input.defaultVisibility});
+      }
+      if(path==="/api/local/github/repository/create"&&method==="POST"){
+        const input=await body(req);
+        if(limited("repository-create:"+session(req).username,12))return deny(429,"Too many repository creation requests");
+        try{return reply({repository:await provisionRepository(input,"portal:"+session(req).username)},201);}
+        catch(e){return deny(e.status||502,e.message||"Repository creation failed");}
+      }
+      if(path==="/api/local/github/repository/requests/decision"&&method==="POST"){
+        const input=await body(req),id=typeof input.requestId==="string"?input.requestId:"";
+        if(!/^[a-f0-9]{32}$/.test(id)||!["approve","reject"].includes(input.decision))
+          return deny(422,"Valid requestId and decision required");
+        const stored=state(),requested=repositoryRequests(stored).find(r=>r.id===id);
+        if(!requested)return deny(404,"Repository approval request not found");
+        if(requested.status!=="pending")return deny(409,"Repository request already handled");
+        if(input.organization!==requested.organization||input.name!==requested.name||input.visibility!==requested.visibility)
+          return deny(422,"Approval details do not match the exact proposed repository");
+        if(input.decision==="reject"){
+          requested.status="rejected";requested.decidedAt=new Date().toISOString();
+          requested.decidedBy=session(req).username;save(stored);return reply({status:"rejected",requestId:id});
+        }
+        try{if(selectedRepositoryOrganization(stored)!==requested.organization)
+          return deny(409,"Connected organization changed; reconnect to the requested organization");}
+        catch(e){return deny(e.status||409,e.message);}
+        requested.status="creating";requested.decidedAt=new Date().toISOString();
+        requested.decidedBy=session(req).username;save(stored);
+        try{
+          const repository=await provisionRepository(requested,"approved-mcp:"+session(req).username);
+          const next=state(),record=repositoryRequests(next).find(r=>r.id===id);
+          if(record){record.status="created";record.result=repository;save(next);}
+          return reply({status:"created",requestId:id,repository},201);
+        }catch(e){
+          const next=state(),record=repositoryRequests(next).find(r=>r.id===id);
+          if(record){record.status="failed";save(next);}
+          return deny(e.status||502,e.message||"GitHub repository creation failed");
+        }
+      }
       if(path==="/api/local/projects"&&method==="GET"){
         const gh=state().github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
         try{
@@ -598,6 +690,13 @@ export async function localRoute(req) {
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
         return reply(agentAsset(runner,b));
       }catch(e){return deny(e.status||422,e.message);}
+    }
+    if(path==="/api/internal/github/repository/request"&&method==="POST"){
+      const service=process.env.TT_SERVICE_TOKEN||"";
+      if(service.length<32)return deny(503,"Internal service unavailable");
+      if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
+      try{return reply(requestRepositoryFromMcp(await body(req)),202);}
+      catch(e){return deny(e.status||422,e.message||"Request rejected");}
     }
     if(path==="/api/internal/fabric"&&method==="POST"){
       const service=process.env.TT_SERVICE_TOKEN||"";

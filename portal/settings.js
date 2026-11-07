@@ -31,6 +31,7 @@ async function load(){
    "Connected to "+d.github.organization+" as @"+(d.github.login||"GitHub user"):
    d.github?.authorizationExpired?"Authorization expired — reconnect required":
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
+  await loadRepositoryPreferences();
   $("executionStatus").textContent=(d.jobs?.pending||0)+
    " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
  }catch(e){$("notice").textContent=e.message;}
@@ -49,3 +50,52 @@ $("signout").addEventListener("click",async()=>{
  try{await api("/api/local/logout",{});}finally{location.replace("/setup");}
 });
 load();
+
+async function loadRepositoryPreferences(){
+ const preferences=await api("/api/local/github/repository/preferences");
+ $("defaultVisibility").value=preferences.defaultVisibility||"private";
+ const list=$("repoRequests");list.replaceChildren();
+ if(!preferences.requests?.length){const p=document.createElement("p");p.textContent="No repository requests.";list.append(p);return;}
+ for(const request of preferences.requests){
+  const row=document.createElement("div");row.className="tt-approval-row";
+  const detail=document.createElement("div"),label=document.createElement("strong"),meta=document.createElement("small");
+  label.textContent=request.organization+"/"+request.name+" · "+request.visibility;
+  meta.textContent=request.status+" · "+request.source+" · "+new Date(request.requestedAt).toLocaleString();
+  detail.append(label,meta);row.append(detail);
+  if(request.status==="pending"){
+    const actions=document.createElement("div");actions.className="tt-approval-actions";
+    for(const [decision,title] of [["approve","Approve"],["reject","Reject"]]){
+      const button=document.createElement("button");button.type="button";button.className="plain-button";button.textContent=title;
+      button.addEventListener("click",async()=>{
+        const summary=request.organization+"/"+request.name+" ("+request.visibility+")";
+        if(!confirm((decision==="approve"?"Create ":"Reject ")+summary+"?"))return;
+        button.disabled=true;
+        try{
+          await api("/api/local/github/repository/requests/decision",{
+           requestId:request.id,decision,organization:request.organization,
+           name:request.name,visibility:request.visibility});
+          $("visibilityNotice").textContent="Request "+decision+"d: "+summary;
+          await loadRepositoryPreferences();
+        }catch(e){$("visibilityNotice").textContent=e.message;button.disabled=false;}
+      });
+      actions.append(button);
+    }
+    row.append(actions);
+  }
+  if(request.status==="created"&&request.result?.url){
+    const a=document.createElement("a");a.href=request.result.url;a.target="_blank";a.rel="noopener noreferrer";
+    a.className="quiet-link";a.textContent="Open repository";row.append(a);
+  }
+  list.append(row);
+ }
+}
+$("visibilityForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const button=event.currentTarget.querySelector("button");button.disabled=true;
+ try{
+  const result=await api("/api/local/github/repository/preferences",{defaultVisibility:$("defaultVisibility").value});
+  $("visibilityNotice").textContent="Default visibility saved: "+result.defaultVisibility+".";
+ }catch(e){$("visibilityNotice").textContent=e.message;}
+ finally{button.disabled=false;}
+});
+$("refreshRepoRequests").addEventListener("click",()=>loadRepositoryPreferences().catch(e=>$("visibilityNotice").textContent=e.message));
