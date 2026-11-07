@@ -79,6 +79,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(ghStatus.available,false);
    assert.equal(ghStatus.connected,false);
    assert.equal((await json(base,"/api/local/github/device/start",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,503);
+   assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
+   assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example"},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
    const httpsLogin=await json(base,"/api/local/login",{username:adminUsername,password},{"x-forwarded-proto":"https"});
    assert.equal(httpsLogin.status,200);
    assert.match(httpsLogin.headers.get("set-cookie")||"",/; Secure$/);
