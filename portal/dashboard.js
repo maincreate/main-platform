@@ -139,7 +139,7 @@ function selectRunner(runner,records){
   scheduleTopologyLines();
 }
 $("topologyReset").addEventListener("click",()=>{
-  const selected=$('#topologyRunners [aria-pressed="true"]');
+  const selected=document.querySelector('#topologyRunners [aria-pressed="true"]');
   if(selected)selected.click();
 });
 let topoDrawQueued=false;
