@@ -7,11 +7,7 @@
   <script src="/topology.js" defer></script>
 </head>
 <body data-theme="midnight">
-<header class="topbar">
-  <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
-  <nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/jobs">Builders &amp; Jobs</a><a href="/devices">Devices</a><a href="/topology" aria-current="page">Topology</a><a href="/settings">Settings</a></nav>
-  <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><button id="signout" class="plain-button">Sign out</button></div>
-</header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
 <main class="main topology-page">
   <div class="topology-page-heading">
     <a class="back-link" href="/">← Dashboard</a>

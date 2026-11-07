@@ -3,11 +3,7 @@
 <title>Settings • TinkerTunnel</title>
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
 <script src="/settings.js" defer></script></head><body data-theme="midnight">
-<header class="topbar">
-<a class="brand" href="/"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
-<nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/jobs">Builders &amp; Jobs</a>
-<a href="/devices">Devices</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav>
-<div class="account"><span class="signed-in" id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/settings" aria-current="page">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
@@ -18,8 +14,8 @@
  <a href="/github" class="plain-button">Edit GitHub Connection</a></div>
 </section>
 <section class="settings-panel" aria-labelledby="aiTitle">
- <h2 id="aiTitle">AI assistants (optional)</h2>
- <p>TinkerTunnel works with IDEs, Git commits, build machines and direct portal controls without an AI assistant.</p>
+ <h2 id="aiTitle">AI Connections — Tunnel &amp; MCP</h2>
+ <p>Configure secure ChatGPT tunnel connectivity first, then register and validate MCP tools. Claude and Gemini support is planned.</p>
  <div class="setting-meta">Remote MCP OAuth connection is not yet configured. Local/private MCP development is separate from GitHub authorization.</div>
 </section>
 <section class="settings-panel" aria-labelledby="appearanceTitle">
