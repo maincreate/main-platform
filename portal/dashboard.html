@@ -9,7 +9,7 @@
 <body data-theme="graphite">
 <header class="topbar">
   <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
-  <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><button id="signout" class="plain-button">Sign out</button></div>
+  <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><button id="accountSettings" class="plain-button">Account</button><button id="signout" class="plain-button">Sign out</button></div>
 </header>
 <main class="main">
   <div class="intro">
@@ -56,5 +56,16 @@
   </section>
   <footer>Self-hosted · Your workspace, your hardware</footer>
 </main>
+<dialog id="accountDialog" aria-labelledby="accountTitle">
+  <form id="passwordForm">
+    <div class="dialog-head"><h2 id="accountTitle">Change password</h2><button type="button" id="closeAccount" class="plain-button" aria-label="Close account settings">Close</button></div>
+    <p class="dialog-help">Your account is managed here, not through deployment settings.</p>
+    <label for="currentPassword">Current password</label><input id="currentPassword" type="password" autocomplete="current-password" required>
+    <label for="nextPassword">New password</label><input id="nextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+    <label for="confirmNextPassword">Confirm new password</label><input id="confirmNextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+    <p id="accountError" role="status" aria-live="polite"></p>
+    <button type="submit" class="action">Save password</button>
+  </form>
+</dialog>
 </body>
 </html>
