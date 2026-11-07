@@ -52,3 +52,15 @@ The static portal uses CSS variables and simple accessible HTML, with no runtime
 The persistent sidebar is based on the connected Penpot MVP design and separates Builders (`/builders`) from local Jobs (`/jobs`). Marketplace (`/marketplace`) reads the existing framework catalog without enabling installation. Existing login/session checks and controller operations are unchanged.
 
 **Not yet implemented:** native GitHub Actions runner installation/label management, GitHub workflow-run history, project-to-runner compatibility assignments, production firmware flash workflows, AI tunnel onboarding. Current builder enrollment registers a TinkerTunnel host agent, not a GitHub Actions runner. These distinctions are explicit in the interface.
+
+## GitHub organization repository provisioning
+
+GitHub App installations may request **Repository creation (write)** to create repositories without broad administration access. An organization administrator must approve newly requested App permissions in GitHub before creation works. The portal uses the authenticated GitHub App **user access token**, so the authorized GitHub user must also have permission to create repositories in the selected organization.
+
+- `GET /api/local/github/repository/preferences`: Read the selected organization, default visibility (initially private) and pending/previous MCP requests.
+- `POST /api/local/github/repository/preferences`: Save `{"defaultVisibility":"private"|"public"}`, authenticated with the existing administrator session and CSRF.
+- `POST /api/local/github/repository/create`: Explicit, confirmed portal action with `name`, optional `description`, optional `visibility`. Creates a GitHub organization repository with a README and records the result.
+- `POST /api/internal/github/repository/request`: Service-token-only endpoint used by the `tt_github_repository_request` MCP tool. **Only queues an approval**, never creates a repository automatically.
+- `POST /api/local/github/repository/requests/decision`: Administrator action to approve/reject an exact MCP request (matching organization, name and visibility); only approval performs the GitHub API call.
+
+A new repository is not automatically populated with firmware, an Actions workflow or validated runner configuration. Those require separate project templates and workflow permissions. TinkerTunnel’s MCP gateway is currently bearer-authenticated and the ChatGPT remote OAuth/tunnel experience remains a separate deployment integration.

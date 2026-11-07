@@ -42,6 +42,12 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.match(buildersScript, /runners-list/);
     const script = await page("/marketplace.js");
     assert.match(script, /api\/v1\/catalog/);
+    const settings = await page("/settings");
+    assert.match(settings, /id="defaultVisibility"/);
+    assert.match(settings, /id="repoRequests"/);
+    const projectsPage = await page("/projects");
+    assert.match(projectsPage, /id="newRepoDialog"/);
+    assert.match(projectsPage, /id="newRepoVisibility"/);
     const overview = await page("/projects");
     assert.match(overview, /href="\/builders"/);
     assert.match(overview, /href="\/marketplace"/);
