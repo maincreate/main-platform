@@ -98,7 +98,9 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(overview.topology.toolkitsDiscovered,false);
    assert.equal(overview.topology.secureConnectionVerified,false);
    const ghStatus=await (await fetch(base+"/api/local/github/device/status",{headers:{cookie}})).json();
-   assert.equal(ghStatus.available,false);
+   assert.equal(ghStatus.available,true);
+   assert.equal(ghStatus.clientId,"Iv23liAxFGcez9en0tY8");
+   assert.equal(ghStatus.usingDefaultApp,true);
    assert.equal(ghStatus.connected,false);
    const ghHeaders={cookie,"x-tt-csrf":csrf};
    const sampleClientId="sample-public-github-app-id";
@@ -112,7 +114,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(ghConfigured.configuredByEnvironment,false);
    assert.equal((await json(base,"/api/local/github/device/installations/refresh",{},ghHeaders)).status,409);
 
-   assert.equal((await json(base,"/api/local/github/device/start",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,503);
+   // Starting a real device authorization requires GitHub network access and is covered by a separate live test.
+   // Integration tests never perform a remote authorization or leak a device code.
    assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
    assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example"},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
    const httpsLogin=await json(base,"/api/local/login",{username:adminUsername,password},{"x-forwarded-proto":"https"});
