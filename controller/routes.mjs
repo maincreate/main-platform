@@ -11,6 +11,33 @@ let bootstrapBusy = false;
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
+const githubDeviceFlows=new Map();
+const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||"";
+function githubIdentityCurrent(g) {
+  return !!g.oauthUser && (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
+}
+async function githubDevicePost(url,params) {
+  const response=await fetch(url,{method:"POST",headers:{"accept":"application/json","content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params),signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw new Error("GitHub authorization service unavailable");
+  return response.json();
+}
+async function githubUser(token) {
+  const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,"user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+  const r=await fetch("https://api.github.com/user",{headers,signal:AbortSignal.timeout(12000)});
+  if(!r.ok)throw new Error("GitHub could not verify your account");
+  const profile=await r.json();
+  if(!Number.isSafeInteger(profile.id)||typeof profile.login!=="string")throw new Error("GitHub account response incomplete");
+  let organizations=[],organizationsReadable=false;
+  try {
+    const o=await fetch("https://api.github.com/user/orgs?per_page=100",{headers,signal:AbortSignal.timeout(12000)});
+    if(o.ok) {
+      const values=await o.json();
+      if(Array.isArray(values)){organizations=values.filter(x=>x&&typeof x.login==="string").map(x=>({login:x.login,id:x.id}));organizationsReadable=true;}
+    }
+  }catch{}
+  return {user:{login:profile.login,id:profile.id},organizations,organizationsReadable};
+}
+
 function digest(s) { return createHash("sha256").update(String(s)).digest("hex"); }
 function equal(a,b) { const x=Buffer.from(digest(a),"hex"), y=Buffer.from(digest(b),"hex"); return timingSafeEqual(x,y); }
 function rnd() { return randomBytes(32).toString("hex"); }
@@ -65,7 +92,7 @@ function unseal(data) {
   return Buffer.concat([decipher.update(Buffer.from(data.ct,"base64")),decipher.final()]).toString("utf8");
 }
 function state() {
-  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel Local",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
+  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
   const s=JSON.parse(readFileSync(dataFile,"utf8"));
   if(s.schema!==1) throw new Error("Unsupported state schema");
   return s;
@@ -142,8 +169,28 @@ async function verifyGithub(s) {
 }
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
+  const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
+  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  if(path==="/"&&method==="GET"&&privateApp){
+    if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if(path==="/github"&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/github.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if((path==="/github.js"||path==="/github.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
+  }
+  if((path==="/dashboard.js"||path==="/dashboard.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    const type=path.endsWith(".js")?"text/javascript":"text/css";
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":type+"; charset=utf-8","cache-control":"no-store"}});
+  }
   if(path==="/setup"&&method==="GET"){
-    return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}});
+    if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":"/","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
   if(path==="/setup.css"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.css",import.meta.url),"utf8"),{headers:{"content-type":"text/css; charset=utf-8","cache-control":"public, max-age=300"}});
@@ -209,6 +256,96 @@ export async function localRoute(req) {
         save(s);
         sessions.clear();
         return reply({ok:true,loginRequired:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
+      if(path==="/api/local/github/device/status"&&method==="GET"){
+        const g=state().github,configured=/^[A-Za-z0-9._-]{8,100}$/.test(githubClientId());
+        return reply({available:configured,connected:githubIdentityCurrent(g),login:g.oauthUser?.login||null,
+          organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
+          selectedOrganization:g.selectedOrganization||null,
+          note:configured?null:"A GitHub App with device authorization must be configured by the TinkerTunnel distributor."});
+      }
+      if(path==="/api/local/github/device/start"&&method==="POST"){
+        const clientId=githubClientId();
+        if(!/^[A-Za-z0-9._-]{8,100}$/.test(clientId))return deny(503,"GitHub sign-in is not enabled for this installation");
+        if(githubIdentityCurrent(state().github))return deny(409,"Disconnect the existing GitHub account first");
+        if(limited("github-device-start",10))return deny(429,"Too many authorization attempts");
+        const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId,scope:"read:org"});
+        if(out.error) return deny(502,"GitHub device authorization is unavailable; check GitHub App device-flow settings");
+        if(typeof out.device_code!=="string"||typeof out.user_code!=="string"||out.verification_uri!=="https://github.com/login/device")return deny(502,"Unexpected GitHub authorization response");
+        const interval=Math.max(5,Math.min(60,Number(out.interval)||5));
+        const expires=Math.max(60,Math.min(1200,Number(out.expires_in)||900));
+        githubDeviceFlows.set(session(req).csrf,{code:out.device_code,clientId,interval,expiresAt:Date.now()+expires*1000,nextAt:Date.now()+interval*1000});
+        return reply({userCode:out.user_code,verificationUrl:"https://github.com/login/device",interval,expiresIn:expires});
+      }
+      if(path==="/api/local/github/device/poll"&&method==="POST"){
+        const slot=session(req).csrf,flow=githubDeviceFlows.get(slot);
+        if(!flow)return deny(409,"Start GitHub authorization first");
+        const now=Date.now();
+        if(now>=flow.expiresAt){githubDeviceFlows.delete(slot);return deny(410,"GitHub authorization expired");}
+        if(now<flow.nextAt)return reply({state:"pending",retryAfter:Math.ceil((flow.nextAt-now)/1000)});
+        flow.nextAt=now+flow.interval*1000;
+        const out=await githubDevicePost("https://github.com/login/oauth/access_token",{
+          client_id:flow.clientId,device_code:flow.code,grant_type:"urn:ietf:params:oauth:grant-type:device_code"
+        });
+        if(out.error==="authorization_pending")return reply({state:"pending",retryAfter:flow.interval});
+        if(out.error==="slow_down"){flow.interval+=5;flow.nextAt=Date.now()+flow.interval*1000;return reply({state:"pending",retryAfter:flow.interval});}
+        if(out.error){githubDeviceFlows.delete(slot);return deny(400,"GitHub authorization was denied, expired or disabled");}
+        if(typeof out.access_token!=="string"||out.access_token.length<20)return deny(502,"GitHub did not return an access token");
+        const result=await githubUser(out.access_token);
+        const stored=state();
+        stored.github.oauthUser=result.user;
+        stored.github.oauthOrganizations=result.organizations;
+        stored.github.oauthOrganizationsReadable=result.organizationsReadable;
+        stored.github.selectedOrganization=null;
+        stored.github.oauthToken=seal(out.access_token);
+        stored.github.oauthExpiresAt=out.expires_in?new Date(Date.now()+Number(out.expires_in)*1000).toISOString():null;
+        if(typeof out.refresh_token==="string")stored.github.oauthRefreshToken=seal(out.refresh_token);
+        save(stored);githubDeviceFlows.delete(slot);
+        return reply({state:"connected",login:result.user.login,organizations:result.organizations});
+      }
+      if(path==="/api/local/github/device/organization"&&method==="POST"){
+        const input=await body(req),stored=state();
+        const value=typeof input.organization==="string"?input.organization:"";
+        if(!stored.github.oauthUser)return deny(409,"Connect your GitHub account first");
+        if(!stored.github.oauthOrganizations?.some(o=>o.login===value))return deny(422,"Organization is not visible to the connected account");
+        stored.github.selectedOrganization=value;
+        save(stored);return reply({ok:true,organization:value,runnerAccessVerified:false});
+      }
+      if(path==="/api/local/github/device/disconnect"&&method==="POST"){
+        const stored=state();
+        delete stored.github.oauthToken;delete stored.github.oauthRefreshToken;
+        delete stored.github.oauthUser;delete stored.github.oauthExpiresAt;
+        delete stored.github.oauthOrganizations;delete stored.github.oauthOrganizationsReadable;
+        delete stored.github.selectedOrganization;
+        save(stored);githubDeviceFlows.delete(session(req).csrf);
+        return reply({ok:true});
+      }
+      if(path==="/api/local/overview"&&method==="GET"){
+        const stored=state(),current=session(req);
+        return reply({
+          username:current.username,csrf:current.csrf,
+          workspace:{name:stored.config.name},
+          github:{
+            identityConnected:githubIdentityCurrent(stored.github),
+            login:stored.github.oauthUser?.login||null,
+            organization:githubIdentityCurrent(stored.github)?stored.github.selectedOrganization||null:null,
+            integrationVerified:!!stored.github.verifiedAt
+          },
+          runners:{
+            count:stored.runners.length,
+            items:stored.runners.slice(0,24).map(r=>({
+              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
+            })),
+            truncated:stored.runners.length>24,
+            executionEnabled:false
+          },
+          assistant:{connected:false},
+          topology:{
+            secureConnectionVerified:false,
+            remoteMcpVerified:false,
+            toolkitsDiscovered:false
+          }
+        });
       }
       if(path==="/api/local/config"&&method==="GET"){
         const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
