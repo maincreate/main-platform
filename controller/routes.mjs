@@ -7,7 +7,6 @@ const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
 const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
-const firstRunCode = randomBytes(24).toString("base64url");
 let bootstrapBusy = false;
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
@@ -53,7 +52,7 @@ function newSession(req,username) {
 }
 export function initializeFirstRun() {
   key(); // Provision durable encryption before accepting credentials; fail on unwritable storage.
-  if(!state().admin)console.info("TinkerTunnel first-run setup code: "+firstRunCode);
+  state(); // Validate persisted account configuration at startup.
 }
 function seal(clear) {
   const iv=randomBytes(12), cipher=createCipheriv("aes-256-gcm",key(),iv);
@@ -161,21 +160,18 @@ export async function localRoute(req) {
       },warning:p.warning});
     }
     if(path==="/api/local/bootstrap"&&method==="POST") {
-      // Prevent unauthenticated first-claim: setup requires the server-owner-only console code.
+      // First visitor may create the administrator; all subsequent registrations are closed.
       if(state().admin)return deny(409,"Administrator is already configured");
       if(bootstrapBusy)return deny(409,"First-run setup is already in progress");
-      if(limited("bootstrap",8))return deny(429,"Too many setup attempts");
       const b=await body(req);
       const username=typeof b.username==="string"?b.username.trim():"";
       if(!/^[a-zA-Z0-9_.-]{3,40}$/.test(username))return deny(422,"Username must be 3–40 letters, digits, periods, underscores or hyphens");
       if(typeof b.password!=="string"||b.password.length<12||b.password.length>128)return deny(422,"Password must be 12–128 characters");
-      if(!equal(typeof b.setupCode==="string"?b.setupCode:"",firstRunCode))return deny(403,"Invalid first-run setup code");
       bootstrapBusy=true;
       try {
         const s=state();if(s.admin)return deny(409,"Administrator is already configured");
         s.admin={username,password:await passwordHash(b.password),createdAt:new Date().toISOString()};
         save(s);
-        failures.delete("bootstrap");
         return newSession(req,username);
       } finally {bootstrapBusy=false;}
     }
