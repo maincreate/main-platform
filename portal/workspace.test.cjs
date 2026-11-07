@@ -1,7 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const {readFileSync} = require("node:fs");
+const {resolve} = require("node:path");
 
 test("Penpot MVP workspace routes provide separated, editable UI without a new execution engine", async () => {
+  for (const dockerfile of [resolve(__dirname, "../Dockerfile"), resolve(__dirname, "Dockerfile")]) {
+    const contents = readFileSync(dockerfile, "utf8");
+    for (const artifact of ["portal/builders.html", "portal/builders.js", "portal/marketplace.html", "portal/marketplace.js", "portal/actions.js"]) {
+      assert(contents.includes(artifact), dockerfile + " must ship " + artifact);
+    }
+  }
   const previous = process.env.TT_REQUIRE_LOGIN;
   process.env.TT_REQUIRE_LOGIN = "0";
   try {
@@ -17,12 +25,21 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.match(builders, /id="invite"/);
     assert.match(builders, /GitHub Actions runner registration is a separate step/);
     const jobs = await page("/jobs");
-    assert.match(jobs, /id="planForm"/);
+    assert.doesNotMatch(jobs, /id="planForm"/);
+    assert.match(jobs, /id="flashDialog"/);
+    assert.match(jobs, /id="githubActionsRuns"/);
     assert.match(jobs, /id="jobs-list"/);
     assert.doesNotMatch(jobs, /id="runners-list"/);
     const marketplace = await page("/marketplace");
     assert.match(marketplace, /id="marketplaceRows"/);
     assert.match(marketplace, /Catalog is currently read-only/);
+    const devices = await page("/devices");
+    assert.match(devices, /id="showHidden"/);
+    assert.doesNotMatch(devices, /id="filter"/);
+    const dashboardScript = await page("/dashboard.js");
+    assert.match(dashboardScript, /30000/);
+    const buildersScript = await page("/builders.js");
+    assert.match(buildersScript, /runners-list/);
     const script = await page("/marketplace.js");
     assert.match(script, /api\/v1\/catalog/);
     const overview = await page("/projects");

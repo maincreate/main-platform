@@ -211,7 +211,7 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal"+path+".html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
-  if(["/settings.js","/devices.js","/projects.js","/marketplace.js","/workspace.css"].includes(path)&&method==="GET"){
+  if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css"].includes(path)&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{
       "content-type":(path.endsWith(".css")?"text/css":"text/javascript")+"; charset=utf-8","cache-control":"no-store"}});
@@ -419,6 +419,46 @@ export async function localRoute(req) {
           return reply(await syncProjects({organization:gh.selectedOrganization,
             installationId:match.installationId,accessToken:unseal(gh.oauthToken)}));
         }catch(e){return deny(e.status||502,e.message);}
+      }
+      if(path==="/api/local/actions/runs"&&method==="GET"){
+        const s=state(),gh=s.github||{};
+        if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)
+          return reply({organization:gh.selectedOrganization||null,runs:[],connected:false,message:"Connect a GitHub organization in Settings."});
+        const projects=listProjects(gh.selectedOrganization);
+        if(!projects.repositories.length)
+          return reply({organization:gh.selectedOrganization,runs:[],connected:true,message:"Sync repositories in Projects to see GitHub Actions runs."});
+        const headers={"accept":"application/vnd.github+json",
+          "authorization":"Bearer "+unseal(gh.oauthToken),
+          "x-github-api-version":"2022-11-28","user-agent":"TinkerTunnel"};
+        const repos=projects.repositories.filter(r=>!r.archived).slice(0,20),runs=[],errors=[];
+        let next=0;
+        async function worker(){
+          while(next<repos.length){
+            const repo=repos[next++];
+            const name=repo.fullName.split("/");
+            if(name.length!==2||name[0]!==gh.selectedOrganization)continue;
+            try{
+              const url="https://api.github.com/repos/"+name.map(encodeURIComponent).join("/")+"/actions/runs?per_page=6";
+              const response=await fetch(url,{headers,signal:AbortSignal.timeout(9000)});
+              if(!response.ok){errors.push(repo.fullName+" (HTTP "+response.status+")");continue;}
+              const result=await response.json();
+              for(const run of Array.isArray(result.workflow_runs)?result.workflow_runs:[]){
+                if(!Number.isSafeInteger(run.id)||typeof run.html_url!=="string"||
+                  !run.html_url.startsWith("https://github.com/"))continue;
+                runs.push({id:run.id,repository:repo.fullName,name:String(run.name||"Workflow").slice(0,160),
+                  title:String(run.display_title||"").slice(0,180),status:run.status||"unknown",
+                  conclusion:run.conclusion||null,created_at:run.created_at||null,
+                  branch:run.head_branch||null,sha:run.head_sha||null,url:run.html_url,
+                  run_number:run.run_number||null});
+              }
+            }catch(e){errors.push(repo.fullName+" (request unavailable)");}
+          }
+        }
+        await Promise.all(Array.from({length:Math.min(4,repos.length)},()=>worker()));
+        runs.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+        return reply({organization:gh.selectedOrganization,connected:true,runs:runs.slice(0,50),
+          repositoriesScanned:repos.length,partial:errors.length>0,
+          message:errors.length?"Some workflow histories could not be read; check GitHub App Actions read permissions.":null});
       }
       if(path==="/api/local/devices"&&method==="GET"){
         try{return reply(listDevices({mode:new URL(req.url).searchParams.get("mode")||"visible"}));}

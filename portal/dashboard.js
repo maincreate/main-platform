@@ -72,12 +72,16 @@ function renderDevices(inventory){
    device.lifecycle==="connected"?"Connected":"Last seen "+relative(device.lastSeen));
  }
 }
+let refreshing=false;
 async function load(){
+ if(refreshing)return;
+ refreshing=true;
  $("refresh").disabled=true;
  try{
   const [overview,projects,devices]=await Promise.all([
    api("/api/local/overview"),api("/api/local/projects"),api("/api/local/devices")]);
   $("username").textContent=overview.username||"administrator";
+  $("workspaceOrg").textContent=overview.github?.organization||overview.github?.savedOrganization||"GitHub organization";
   statusText("projectCount",String(projects.repositories?.length||0));
   statusText("projectMeta",projects.updatedAt?"Synced "+relative(projects.updatedAt):"Not synced yet");
   statusText("builderCount",String(overview.runners?.count||0));
@@ -96,8 +100,11 @@ async function load(){
   renderBuilders(overview);
   renderDevices(devices);
   $("statusMessage").textContent="";
+  $("updatedAt").textContent="Updated "+new Date().toLocaleTimeString()+" · Auto-refresh every 30s";
  }catch(e){$("statusMessage").textContent=e.message;}
- finally{$("refresh").disabled=false;}
+ finally{refreshing=false;$("refresh").disabled=false;}
 }
 $("refresh").addEventListener("click",load);
 load();
+setInterval(()=>{if(!document.hidden)load();},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)load();});

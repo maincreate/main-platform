@@ -36,3 +36,19 @@
 .job-status[data-status="completed"]{color:var(--accent)}
 .job-status[data-status="awaiting_approval"]{border:1px solid var(--accent)}
 @media(max-width:650px){.jobs-panel{padding:17px}.enroll-panel{flex-direction:column;align-items:flex-start}}
+
+.tt-jobs-table{width:100%;border-collapse:collapse;text-align:left}
+.tt-jobs-table th{background:var(--soft);color:var(--muted);font-size:12px}
+.tt-jobs-table th,.tt-jobs-table td{padding:13px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tt-jobs-table tbody tr:hover{background:var(--soft)}
+.tt-job-meta{color:var(--muted);font-size:11px;margin-top:5px}
+.tt-job-actions{display:flex;flex-wrap:wrap;gap:7px}
+.tt-job-actions button{font-size:12px}
+.tt-job-details{padding:15px;background:var(--bg)}
+.tt-job-details pre{white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto}
+.tt-flash-dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);padding:25px;width:min(550px,calc(100vw - 30px))}
+.tt-flash-dialog::backdrop{background:#000a}
+.tt-flash-dialog select{display:block;width:100%;margin:10px 0 16px;padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text)}
+.tt-flash-dialog menu{display:flex;gap:10px;justify-content:flex-end;padding:0}
+.tt-flash-dialog p{color:var(--muted);font-size:13px}
+.tt-flash-dialog button:disabled{opacity:.45;cursor:not-allowed}

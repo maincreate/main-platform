@@ -5,7 +5,7 @@
 <script src="/projects.js" defer></script></head><body data-theme="midnight">
 <aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects" aria-current="page">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
 <main class="main inventory-page"><p class="eyebrow">WORKSPACE / SOURCE</p><h1>Projects</h1>
-<p>Repositories accessible through the selected GitHub App installation and builds produced by TinkerTunnel.</p>
+<p>Repositories from your connected GitHub organization.</p>
 <p id="notice" role="status" class="home-error" aria-live="polite"></p>
 <section class="inventory-panel">
 <div class="setting-row"><div><h2 id="organization">GitHub repositories</h2>
@@ -13,9 +13,5 @@
 <button class="plain-button" id="sync" type="button">Sync repositories</button></div>
 <div id="projectRows" class="project-list">Loading projects…</div>
 </section>
-<section class="inventory-panel"><h2>GitHub Actions compatibility</h2>
-<p>Assigning GitHub Actions runners to projects using validated capabilities and organization labels is planned. Repository inventory is live; runner matching is not yet integrated.</p>
-<p><strong>Future automation:</strong> GitHub event source → verified build → matching connected device → explicit automation policy → verified flash adapter. Unattended flashing is not active and no automatic build triggers are registered yet.</p>
-<a href="/jobs" class="quiet-link">Plan a build on a trusted machine</a>
-</section><footer>Repository sync is read-only · GitHub App permissions remain limited</footer>
+<footer>Repository sync is read-only · GitHub App permissions remain limited</footer>
 </main></body></html>

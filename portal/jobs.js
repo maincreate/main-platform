@@ -1,161 +1,91 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null,selectedPlan=null,capabilities=[],builders=[];
-function message(text){$("notification").textContent=text||"";}
-try{
- const t=localStorage.getItem("tt-theme");
- if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;
-}catch{}
-async function api(path,body){
- const req={cache:"no-store",credentials:"same-origin"};
- if(body!==undefined){
-  req.method="POST";req.headers={"content-type":"application/json","x-tt-csrf":csrf};
-  req.body=JSON.stringify(body);
- }
- const r=await fetch(path,req);
- if(r.status===401){location.replace("/setup");throw new Error("Sign in required");}
- const v=await r.json().catch(()=>({}));
- if(!r.ok)throw new Error(v.error||"Request failed");
- return v;
+let csrf=null,currentJobs=[],currentAssets=[],devices=[];
+try{const theme=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(theme))document.body.dataset.theme=theme;}catch{}
+function el(tag,text,cls){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;}
+function message(value){$("notification").textContent=value||"";}
+async function api(path,payload){
+ const req={credentials:"same-origin",cache:"no-store"};
+ if(payload!==undefined){req.method="POST";req.headers={"content-type":"application/json","x-tt-csrf":csrf};req.body=JSON.stringify(payload);}
+ const response=await fetch(path,req);
+ if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(data.error||"Request failed");
+ return data;
 }
 const fabric=(tool,args={})=>api("/api/local/fabric",{tool,arguments:args});
-function el(tag,text,cls){
- const node=document.createElement(tag);
- if(text!==undefined)node.textContent=text;
- if(cls)node.className=cls;
- return node;
+function action(label,fn){
+ const button=el("button",label,"plain-button");button.type="button";
+ button.addEventListener("click",async()=>{button.disabled=true;try{await fn();}catch(e){message(e.message);}finally{button.disabled=false;}});
+ return button;
 }
-function button(label,handler){
- const b=el("button",label,"plain-button");b.type="button";
- b.addEventListener("click",async()=>{
-  b.disabled=true;
-  try{await handler();}catch(e){message(e.message);}finally{b.disabled=false;}
- });
- return b;
+function td(row,text,cls){const node=el("td",text,cls);row.append(node);return node;}
+function showFlash(job){
+ const dialog=$("flashDialog"),select=$("flashDevice");
+ select.replaceChildren();
+ const assets=currentAssets.filter(a=>a.job_id===job.id&&a.complete);
+ $("flashJobDetails").textContent=(job.repository?"GitHub Actions":"Local build")+" · "+String(job.id).slice(0,12)+" · "+(job.capability||job.name||"Build")+" · "+assets.length+" verified local artifact(s)";
+ const available=devices.filter(d=>d.lifecycle==="connected");
+ if(!available.length){const option=el("option","No connected devices");option.value="";select.append(option);}
+ for(const device of available){const option=el("option",(device.label||device.product||device.description||"Device")+" · "+(device.runnerName||"builder")+" · "+device.port);option.value=device.id;select.append(option);}
+ $("requestFlash").disabled=true;
+ $("flashExplanation").textContent=assets.length===0?"This job has no completed firmware artifact. Flashing is unavailable.":"Flash requests need a validated firmware-to-device compatibility adapter and an approval API. Neither is enabled yet; no device will be modified.";
+ dialog.showModal();
 }
-function renderBuilders(){
- const list=$("runners-list"),select=$("runner");
- if(!list && !select)return;
- if(list)list.replaceChildren();if(select)select.replaceChildren();
- if(!builders.length&&list){list.append(el("p","No machines enrolled yet."));}
- for(const runner of builders){
-  const entry=el("div",undefined,"runner-entry"),left=el("div"),right=el("small",runner.online?"Recent heartbeat":"Not recently seen");
-  left.append(el("strong",runner.name),el("small",runner.os+" / "+runner.arch+" · "+runner.id.slice(0,12)));
-  entry.append(left,right);if(list)list.append(entry);
-  const opt=el("option",runner.name+" ("+runner.os+")");
-  opt.value=runner.id;if(select)select.append(opt);
- }
- if(!builders.length&&select){const opt=el("option","Enroll a machine first");opt.value="";select.append(opt);}
-}
-function renderCapabilities(){
- const select=$("capability");if(!select)return;select.replaceChildren();
- for(const cap of capabilities){
-  const opt=el("option",cap.id+" · "+cap.risk+(cap.state!=="available"?" (not available)":""));
-  opt.value=cap.id;opt.disabled=cap.state!=="available";select.append(opt);
- }
- const available=capabilities.find(c=>c.state==="available");
- if(available)select.value=available.id;
-}
-async function fetchJobs(){
- if(!$("jobs-list"))return;
- const [all,files]=await Promise.all([fabric("tt_jobs",{action:"list"}),fabric("tt_assets",{action:"list"})]);
- renderJobs(all.jobs||[],files.assets||[]);
-}
-function renderJobs(jobs,assets){
+function render(){
  const holder=$("jobs-list");holder.replaceChildren();
- if(!jobs.length){holder.append(el("p","No jobs created. Plan an operation to begin."));return;}
- for(const j of jobs){
-  const entry=el("article",undefined,"job-entry"),head=el("div",undefined,"job-title");
-  head.append(el("strong",j.capability+" · "+j.id.slice(0,8)));
-  const status=el("span",j.status.replaceAll("_"," "),"job-status");status.dataset.status=j.status;
-  head.append(status);entry.append(head);
-  entry.append(el("div","Machine "+j.runner_id.slice(0,12)+" · "+(j.created_at||"").replace("T"," ").slice(0,19),"job-meta"));
-  const actions=el("div",undefined,"job-actions");
+ if(!currentJobs.length){holder.append(el("p","No jobs recorded yet. GitHub Actions workflow history will appear when that integration is available."));return;}
+ const table=el("table",undefined,"tt-jobs-table"),thead=el("thead"),hdr=el("tr");
+ for(const h of ["Job","Status","Builder","Started","Actions"])hdr.append(el("th",h));
+ thead.append(hdr);table.append(thead);
+ const tbody=el("tbody");
+ for(const j of currentJobs){
+  const row=el("tr");
+  const jobCell=td(row,j.capability||"Job");jobCell.append(el("div",j.id.slice(0,12),"tt-job-meta"));
+  const state=td(row,"");state.append(el("span",String(j.status).replaceAll("_"," "),"job-status"));
+  td(row,j.runner_id?.slice(0,12)||"—");
+  td(row,j.created_at?new Date(j.created_at).toLocaleString():"—");
+  const controls=td(row,"","tt-job-actions");
+  const buttons=el("div",undefined,"tt-job-actions");
+  const details=el("tr"),detailCell=td(details,"","tt-job-details");detailCell.colSpan=5;details.hidden=true;
+  const artifactList=currentAssets.filter(a=>a.job_id===j.id&&a.complete);
+  const header=el("div","Steps and logs");detailCell.append(header,el("pre",JSON.stringify(j.steps||[],null,2)+(j.logs?"\n\n"+j.logs:"\nNo logs available.")));
+  for(const a of artifactList)detailCell.append(action("Download "+a.name,()=>download(a)));
+  buttons.append(action("Details",()=>{details.hidden=!details.hidden;}));
+  if(j.status==="completed")buttons.append(action("Flash device",()=>showFlash(j)));
   if(j.status==="awaiting_approval"){
-   actions.append(button("Approve this job",async()=>{
-    await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});
-    message("Job approved and queued. Track its progress in the job history.");
-    await fetchJobs();
-   }));
-   actions.append(button("Reject",async()=>{
-    await api("/api/local/jobs/approval",{job_id:j.id,decision:"reject"});
-    message("Job rejected.");await fetchJobs();
-   }));
+   buttons.append(action("Approve",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});await load();}));
+   buttons.append(action("Reject",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"reject"});await load();}));
   }
-  if(["awaiting_approval","queued"].includes(j.status)){
-   actions.append(button("Cancel",async()=>{
-    await fabric("tt_jobs",{action:"cancel",job_id:j.id});await fetchJobs();
-   }));
-  }
-  if(actions.children.length)entry.append(actions);
-  const details=el("details"),summary=el("summary","Steps and logs");
-  details.append(summary,el("pre",JSON.stringify(j.steps||[],null,2)+(j.logs?"\n\n"+j.logs:"\nNo logs available.")));
-  entry.append(details);
-  for(const a of assets.filter(x=>x.job_id===j.id&&x.complete)){
-   entry.append(button("Download "+a.name+" ("+Math.ceil(a.size/1024)+" KiB)",()=>download(a)));
-  }
-  holder.append(entry);
+  if(["awaiting_approval","queued"].includes(j.status))buttons.append(action("Cancel",async()=>{await fabric("tt_jobs",{action:"cancel",job_id:j.id});await load();}));
+  controls.append(buttons);tbody.append(row,details);
  }
+ table.append(tbody);holder.append(table);
 }
 async function download(asset){
  const chunks=[];let offset=0;
  while(offset<asset.size){
-  const d=await fabric("tt_assets",{action:"get",asset_id:asset.id,offset,length:48*1024});
-  const binary=atob(d.content_base64),part=new Uint8Array(binary.length);
-  for(let i=0;i<binary.length;i++)part[i]=binary.charCodeAt(i);
-  chunks.push(part);offset=d.next_offset;
-  if(!binary.length)throw new Error("Asset response ended early");
+  const chunk=await fabric("tt_assets",{action:"get",asset_id:asset.id,offset,length:48*1024});
+  const binary=atob(chunk.content_base64),bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  chunks.push(bytes);offset=chunk.next_offset;
+  if(!binary.length)throw Error("Artifact download ended early");
  }
  const blob=new Blob(chunks,{type:asset.mime||"application/octet-stream"}),url=URL.createObjectURL(blob);
- const link=document.createElement("a");link.href=url;link.download=asset.name;
- document.body.append(link);link.click();link.remove();
+ const a=document.createElement("a");a.href=url;a.download=asset.name;document.body.append(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
-async function refreshAll(){
- const overview=await api("/api/local/overview");csrf=overview.csrf;
- if($("username"))$("username").textContent=overview.username||"administrator";
- const d=await fabric("tt_discover",{resource:"all"});
- builders=d.runners||[];capabilities=d.capabilities||[];
- renderBuilders();renderCapabilities();
-  await fetchJobs();
+async function load(){
+ $("refreshJobs").disabled=true;
+ try{
+  const overview=await api("/api/local/overview");csrf=overview.csrf;
+  $("username").textContent=overview.username||"administrator";
+  const results=await Promise.all([fabric("tt_jobs",{action:"list"}),fabric("tt_assets",{action:"list"}),api("/api/local/devices?mode=visible")]);
+  currentJobs=results[0].jobs||[];currentAssets=results[1].assets||[];devices=results[2].devices||[];
+  render();message("");
+ }catch(e){message(e.message);}finally{$("refreshJobs").disabled=false;}
 }
-$("refresh")?.addEventListener("click",()=>refreshAll().catch(e=>message(e.message)));
-$("refreshJobs")?.addEventListener("click",()=>fetchJobs().catch(e=>message(e.message)));
-$("invite")?.addEventListener("click",async()=>{
- $("invite").disabled=true;
- try{
-  const invitation=await api("/api/local/runners/invite",{});
-  $("enrollCommand").textContent="TT_CONTROLLER_URL='"+location.origin+"' TT_ENROLLMENT_TOKEN='"+invitation.token+"' node runner/agent.mjs enroll";
-  $("enrollment").hidden=false;
-  message("Pairing credential generated. It is only displayed once and expires in 10 minutes.");
- }catch(e){message(e.message);}finally{$("invite").disabled=false;}
-});
-$("planForm")?.addEventListener("submit",async event=>{
- event.preventDefault();
- const cap=$("capability").value,runner=$("runner").value;
- if(!runner)return message("Enroll a machine first.");
- const parameters={};
- if(cap.includes("esp_idf")){
-  if(!$("repository").value.trim())return message("Repository is required for ESP-IDF operations.");
-  parameters.repository=$("repository").value.trim();
-  if(!/^[a-f0-9]{40}$/i.test($("revision").value.trim()))
-   return message("A 40-character Git commit SHA is required for reproducible ESP-IDF builds.");
-  parameters.revision=$("revision").value.trim();
- }
- try{
-  selectedPlan=await fabric("tt_plan",{capability:cap,runner_id:runner,parameters});
-  $("planPreview").textContent=JSON.stringify(selectedPlan,null,2);
-  $("planResult").hidden=false;
-  message("Plan created. Requesting a job does not execute it until you approve the job separately.");
- }catch(e){message(e.message);}
-});
-$("requestExecution")?.addEventListener("click",async()=>{
- if(!selectedPlan)return;
- $("requestExecution").disabled=true;
- try{
-  const result=await fabric("tt_execute",{plan_id:selectedPlan.plan_id});
-  message("Job "+result.job.id.slice(0,8)+" created; explicit administrator approval required.");
-  $("planResult").hidden=true;selectedPlan=null;await fetchJobs();
- }catch(e){message(e.message);}finally{$("requestExecution").disabled=false;}
-});
-refreshAll().catch(e=>message(e.message));
+$("refreshJobs").addEventListener("click",load);
+window.openGitHubFlash=showFlash;
+$("closeFlash").addEventListener("click",()=>$("flashDialog").close());
+load();

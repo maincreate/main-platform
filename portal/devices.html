@@ -5,28 +5,26 @@
 <script src="/devices.js" defer></script></head><body data-theme="midnight">
 <aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices" aria-current="page">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
 <main class="main inventory-page">
-<p class="eyebrow">WORKSPACE / HARDWARE</p><h1>Attached devices</h1>
+<p class="eyebrow">WORKSPACE / HARDWARE</p><h1>Devices</h1>
 <p>USB serial devices discovered by enrolled build machines. Each device keeps its builder association, serial port, identity and last observation.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
 <section class="inventory-panel" aria-labelledby="deviceHeading">
  <div class="panel-heading"><div><h2 id="deviceHeading">Device inventory</h2>
- <p id="totals">Loading inventory…</p></div><a href="/jobs" class="quiet-link">Manage build machines</a></div>
+ <p id="totals">Loading inventory…</p></div><a href="/builders" class="quiet-link">Manage build machines</a></div>
  <div class="inventory-toolbar">
-  <label for="filter">Show 
-   <select id="filter"><option value="visible">Connected and recent</option>
-   <option value="hidden">Hidden after 7 days</option><option value="archived">Archived after 30 days</option>
-   <option value="all">All known devices</option></select></label>
+  
   <button id="refresh" class="plain-button" type="button">Refresh inventory</button>
  </div>
  <table class="inventory-table">
  <thead><tr><th>Device</th><th>Attached builder</th><th>Serial port</th><th>Identity</th><th>Last seen</th><th>Status</th><th>Actions</th></tr></thead>
  <tbody id="deviceRows"><tr><td colspan="7">Loading…</td></tr></tbody></table>
+ <label class="tt-show-hidden"><input type="checkbox" id="showHidden"> Show hidden devices</label>
  <p class="inventory-note">Devices missing from a complete scan become offline. Records disappear from the default list after 7 days and move to the archive after 30 days; returning devices are recognized and restored. No inventory record is automatically deleted.</p>
 </section>
 <section class="inventory-panel">
  <h2>Manual flashing and automation</h2>
  <p>Devices on this page are discoverable, not automatically flashable. A safe flash operation must bind a verified complete firmware image, exact chip family, authenticated builder, current serial port, and a user-approved job. The device must be revalidated immediately before writing.</p>
- <p><strong>Not enabled yet:</strong> flashing, unattended flash rules and commit-triggered device writes. ESP-IDF build jobs and artifacts are available separately in Jobs &amp; Builders.</p>
+ <p><strong>Not enabled yet:</strong> flashing, unattended flash rules and commit-triggered device writes. ESP-IDF build jobs and artifacts are available under Jobs.</p>
  <a href="/jobs" class="quiet-link">View build jobs and artifacts</a>
 </section>
 <footer>Hardware discovery is read-only · No flashing is performed from this page</footer>

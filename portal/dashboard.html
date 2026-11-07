@@ -5,17 +5,17 @@
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
 <script src="/dashboard.js" defer></script></head>
 <body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span><span id="workspaceOrg">GitHub organization</span> / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
 <main class="main operations-home">
  <div class="home-heading">
   <div><p class="eyebrow">WORKSPACE / OVERVIEW</p>
   <h1>Overview</h1><p>GitHub source, build hosts, connected devices and operational activity.</p></div>
-  <button id="refresh" class="plain-button" type="button">Refresh status</button>
+  <div class="tt-refresh-controls"><span id="updatedAt" aria-live="polite">Checking status…</span><button id="refresh" class="plain-button" type="button">Refresh status</button></div>
  </div>
  <p class="home-error" id="statusMessage" role="status" aria-live="polite"></p>
  <section class="metric-grid" aria-label="Workspace totals">
   <a class="metric-card" href="/projects"><span>Projects</span><strong id="projectCount">—</strong><small id="projectMeta">No inventory yet</small></a>
-  <a class="metric-card" href="/jobs"><span>Build machines</span><strong id="builderCount">—</strong><small id="builderMeta">Heartbeat status</small></a>
+  <a class="metric-card" href="/builders"><span>Build machines</span><strong id="builderCount">—</strong><small id="builderMeta">Heartbeat status</small></a>
   <a class="metric-card" href="/devices"><span>USB devices</span><strong id="deviceCount">—</strong><small id="deviceMeta">Currently connected</small></a>
   <a class="metric-card" href="/jobs#history"><span>Build jobs</span><strong id="jobCount">—</strong><small id="jobMeta">Activity and approvals</small></a>
  </section>
@@ -32,7 +32,7 @@
   </section>
   <section class="workspace-panel" aria-labelledby="buildersTitle">
    <div class="panel-heading"><div><p class="eyebrow">EXECUTION HOSTS</p><h2 id="buildersTitle">Build machines</h2></div>
-    <a href="/jobs" class="quiet-link">Manage machines</a></div>
+    <a href="/builders" class="quiet-link">Manage machines</a></div>
    <div id="buildersList" class="activity-list"><p class="empty-state">Loading machines…</p></div>
   </section>
   <section class="workspace-panel" aria-labelledby="devicesTitle">
