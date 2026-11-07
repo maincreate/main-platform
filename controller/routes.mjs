@@ -331,8 +331,20 @@ export async function localRoute(req) {
             organization:githubIdentityCurrent(stored.github)?stored.github.selectedOrganization||null:null,
             integrationVerified:!!stored.github.verifiedAt
           },
-          runners:{count:stored.runners.length},
-          assistant:{connected:false}
+          runners:{
+            count:stored.runners.length,
+            items:stored.runners.slice(0,24).map(r=>({
+              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
+            })),
+            truncated:stored.runners.length>24,
+            executionEnabled:false
+          },
+          assistant:{connected:false},
+          topology:{
+            secureConnectionVerified:false,
+            remoteMcpVerified:false,
+            toolkitsDiscovered:false
+          }
         });
       }
       if(path==="/api/local/config"&&method==="GET"){
