@@ -52,10 +52,10 @@ $("firstRunForm").addEventListener("submit",async e=>{
  if(password!==$("confirmPassword").value){show("Passwords do not match.",true);return;}
  try {
    const data=await request("/api/local/bootstrap",{method:"POST",body:JSON.stringify({
-     username:$("newUsername").value.trim(),password,setupCode:$("setupCode").value.trim()
+     username:$("newUsername").value.trim(),password
    })});
    csrf=data.csrf;
-   $("newPassword").value="";$("confirmPassword").value="";$("setupCode").value="";
+   $("newPassword").value="";$("confirmPassword").value="";
    await session();
    show("Administrator account created. You're signed in.");
  }catch(err){show(err.message,true);}
