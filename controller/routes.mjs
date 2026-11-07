@@ -237,7 +237,7 @@ function applyApprovalPreference(tool,args,context){
   // No device flashing or arbitrary shell capability can inherit automatic approval.
   if(tool==="tt_execute"&&state().approvalSettings?.buildApproval==="automatic"&&
       result?.job?.status==="awaiting_approval"&&result.job.capability==="firmware.esp_idf.build"){
-    return {...result,job:approveJob(result.job.id,"approve").job};
+    return {...result,job:approveJob(result.job.id,"approve").job,requires_approval:false,notice:"Approved automatically under the saved firmware build policy."};
   }
   return result;
 }
