@@ -14,13 +14,13 @@
   <div class="section-head"><div><h2 id="actions-heading">GitHub Actions runs</h2>
   <p id="actionsSource">Loading workflow runs from your selected GitHub organization…</p></div>
   <button type="button" class="plain-button" id="refreshActions">Refresh workflows</button></div>
-  <div id="githubActionsRuns" aria-live="polite">Loading…</div>
+  <div class="inventory-toolbar"><input id="actionSearch" type="search" placeholder="Search workflows or repositories" aria-label="Search GitHub Actions runs"><select id="actionStatus" aria-label="Filter workflow status"><option value="all">All runs</option><option value="success">Successful</option><option value="failure">Failed</option><option value="in_progress">In progress</option><option value="queued">Queued</option><option value="cancelled">Cancelled</option></select></div><div id="githubActionsRuns" aria-live="polite">Loading…</div>
  </section>
  <section class="jobs-panel" aria-labelledby="history-heading">
   <div class="section-head" id="history"><div><h2 id="history-heading">Local operations and approvals</h2>
    <p>Select a job to inspect steps, logs and artifacts. Completed firmware builds can be associated with a device for a future approved flash operation.</p></div>
   <button id="refreshJobs" type="button" class="plain-button">Refresh jobs</button></div>
-  <div id="jobs-list" class="jobs-list" aria-live="polite">Loading job history…</div>
+  <div class="inventory-toolbar"><input id="localJobSearch" type="search" placeholder="Search local jobs" aria-label="Search local jobs"><select id="localJobStatus" aria-label="Filter local jobs"><option value="all">All statuses</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="awaiting_approval">Awaiting approval</option><option value="running">Running</option><option value="queued">Queued</option></select></div><div id="jobs-list" class="jobs-list" aria-live="polite">Loading job history…</div>
  </section>
  <dialog id="flashDialog" class="tt-flash-dialog" aria-labelledby="flashTitle"><h2 id="flashTitle">Flash device</h2><p id="flashJobDetails"></p><label for="flashDevice">Target device</label><select id="flashDevice"></select><p id="flashExplanation" role="status"></p><menu><button type="button" id="closeFlash" class="plain-button">Close</button><button type="button" id="requestFlash" class="action" disabled>Request flash approval</button></menu></dialog>
  <footer>Self-hosted · No unrestricted command execution · Explicit administrator approval</footer>
