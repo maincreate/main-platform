@@ -28,6 +28,20 @@ async function load(){
     $("connection-count").textContent=Number(connected)+Number(nodes>0)+" of 3 connected";
   }catch(e){$("connection-count").textContent="Connection status unavailable";}
 }
+$("accountSettings").addEventListener("click",()=>$("accountDialog").showModal());
+$("closeAccount").addEventListener("click",()=>$("accountDialog").close());
+$("passwordForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  $("accountError").textContent="";
+  const password=$("nextPassword").value;
+  if(password!==$("confirmNextPassword").value){$("accountError").textContent="Passwords do not match.";return;}
+  try{
+    const res=await fetch("/api/local/account/password",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-tt-csrf":csrf},body:JSON.stringify({currentPassword:$("currentPassword").value,newPassword:password})});
+    const d=await res.json();
+    if(!res.ok)throw Error(d.error||"Unable to change password");
+    window.location.replace("/setup");
+  }catch(err){$("accountError").textContent=err.message;}
+});
 $("signout").addEventListener("click",async()=>{
   if(!csrf)return;
   try{await fetch("/api/local/logout",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-tt-csrf":csrf},body:"{}"});}
