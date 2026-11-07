@@ -1,0 +1,143 @@
+[
+  {
+    "id": "host.snapshot",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "read",
+    "state": "available",
+    "description": "Read bounded OS, CPU, memory and runtime data from an enrolled runner. No shell commands.",
+    "platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "host.snapshot"
+      }
+    ]
+  },
+  {
+    "id": "firmware.esp_idf.build",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "build",
+    "state": "available",
+    "description": "Compile an operator-allowlisted local ESP-IDF checkout without downloading, flashing or changing its revision. Runner opt-in required.",
+    "platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{40}$"
+        }
+      },
+      "required": [
+        "repository"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.build"
+      }
+    ]
+  },
+  {
+    "id": "workflow.esp_idf.preflight_build",
+    "version": "1.0.0",
+    "kind": "workflow",
+    "risk": "build",
+    "state": "available",
+    "description": "Run a host snapshot followed by an approved ESP-IDF build on the same allowlisted machine.",
+    "platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{40}$"
+        }
+      },
+      "required": [
+        "repository"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "host.snapshot"
+      },
+      {
+        "capability": "firmware.esp_idf.build"
+      }
+    ]
+  },
+  {
+    "id": "sdk.esp_idf.install",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "unavailable",
+    "description": "Reserved for a signed and reviewed version-pinned installation recipe. Not executable.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  },
+  {
+    "id": "firmware.esp_idf.flash",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "device-write",
+    "state": "unavailable",
+    "description": "Reserved for future explicit-approval USB flashing adapter. Not executable.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  },
+  {
+    "id": "deployment.release",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "deployment",
+    "state": "unavailable",
+    "description": "Reserved for future verified deployment-provider adapter. Not executable.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  }
+]
