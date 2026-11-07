@@ -6,7 +6,7 @@ The existing portal serves dashboard, framework catalog and dry-run planner. The
 
 ## Trust boundaries
 
-- On first boot, the administrator creates a username and 12+ character password in the browser after entering a high-entropy one-time setup code shown only in the server's Runtime Logs. Registration closes permanently after the first administrator is claimed.
+- On first boot, the first visitor creates an administrator username and 12+ character password directly in the browser; no setup code is required. Registration closes automatically once an administrator exists. Restrict first-run access to a trusted private network or identity-protected ingress.
 - The password is stored only as a salted Node scrypt hash; login uses an HttpOnly, SameSite=Strict, HTTPS-Secure session cookie with CSRF protection and rate limiting. No administrator login secret is stored in environment variables.
 - A random 32-byte encryption key is generated and persisted at `/data/master.key` (0600), while GitHub PEM private keys are encrypted with AES-256-GCM before being written to `/data/state.json`. Back up both together. Existing deployments may continue to provide a legacy `TT_MASTER_KEY` for migration, but fresh installs do not require it.
 - State is mounted only on the portal service and written atomically with Unix mode 0600.
@@ -24,7 +24,7 @@ The existing portal serves dashboard, framework catalog and dry-run planner. The
 | GET | /api/v1/catalog | Read-only catalog |
 | POST | /api/v1/plans | Read-only dry-run plan |
 | GET | /setup, /setup.js, /setup.css | Public login/setup assets |
-| POST | /api/local/bootstrap | One-time server-owner code (only before first account) |
+| POST | /api/local/bootstrap | Open only while no administrator exists; creates the first account |
 | POST | /api/local/login | Admin username/password |
 | POST | /api/local/account/password | Signed-in administrator + CSRF |
 | GET | /api/local/session | Browser session |
