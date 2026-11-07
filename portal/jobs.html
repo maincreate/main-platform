@@ -35,8 +35,8 @@
     <label for="runner">Machine</label><select id="runner" required></select>
     <label for="repository">Repository (for ESP-IDF builds)</label>
     <input id="repository" placeholder="owner/repository" spellcheck="false">
-    <label for="revision">Optional exact checkout revision (40-character SHA)</label>
-    <input id="revision" placeholder="Optional" spellcheck="false">
+    <label for="revision">Exact checkout revision (40-character SHA, required for builds)</label>
+    <input id="revision" placeholder="Paste the approved Git commit SHA" spellcheck="false" maxlength="40">
     <button class="action" type="submit">Create plan</button>
   </form>
   <div id="planResult" hidden class="plan-result">
