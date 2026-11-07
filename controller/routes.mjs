@@ -486,8 +486,18 @@ export async function localRoute(req) {
         const value=typeof input.organization==="string"?input.organization:"";
         if(!githubIdentityCurrent(stored.github))return deny(409,"Connect your GitHub account first");
         if(!stored.github.oauthOrganizations?.some(o=>o.login===value))return deny(422,"Organization is not visible to the connected account");
-        stored.github.selectedOrganization=value;
-        save(stored);return reply({ok:true,organization:value,runnerAccessVerified:false});
+        const org=stored.github.oauthOrganizations.find(o=>o.login===value);
+        if(!Number.isSafeInteger(org.installationId))return deny(409,"Install the GitHub App in this organization, then refresh organizations");
+        let synced;
+        try{
+          synced=await syncProjects({organization:value,installationId:org.installationId,
+            accessToken:unseal(stored.github.oauthToken)});
+        }catch(e){return deny(e.status||502,"Could not sync repositories for "+value+": "+(e.message||"GitHub unavailable")+". Retry organization selection.");}
+        const current=state();
+        if(!githubIdentityCurrent(current.github))return deny(409,"GitHub authorization changed. Reconnect.");
+        current.github.selectedOrganization=value;save(current);
+        return reply({ok:true,organization:value,runnerAccessVerified:false,
+          repositoriesSynced:synced.repositories.length,syncedAt:synced.updatedAt});
       }
       if(path==="/api/local/github/device/disconnect"&&method==="POST"){
         const stored=state();

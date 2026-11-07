@@ -10,12 +10,12 @@
 <section class="inventory-panel">
 <div class="setting-row"><div><h2 id="organization">GitHub repositories</h2>
 <p id="syncStatus">Reading repository inventory…</p></div>
-<div class="tt-toolbar-actions"><button class="plain-button" id="sync" type="button">Sync repositories</button><button class="action" id="newRepo" type="button">+ New repository</button></div></div>
+<div class="tt-toolbar-actions"><button class="plain-button" id="sync" type="button">Sync repositories</button><button class="action" id="newRepo" type="button">+ New Project</button></div></div>
 <div class="inventory-toolbar"><input id="projectSearch" type="search" placeholder="Search repositories" aria-label="Search repositories"><select id="projectFilter" aria-label="Filter repositories"><option value="all">All repositories</option><option value="active">Active</option><option value="archived">Archived</option><option value="private">Private</option><option value="public">Public</option></select></div><div id="projectRows" class="project-list">Loading projects…</div>
 </section>
 <dialog id="newRepoDialog" class="tt-repo-dialog" aria-labelledby="newRepoHeading">
  <form id="newRepoForm">
-  <h2 id="newRepoHeading">Create GitHub repository</h2>
+  <h2 id="newRepoHeading">Create new project</h2>
   <p>Creates a new repository in your connected organization with an initial README. This action is not a dry run.</p>
   <label>Organization <strong id="newRepoOrg">—</strong></label>
   <label for="newRepoName">Repository name</label>

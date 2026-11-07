@@ -93,8 +93,9 @@ async function load(){
   statusText("jobMeta",String(overview.jobs?.running||0)+" running · "+String(overview.jobs?.pending||0)+" approvals");
   statusText("gitStatus",overview.github?.identityConnected&&overview.github?.organization?
    "GitHub: "+overview.github.organization:overview.github?.authorizationExpired?"GitHub: reconnect required":"GitHub: not connected");
-  statusText("aiStatus","AI MCP: not connected (optional)");
-  statusText("executionStatus","Jobs: "+String(overview.jobs?.pending||0)+" pending approval");
+  statusText("aiStatus",overview.topology?.remoteMcpVerified?"Connected":"Not connected");
+  statusText("tunnelCount",String(overview.topology?.verifiedTunnelCount??0));
+  statusText("agentCount",String(overview.assistant?.connectedAgents??0));
   renderJobs(overview.jobs?.recent||[]);
   renderProjects(projects);
   renderBuilders(overview);

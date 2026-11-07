@@ -10,7 +10,7 @@
  <div class="home-heading">
   <div><p class="eyebrow">WORKSPACE / OVERVIEW</p>
   <h1>Overview</h1><p>GitHub source, build hosts, connected devices and operational activity.</p></div>
-  <div class="tt-refresh-controls"><span id="updatedAt" aria-live="polite">Checking status…</span><button id="refresh" class="plain-button" type="button">Refresh status</button></div>
+  <div class="tt-refresh-controls"><a class="action tt-add-builder" href="/builders?add=1">+ Add a Build Machine</a><span id="updatedAt" aria-live="polite">Checking status…</span><button id="refresh" class="plain-button" type="button">Refresh status</button></div>
  </div>
  <p class="home-error" id="statusMessage" role="status" aria-live="polite"></p>
  <section class="metric-grid" aria-label="Workspace totals">
@@ -44,10 +44,11 @@
  <section class="workspace-panel muted-panel" aria-label="Workspace health and status">
   <div class="panel-heading"><div><p class="eyebrow">CONNECTIONS</p><h2>Workspace services</h2></div>
    <a href="/settings" class="quiet-link">Manage in Settings</a></div>
-  <div class="service-strip">
-   <span id="gitStatus">GitHub status loading…</span>
-   <span id="aiStatus">AI MCP: not connected</span>
-   <span id="executionStatus">Execution: disabled</span>
+  <div class="tt-service-kpis">
+    <div><span>GitHub organization</span><strong id="gitStatus">Checking…</strong></div>
+    <div><span>Secure tunnels</span><strong id="tunnelCount">—</strong></div>
+    <div><span>MCP status</span><strong id="aiStatus">Checking…</strong></div>
+    <div><span>Connected AI agents</span><strong id="agentCount">—</strong></div>
   </div>
  </section>
  <footer>Self-hosted · Your source, hardware, and jobs stay under your control.</footer>

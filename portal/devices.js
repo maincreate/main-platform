@@ -38,7 +38,7 @@ function renderInventory(data){
  const query=$("deviceSearch").value.toLowerCase().trim(),host=$("deviceHost").value;
  const shown=inventory.filter(item=>(host==="all"||(item.runnerName||item.runnerId)===host)&&(!query||[item.label,item.description,item.product,item.manufacturer,item.runnerName,item.port,item.serialNumber].join(" ").toLowerCase().includes(query)));
  if(!shown.length){
-  const tr=node("tr"),td=node("td","No devices in this view. Discovery is available when a builder runs with TT_RUNNER_DEVICE_DISCOVERY=1.");
+  const tr=node("tr"),td=node("td","");
   td.colSpan=7;tr.append(td);rows.append(tr);return;
  }
  for(const d of shown){

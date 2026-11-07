@@ -31,6 +31,7 @@ async function refresh(){
       select.appendChild(opt);
     }
     select.value=status.selectedOrganization||"";
+    $("orgEmptyHelp").hidden=!!status.organizations?.length;
     $("organizationHint").textContent=status.selectedOrganization?
       "Selected: "+status.selectedOrganization+" (build runner permissions still need setup)":
       (status.organizations?.length?
@@ -101,6 +102,7 @@ $("saveOrg").addEventListener("click",async()=>{
   try{
     const saved=await api("/api/local/github/device/organization",{organization});
     if(saved.organization!==organization||saved.ok!==true)throw new Error("Organization selection could not be confirmed");
+    notice("Synchronized "+saved.repositoriesSynced+" repositories. Opening workspace…");
     window.location.assign("/");
   }catch(e){
     notice(e.message);
