@@ -232,6 +232,15 @@ function requestRepositoryFromMcp(input){
    instruction:"Open TinkerTunnel > Settings > GitHub to approve. An MCP client cannot approve its own request."};
 }
 
+function applyApprovalPreference(tool,args,context){
+  const result=fabricCall(tool,args,context);
+  // No device flashing or arbitrary shell capability can inherit automatic approval.
+  if(tool==="tt_execute"&&state().approvalSettings?.buildApproval==="automatic"&&
+      result?.job?.status==="awaiting_approval"&&result.job.capability==="firmware.esp_idf.build"){
+    return {...result,job:approveJob(result.job.id,"approve").job};
+  }
+  return result;
+}
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
@@ -676,7 +685,7 @@ export async function localRoute(req) {
           runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
           devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
-        try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+        try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
         catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/jobs/approval"&&method==="POST"){
@@ -747,7 +756,7 @@ export async function localRoute(req) {
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
         runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
           devices:listDevices({mode:"visible"}).devices};
-      try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+      try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/status"&&method==="GET"){
