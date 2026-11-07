@@ -31,9 +31,8 @@ async function load(){
    "Connected to "+d.github.organization+" as @"+(d.github.login||"GitHub user"):
    d.github?.authorizationExpired?"Authorization expired — reconnect required":
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
-  $("executionStatus").textContent=d.runners?.executionEnabled?
-   "Controlled execution is enabled on the controller. Individual jobs still need approval.":
-   "Controlled job execution is currently disabled by the operator.";
+  $("executionStatus").textContent=(d.jobs?.pending||0)+
+   " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
  }catch(e){$("notice").textContent=e.message;}
 }
 $("passwordForm").addEventListener("submit",async event=>{
