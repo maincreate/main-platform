@@ -101,3 +101,14 @@ dialog::backdrop{background:#131e32aa}.dialog-head{display:flex;justify-content:
  .topology-cta{padding:20px}
  .topology-page-heading h1{font-size:34px}
 }
+
+/* Authorized integrations are status-first, not an unfinished setup CTA. */
+.connection-card.is-connected{border-color:var(--line);box-shadow:none}
+.connection-card.is-connected .symbol{color:var(--muted)}
+.action.action-secondary{background:var(--soft);color:var(--text);border:1px solid var(--line);
+  font-weight:600;justify-content:center}
+.action.action-secondary:hover{background:var(--tag);color:var(--text);border-color:var(--accent)}
+.status[data-state="connected"]{background:var(--soft);color:var(--accent)}
+.status[data-state="attention"]{background:var(--tag);color:var(--text)}
+.topology-node[data-connected="true"]{border-color:var(--accent)}
+.topology-node[data-connected="true"] .topology-state{color:var(--accent)}
