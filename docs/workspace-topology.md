@@ -4,7 +4,7 @@
 
 Show a horizontal, UniFi-inspired overview of how cloud services and user-owned machines relate to the local TinkerTunnel workspace. Inspired by a separately supplied clickable design prototype; **do not** import its simulated organizations, machines, job histories, SDK versions, or success badges into production data.
 
-The account-first flow is unchanged. Users create a username/password and immediately reach the Midnight dashboard; no infrastructure configuration is required first. The six-stage diagram is an informational dashboard section, not a setup wizard.
+The account-first flow is unchanged. Users create a username/password and immediately reach the Midnight dashboard; no infrastructure configuration is required first. The six-stage diagram lives on its own authenticated **/topology** page, reached through the primary navigation or a compact dashboard link. It is **not shown on the initial dashboard** and is not part of setup.
 
 ## Horizontal lanes
 
@@ -31,7 +31,7 @@ The API does not include runner bearer tokens, token hashes, machine IPs, privat
 
 ### Current interactions
 
-- Horizontal scrolling (including keyboard focusable region) for compact displays.
+- The dedicated topology page uses a wider layout than the main dashboard; horizontal scrolling remains available (including keyboard-focusable region) on narrow screens.
 - Select an enrolled runner to view its actual OS/architecture and last heartbeat; selecting again or **Clear selection** resets the focus.
 - Connection status and topology are refreshed on dashboard page load.
 - The existing GitHub card opens the separate post-login authorization screen.
