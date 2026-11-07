@@ -20,6 +20,8 @@ The dashboard shows the actual status of GitHub identity/organization selection,
 | GET | `/api/local/overview` | Signed-in admin; current status |
 | GET | `/github`, `/github.*` | Signed-in admin; GitHub connection |
 | GET | `/api/local/github/device/status` | Signed-in admin |
+| POST | `/api/local/github/device/config` | Signed-in admin + CSRF; save public Client ID |
+| POST | `/api/local/github/device/installations/refresh` | Signed-in admin + CSRF; refresh installed organizations |
 | POST | `/api/local/github/device/start` | Signed-in admin + CSRF |
 | POST | `/api/local/github/device/poll` | Signed-in admin + CSRF |
 | POST | `/api/local/github/device/organization` | Signed-in admin + CSRF |
@@ -37,7 +39,7 @@ The dashboard shows the actual status of GitHub identity/organization selection,
 - First-run registration requires no code, but whoever reaches an unclaimed instance first can become its administrator. Restrict first-use access to a private or identity-gated network.
 - Passwords are salted scrypt hashes. Session cookies are HttpOnly and SameSite=Strict, with Secure when served over HTTPS via a trusted proxy. Mutation APIs require CSRF.
 - The portal requires durable, writable `/data`; a fresh 32-byte AES-256-GCM key is generated and persisted as `/data/master.key`, and credentials are encrypted before writing `state.json`.
-- GitHub OAuth device authorization requires an application configured with device flow and its public client ID supplied through `TT_GITHUB_CLIENT_ID`. Tokens are encrypted at rest; selecting an organization does not grant runner permissions or install a GitHub App.
+- A dedicated GitHub App with Device Flow enabled is required for GitHub authorization. Its public Client ID is configured directly in the authenticated `/github` page (optional environment override: `TT_GITHUB_CLIENT_ID`). GitHub App user tokens are encrypted at rest; authorized organization installations are discovered via `GET /user/installations`. Only installed organizations can be selected. Selecting one does not grant runner permissions or create runners.
 - Local MCP is bearer authenticated, read-only, and separate. Remote ChatGPT OAuth, build execution, installation and flashing are not active.
 - The full catalog/preview route implementation remains inside `worker.js`; it is not the default authenticated first-run experience.
 
