@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// Authenticated portal smoke check. Reads secrets only from environment.
-// Never send TT_ADMIN_TOKEN over cleartext except to localhost.
+// Optional client-side smoke check for an already-created admin account.
+// Login credentials are not configured as server environment variables.
 import assert from "node:assert/strict";
 
 const url = new URL(process.env.TT_PORTAL_URL || "http://127.0.0.1:13000");
-const admin = process.env.TT_ADMIN_TOKEN || "";
-if (admin.length < 32) throw new Error("TT_ADMIN_TOKEN must be provided via the environment");
+const username = process.env.TT_LOGIN_USERNAME || "";
+const password = process.env.TT_LOGIN_PASSWORD || "";
+if (!username || !password) throw new Error("Set TT_LOGIN_USERNAME and TT_LOGIN_PASSWORD for this one-off client-side smoke check");
 if (url.username || url.password) throw new Error("Credentials must not be embedded in the URL");
 if (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "::1"].includes(url.hostname))) {
-  throw new Error("Refusing to send administrator token over non-loopback HTTP");
+  throw new Error("Refusing to send password over non-loopback HTTP");
 }
 url.pathname = "/"; url.search = ""; url.hash = "";
 
@@ -31,10 +32,13 @@ async function run() {
   assert.equal(anonymous.status, 302, "Anonymous dashboard must redirect to login");
   assert.equal(anonymous.headers.get("location"), "/setup");
 
+  const status = await (await check("/api/local/public")).json();
+  assert.equal(status.claimed, true, "An administrator must already be created in the portal");
+
   const login = await check("/api/local/login", {
     method: "POST",
     headers: {"content-type":"application/json"},
-    body: JSON.stringify({token:admin})
+    body: JSON.stringify({username,password})
   });
   assert.equal(login.status, 200, "Admin login must succeed");
   const loginResponse = await login.json();
