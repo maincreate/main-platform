@@ -20,3 +20,44 @@ footer{font-size:12px;color:var(--muted);margin:34px 0}button:focus-visible,a:fo
 
 dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);width:min(440px,calc(100vw - 32px));padding:26px;box-shadow:0 24px 90px rgba(0,0,0,.18)}
 dialog::backdrop{background:#131e32aa}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.dialog-head h2{margin:0;font-size:23px}.dialog-help{font-size:13px;color:var(--muted)}dialog form{display:flex;flex-direction:column;gap:8px}dialog label{font-size:13px;margin-top:12px;font-weight:650}dialog input{font:inherit;color:var(--text);background:var(--bg);padding:12px;border-radius:9px;border:1px solid var(--line)}dialog .action{border:none;font:inherit;cursor:pointer}#accountError:not(:empty){font-size:12px;color:#c34840}
+
+
+/* Six-stage workspace topology: links are drawn from state-driven nodes.
+   This is a relationship map, not a discovered or verified network route. */
+.workspace-topology{margin:0 0 42px}
+.topology-head{align-items:flex-end}
+.topology-head .eyebrow{margin:0 0 6px}
+.topology-head h2{font-size:clamp(22px,3vw,29px);margin-bottom:7px}
+.topology-head p:not(.eyebrow){max-width:690px}
+.topology-key{display:flex;flex-wrap:wrap;gap:13px;color:var(--muted);font-size:11px;padding-bottom:4px}
+.topology-key span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.legend-line{width:24px;height:0;border-top:2px solid var(--accent)}
+.legend-line.planned{border-top-style:dashed;border-color:var(--muted)}
+.topology-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:12px;border:1px solid var(--line);border-radius:18px;background:var(--bg);scrollbar-color:var(--line) transparent}
+.topology-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.topology-map{position:relative;min-width:1280px;min-height:360px;isolation:isolate}
+.topology-lanes{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;min-height:360px}
+.topology-lane{min-width:0;display:flex;flex-direction:column;padding:0 13px 28px;border-top:3px solid var(--line);background:color-mix(in srgb,var(--surface) 72%,transparent);min-height:360px}
+.topology-lane h3{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:750;margin:0 -3px;padding:17px 0 22px}
+.topology-node-stack{display:flex;flex:1;flex-direction:column;justify-content:center;gap:13px}
+.topology-node{position:relative;z-index:2;display:flex;flex-direction:column;gap:3px;min-height:92px;border:1px solid var(--line);border-radius:11px;padding:12px 11px;background:var(--surface);box-shadow:0 5px 16px #0000000b;color:var(--text);text-align:left}
+.topology-node.empty{border-style:dashed;box-shadow:none}
+.topology-node.hub{border-color:var(--accent);background:var(--soft)}
+.topology-node[data-fresh="true"]{border-color:var(--accent)}
+.topology-label{font-size:13px;font-weight:760;letter-spacing:-.018em;overflow-wrap:anywhere}
+.topology-state{font-size:11px;font-weight:650;color:var(--muted)}
+.topology-node.hub .topology-state,.topology-node[data-fresh="true"] .topology-state{color:var(--accent)}
+.topology-node small{font-size:11px;line-height:1.35;color:var(--muted);overflow-wrap:anywhere}
+.topology-node[role="button"]{cursor:pointer}
+.topology-node[role="button"]:hover,.topology-node[role="button"]:focus-visible{border-color:var(--accent)}
+.topology-node[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.topology-node[data-dimmed="true"]{opacity:.34}
+.topology-links{position:absolute;inset:0;z-index:1;overflow:visible;pointer-events:none}
+.topology-links path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
+.topology-links path.is-planned{stroke:var(--muted);stroke-dasharray:5 6;opacity:.55}
+.topology-links path.is-observed{stroke:var(--accent);opacity:.9}
+.topology-foot{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px 4px 0}
+.topology-foot p{font-size:12px;color:var(--muted);margin:0}
+.topology-foot button{white-space:nowrap}
+@media(max-width:760px){.topology-head{align-items:flex-start}.topology-key{font-size:10px}.topology-map{min-width:1160px}.topology-scroll{border-radius:14px}.workspace-topology{margin-bottom:30px}}
+@media(prefers-reduced-motion:reduce){.topology-node{transition:none}}
