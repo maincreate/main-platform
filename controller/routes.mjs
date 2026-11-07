@@ -388,8 +388,10 @@ export async function localRoute(req) {
           workspace:{name:stored.config.name==="TinkerTunnel Local"?"TinkerTunnel":stored.config.name},
           github:{
             identityConnected:githubIdentityCurrent(stored.github),
+            authorizationExpired:!!stored.github.oauthUser&&!githubIdentityCurrent(stored.github),
             login:stored.github.oauthUser?.login||null,
             organization:githubIdentityCurrent(stored.github)?stored.github.selectedOrganization||null:null,
+            savedOrganization:stored.github.selectedOrganization||null,
             integrationVerified:!!stored.github.verifiedAt
           },
           runners:{
