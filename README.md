@@ -17,16 +17,16 @@ This repository is deployed from its **root**: `compose.yaml`. The `portal/`, `c
 
 ## Install locally
 
-Generate **four different random secrets**. Do not commit them to Git:
+**User accounts are created entirely in the web portal.** No `TT_ADMIN_TOKEN` or password environment variable is used. A persistent `/data` volume stores the administrator's salted password hash and the locally generated 32-byte encryption key (both with restrictive permissions). Back up the volume: deleting it deletes the account and any encrypted GitHub App credentials.
+
+Only the separate MCP gateway uses machine-to-machine secrets; configure these **later** if deploying the gateway:
 
 ```sh
-openssl rand -hex 32    # TT_ADMIN_TOKEN (login)
-openssl rand -hex 32    # TT_MASTER_KEY (encrypts GitHub keys; BACK UP securely)
 openssl rand -hex 32    # TT_SERVICE_TOKEN (controller ↔ gateway)
 openssl rand -hex 32    # TT_MCP_TOKEN (MCP client authentication)
 ```
 
-Add these as Coolify **application environment variables** (or put them in a local `.env` file excluded by `.gitignore`). Then deploy:
+The optional legacy `TT_MASTER_KEY` is supported for migrations of existing encrypted state, but is not needed for fresh installations. Then deploy:
 
 ```sh
 docker compose up -d --build
@@ -41,7 +41,7 @@ The portal is at `http://127.0.0.1:13000/setup` **on the Docker host**. When usi
 ssh -L 13000:127.0.0.1:13000 -L 13001:127.0.0.1:13001 USER@DOCKER-HOST
 ```
 
-Then visit `http://127.0.0.1:13000/setup`, log in using `TT_ADMIN_TOKEN`, and follow the wizard. Keep `TT_MASTER_KEY` stable across redeployments: rotating it without migration loses access to stored GitHub private keys.
+Then visit `http://127.0.0.1:13000/setup`. On the very first boot, open the application's Coolify **Runtime Logs** and locate the single-use `TinkerTunnel first-run setup code:` line. Enter that code once on the page, choose an administrator username and a strong password (12+ characters), and finish setup. The code is not your password, is never available through an unauthenticated API, and cannot create another account after the first administrator exists. On subsequent visits, use the username/password form. Ensure the host stays privately accessible or is additionally protected by Cloudflare Access during first-run setup.
 
 ### Coolify deployment: portal-first login milestone
 
@@ -50,20 +50,20 @@ Deploy the **portal/controller only** before enabling MCP or runners. This is de
 - **Git repository:** `TinkerTunnel/tinkertunnel`; **branch:** `main` once merged
 - **Build Pack:** **Dockerfile**, with build context at the repository root `/` and Dockerfile path `/Dockerfile` (not a shell-based default image)
 - **Container port:** `3000`, and expected CMD `node portal/server.mjs`
-- **Environment secrets:** `TT_ADMIN_TOKEN` (at least 32 random characters, preferably 64 hex), `TT_MASTER_KEY` (independent 64 hex), `TT_SERVICE_TOKEN`, `TT_MCP_TOKEN` (also independent random values, for the eventual gateway); set `TT_REQUIRE_LOGIN=1`, `TT_DATA_DIR=/data`, `HOST=0.0.0.0`, `PORT=3000`
-- **Persistent storage:** mount a durable, node-writable volume at `/data`, with permissions for UID 1000. Keep `TT_MASTER_KEY` stable across redeployments.
+- **Environment:** `TT_REQUIRE_LOGIN=1`, `TT_DATA_DIR=/data`, `HOST=0.0.0.0`, `PORT=3000`. No `TT_ADMIN_TOKEN` or user password is required. Machine-to-machine gateway tokens are optional at this milestone.
+- **Persistent storage:** mount a durable, node-writable volume at `/data`, with permissions for UID 1000. Back up this volume: `/data/master.key` is generated once, must persist, and encrypts stored GitHub App credentials.
 - **Reachability:** use only private/VPN access or a properly authenticated Cloudflare Access hostname. Do **not** expose the bare administration portal to the public Internet just because it has a token login.
 - **Readiness:** `GET /healthz` must respond 200; anonymous `GET /` redirects to `/setup`; `POST /api/local/login` validates the admin token and grants an HttpOnly session; authenticated `GET /` serves the dashboard.
 
-The original deployment did not have a usable start command and repeatedly exited when its entrypoint invoked `/bin/bash`. Switching to the repository's root Dockerfile fixes that configuration only when Coolify is actually set to build using Dockerfile. The Docker image fails closed if required admin secrets are absent.
+The original deployment did not have a usable start command and repeatedly exited when its entrypoint invoked `/bin/bash`. Switching to the repository's root Dockerfile fixes that configuration only when Coolify is actually set to build using Dockerfile. The Docker image initializes a one-time setup code at first boot; its account database and encryption key must be writable and persistent.
 
 For an end-to-end login check **after deployment**, run from a trusted computer with HTTPS access (or from the Docker host using localhost):
 
 ```sh
-TT_PORTAL_URL="https://your-private-portal-host" TT_ADMIN_TOKEN="$TT_ADMIN_TOKEN" node scripts/smoke-login.mjs
+TT_PORTAL_URL="https://your-private-portal-host" TT_LOGIN_USERNAME="$TT_LOGIN_USERNAME" TT_LOGIN_PASSWORD="$TT_LOGIN_PASSWORD" node scripts/smoke-login.mjs
 ```
 
-The script verifies health, setup page, anonymous redirect, real session login, authenticated dashboard and logout. It refuses non-loopback plain HTTP and never logs your token. Set `TT_PORTAL_URL` and `TT_ADMIN_TOKEN` in your terminal environment; do not copy the token into code, command history, or screenshots. The application must be configured in Coolify before the GitHub webhook can deploy it correctly.
+The script verifies health, setup page, anonymous redirect, real session login, authenticated dashboard and logout. It refuses non-loopback plain HTTP and never logs your token. The test-only `TT_LOGIN_USERNAME` and `TT_LOGIN_PASSWORD` are local client process inputs, **not server login configuration**. Do not put them in shell history or project files. The application must be configured in Coolify before the GitHub webhook can deploy it correctly.
 
 **Later, full-stack deployment:** use the root `compose.yaml` to run portal and a separate bearer-protected MCP gateway. The optional `tunnel` and `runner` profiles remain disabled in this login milestone. No remote ChatGPT OAuth or device flashing is active.
 
