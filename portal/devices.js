@@ -20,6 +20,12 @@ function hex(n){return typeof n==="number"?n.toString(16).padStart(4,"0").toUppe
 function date(s){return s?new Date(s).toLocaleString():"Never";}
 function render(data){
  inventory=data.devices||[];
+ const select=$("deviceHost"),selected=select.value;select.replaceChildren();
+ const all=node("option","All builders");all.value="all";select.append(all);
+ for(const host of [...new Set(inventory.map(d=>d.runnerName||d.runnerId).filter(Boolean))].sort()){
+  const opt=node("option",host);opt.value=host;select.append(opt);
+ }
+ select.value=[...select.options].some(x=>x.value===selected)?selected:"all";
  renderInventory(data);
 }
 let lastSummary={};
@@ -29,8 +35,8 @@ function renderInventory(data){
  const summary=lastSummary;
  $("totals").textContent=(summary.connected||0)+" connected · "+(summary.offline||0)+" recent offline · "+
   (summary.hidden||0)+" hidden · "+(summary.archived||0)+" archived";
- const query=$("deviceSearch").value.toLowerCase().trim(),status=$("deviceStatus").value;
- const shown=inventory.filter(item=>(status==="all"||item.lifecycle===status)&&(!query||[item.label,item.description,item.product,item.manufacturer,item.runnerName,item.port,item.serialNumber].join(" ").toLowerCase().includes(query)));
+ const query=$("deviceSearch").value.toLowerCase().trim(),host=$("deviceHost").value;
+ const shown=inventory.filter(item=>(host==="all"||(item.runnerName||item.runnerId)===host)&&(!query||[item.label,item.description,item.product,item.manufacturer,item.runnerName,item.port,item.serialNumber].join(" ").toLowerCase().includes(query)));
  if(!shown.length){
   const tr=node("tr"),td=node("td","No devices in this view. Discovery is available when a builder runs with TT_RUNNER_DEVICE_DISCOVERY=1.");
   td.colSpan=7;tr.append(td);rows.append(tr);return;
@@ -78,4 +84,4 @@ $("refresh").addEventListener("click",load);
 load();
  
 $("deviceSearch").addEventListener("input",()=>renderInventory({}));
-$("deviceStatus").addEventListener("change",()=>renderInventory({}));
+$("deviceHost").addEventListener("change",()=>renderInventory({}));
