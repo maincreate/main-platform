@@ -21,12 +21,11 @@
   <section id="firstRun" class="panel" hidden>
     <p class="eyebrow">FIRST-RUN SETUP</p><h2>Create your administrator account</h2>
     <p>This installation has no administrator yet. Create a username and password here; no login token or password needs to be configured in Coolify.</p>
-    <p class="note">To prevent another visitor from claiming the server, copy the one-time <strong>first-run setup code</strong> from this application's <strong>Coolify Runtime Logs</strong>. The code is not your password and expires permanently after the account is created.</p>
+    <p class="note">Create your administrator account to finish setup. After the first account is created, registration closes automatically.</p>
     <form id="firstRunForm">
       <label>Administrator username<input id="newUsername" name="username" autocomplete="username" minlength="3" maxlength="40" pattern="[a-zA-Z0-9_.-]{3,40}" required></label>
       <label>Password (12 characters minimum)<input id="newPassword" name="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
       <label>Confirm password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
-      <label>One-time setup code<input id="setupCode" type="text" autocomplete="off" spellcheck="false" required></label>
       <button type="submit">Create administrator</button>
     </form>
   </section>
