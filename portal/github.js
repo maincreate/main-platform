@@ -29,11 +29,16 @@ async function refresh(){
     }
     select.value=status.selectedOrganization||"";
     $("organizationHint").textContent=status.selectedOrganization?
-      "Selected: "+status.selectedOrganization+" (runner access not yet configured)":
-      (status.organizations?.length?"Organization access will be verified when you install the GitHub App.":"No organizations are available to this authorization yet.");
+      "Selected: "+status.selectedOrganization+" (build runner permissions still need setup)":
+      (status.organizations?.length?
+        "Organizations shown here have installations of this GitHub App that you can access.":
+        "No organization installations are visible yet. Install this App into your GitHub organization, then choose Refresh organizations.");
     show("connected");
   }else if(status.available){show("disconnected");}
-  else{show("unavailable");}
+  else{
+    $("githubClientId").value=status.clientId||"";
+    show("unavailable");
+  }
 }
 async function poll(seconds){
   if(!flowActive)return;
@@ -48,6 +53,30 @@ async function poll(seconds){
     }catch(e){flowActive=false;notice(e.message);await refresh();}
   },Math.max(5,Number(seconds)||5)*1000);
 }
+$("githubClientForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  notice("");
+  const submit=event.currentTarget.querySelector('button[type="submit"]');
+  submit.disabled=true;
+  try{
+    const clientId=$("githubClientId").value.trim();
+    await api("/api/local/github/device/config",{clientId});
+    notice("GitHub App saved. You can now connect.");
+    await refresh();
+  }catch(error){notice(error.message);}
+  finally{submit.disabled=false;}
+});
+$("refreshOrganizations").addEventListener("click",async()=>{
+  notice("");$("refreshOrganizations").disabled=true;
+  try{
+    const data=await api("/api/local/github/device/installations/refresh",{});
+    notice(data.organizations.length?
+      "Found "+data.organizations.length+" organization installation(s).":
+      "No organization installations yet. Install this GitHub App in an organization, then refresh.");
+    await refresh();
+  }catch(error){notice(error.message);}
+  finally{$("refreshOrganizations").disabled=false;}
+});
 $("start").addEventListener("click",async()=>{
   notice("");$("start").disabled=true;
   try{
