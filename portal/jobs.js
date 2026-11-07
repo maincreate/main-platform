@@ -24,7 +24,7 @@ function showFlash(job){
  const dialog=$("flashDialog"),select=$("flashDevice");
  select.replaceChildren();
  const assets=currentAssets.filter(a=>a.job_id===job.id&&a.complete);
- $("flashJobDetails").textContent="Build "+job.id.slice(0,8)+" · "+job.capability+" · "+assets.length+" completed artifact(s)";
+ $("flashJobDetails").textContent=(job.repository?"GitHub Actions":"Local build")+" · "+String(job.id).slice(0,12)+" · "+(job.capability||job.name||"Build")+" · "+assets.length+" verified local artifact(s)";
  const available=devices.filter(d=>d.lifecycle==="connected");
  if(!available.length){const option=el("option","No connected devices");option.value="";select.append(option);}
  for(const device of available){const option=el("option",(device.label||device.product||device.description||"Device")+" · "+(device.runnerName||"builder")+" · "+device.port);option.value=device.id;select.append(option);}
@@ -86,5 +86,6 @@ async function load(){
  }catch(e){message(e.message);}finally{$("refreshJobs").disabled=false;}
 }
 $("refreshJobs").addEventListener("click",load);
+window.openGitHubFlash=showFlash;
 $("closeFlash").addEventListener("click",()=>$("flashDialog").close());
 load();

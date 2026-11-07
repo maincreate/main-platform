@@ -6,7 +6,7 @@ const {resolve} = require("node:path");
 test("Penpot MVP workspace routes provide separated, editable UI without a new execution engine", async () => {
   for (const dockerfile of [resolve(__dirname, "../Dockerfile"), resolve(__dirname, "Dockerfile")]) {
     const contents = readFileSync(dockerfile, "utf8");
-    for (const artifact of ["portal/builders.html", "portal/builders.js", "portal/marketplace.html", "portal/marketplace.js"]) {
+    for (const artifact of ["portal/builders.html", "portal/builders.js", "portal/marketplace.html", "portal/marketplace.js", "portal/actions.js"]) {
       assert(contents.includes(artifact), dockerfile + " must ship " + artifact);
     }
   }
@@ -27,6 +27,7 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     const jobs = await page("/jobs");
     assert.doesNotMatch(jobs, /id="planForm"/);
     assert.match(jobs, /id="flashDialog"/);
+    assert.match(jobs, /id="githubActionsRuns"/);
     assert.match(jobs, /id="jobs-list"/);
     assert.doesNotMatch(jobs, /id="runners-list"/);
     const marketplace = await page("/marketplace");
