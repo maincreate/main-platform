@@ -36,19 +36,36 @@ async function populate(){
 }
 async function session(){
  try{
-   const s=await request("/api/local/session");
+   const [s,info]=await Promise.all([request("/api/local/session"),request("/api/local/public")]);
    csrf=s.csrf;
-   $("login").hidden=!!s.authenticated;
+   $("firstRun").hidden=!!s.authenticated||!!info.claimed;
+   $("login").hidden=!!s.authenticated||!info.claimed;
    $("workspace").hidden=!s.authenticated;
    $("logout").hidden=!s.authenticated;
    if(s.authenticated){await populate();tab(["instance","github","tunnel","mcp","runners"].includes(location.hash.slice(1))?location.hash.slice(1):"instance");}
  }catch(e){show(e.message,true);}
 }
 document.querySelectorAll("[data-tab]").forEach(btn=>btn.addEventListener("click",()=>tab(btn.dataset.tab)));
+$("firstRunForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const password=$("newPassword").value;
+ if(password!==$("confirmPassword").value){show("Passwords do not match.",true);return;}
+ try {
+   const data=await request("/api/local/bootstrap",{method:"POST",body:JSON.stringify({
+     username:$("newUsername").value.trim(),password,setupCode:$("setupCode").value.trim()
+   })});
+   csrf=data.csrf;
+   $("newPassword").value="";$("confirmPassword").value="";$("setupCode").value="";
+   await session();
+   show("Administrator account created. You're signed in.");
+ }catch(err){show(err.message,true);}
+});
 $("loginForm").addEventListener("submit",async e=>{
  e.preventDefault();try{
-   const data=await request("/api/local/login",{method:"POST",body:JSON.stringify({token:$("adminToken").value})});
-   csrf=data.csrf;$("adminToken").value="";await session();show("Local configuration unlocked.");
+   const data=await request("/api/local/login",{method:"POST",body:JSON.stringify({
+     username:$("loginUsername").value.trim(),password:$("loginPassword").value
+   })});
+   csrf=data.csrf;$("loginPassword").value="";await session();show("Signed in.");
  }catch(err){show(err.message,true);}
 });
 $("logout").addEventListener("click",async()=>{
