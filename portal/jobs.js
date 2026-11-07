@@ -139,7 +139,9 @@ $("planForm").addEventListener("submit",async event=>{
  if(cap.includes("esp_idf")){
   if(!$("repository").value.trim())return message("Repository is required for ESP-IDF operations.");
   parameters.repository=$("repository").value.trim();
-  if($("revision").value.trim())parameters.revision=$("revision").value.trim();
+  if(!/^[a-f0-9]{40}$/i.test($("revision").value.trim()))
+   return message("A 40-character Git commit SHA is required for reproducible ESP-IDF builds.");
+  parameters.revision=$("revision").value.trim();
  }
  try{
   selectedPlan=await fabric("tt_plan",{capability:cap,runner_id:runner,parameters});
