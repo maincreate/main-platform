@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { localRoute } from "../controller/routes.mjs";
 
 const port = Number(process.env.PORT ?? "3000");
 const host = process.env.HOST ?? "127.0.0.1";
@@ -34,12 +35,17 @@ const server = createServer(async (req, res) => {
     let total = 0;
     for await (const chunk of req) {
       total += chunk.length;
-      if (total > 8192) return reject(res, 413, "Request body too large");
+      if (total > 32768) return reject(res, 413, "Request body too large");
       chunks.push(chunk);
     }
     const options = {method, headers:req.headers};
     if (method === "POST") options.body = Buffer.concat(chunks);
     const request = new Request(new URL(req.url, "http://127.0.0.1:" + port), options);
+    const localResponse = await localRoute(request);
+    if (localResponse) {
+      res.writeHead(localResponse.status, Object.fromEntries(localResponse.headers.entries()));
+      return method === "HEAD" ? res.end() : res.end(Buffer.from(await localResponse.arrayBuffer()));
+    }
     let responsePromise;
     onFetch({request, respondWith(value){responsePromise = Promise.resolve(value);}});
     if (!responsePromise) throw new Error("Portal did not return a response");
