@@ -14,8 +14,8 @@ services:
       PORT: "3000"
       TT_DATA_DIR: /data
       TT_REQUIRE_LOGIN: "1"
-      TT_ADMIN_TOKEN: ${TT_ADMIN_TOKEN:-}
-      TT_MASTER_KEY: ${TT_MASTER_KEY:-}
+      # Browser-created account credentials are persisted under /data.
+      # For legacy encrypted-state migrations only, explicitly pass TT_MASTER_KEY.
       TT_SERVICE_TOKEN: ${TT_SERVICE_TOKEN:-}
       TT_MCP_TOKEN: ${TT_MCP_TOKEN:-}
     expose:
