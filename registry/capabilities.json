@@ -28,7 +28,7 @@
     "kind": "action",
     "risk": "build",
     "state": "available",
-    "description": "Compile an operator-allowlisted local ESP-IDF checkout without downloading, flashing or changing its revision. Runner opt-in required.",
+    "description": "Compile an operator-allowlisted local ESP-IDF checkout without downloading, flashing or changing its revision. Runner opt-in required. The exact 40-character local checkout revision is mandatory.",
     "platforms": [
       "linux",
       "macos",
@@ -47,7 +47,8 @@
         }
       },
       "required": [
-        "repository"
+        "repository",
+        "revision"
       ],
       "additionalProperties": false
     },
@@ -63,7 +64,7 @@
     "kind": "workflow",
     "risk": "build",
     "state": "available",
-    "description": "Run a host snapshot followed by an approved ESP-IDF build on the same allowlisted machine.",
+    "description": "Run a host snapshot followed by an approved ESP-IDF build on the same allowlisted machine. The exact 40-character local checkout revision is mandatory.",
     "platforms": [
       "linux",
       "macos",
@@ -82,7 +83,8 @@
         }
       },
       "required": [
-        "repository"
+        "repository",
+        "revision"
       ],
       "additionalProperties": false
     },
