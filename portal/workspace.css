@@ -104,3 +104,25 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-repo-dialog label{font-size:13px;font-weight:600}
 .tt-repo-dialog p{font-size:13px;color:var(--muted)}
 .tt-repo-dialog .tt-toolbar-actions{justify-content:flex-end}
+
+/* Compact inventory controls and safe input sizing */
+*,*::before,*::after{box-sizing:border-box}
+.inventory-toolbar{justify-content:flex-start;align-items:center}
+.inventory-toolbar input[type="search"]{flex:1;min-width:210px;max-width:560px}
+.inventory-toolbar select{min-width:160px}
+.settings-panel,.inventory-panel,.jobs-panel{min-width:0}
+.tt-inline-form{display:grid;grid-template-columns:minmax(160px,220px) minmax(235px,320px) auto;gap:12px;align-items:center}
+.tt-inline-form select{width:100%;min-width:0;padding:11px 42px 11px 12px}
+.tt-inline-form label{line-height:1.5}
+@media(max-width:900px){.tt-inline-form{grid-template-columns:1fr;justify-items:start}.tt-inline-form select{width:min(100%,360px)}}
+
+.tt-approval-form{display:grid;gap:12px;max-width:650px;margin-top:18px}
+.tt-approval-form label{font-size:13px;font-weight:700}
+.tt-approval-form input[type="range"]{width:100%;max-width:440px;accent-color:var(--accent);cursor:pointer}
+.tt-approval-form strong{font-size:15px}
+.tt-policy-locked{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:9px}
+.tt-danger-zone{border-color:#a94f4f}
+.tt-danger-zone summary{cursor:pointer;color:var(--text);font-weight:650;margin-top:16px}
+.tt-danger-zone details{padding-top:5px}
+.tt-danger-button{background:#a83d43;color:#fff;border:0;border-radius:9px;padding:11px 15px;cursor:pointer}
+.tt-danger-button:disabled{opacity:.5}

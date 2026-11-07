@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null;
+let csrf=null,allBuilders=[];
 try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,body){
  const request={credentials:"same-origin",cache:"no-store"};
@@ -16,7 +16,15 @@ async function load(){
  const overview=await api("/api/local/overview");csrf=overview.csrf;
  $("username").textContent=overview.username||"administrator";
  const list=$("runners-list");list.replaceChildren();
- const runners=overview.runners?.items||[];
+ allBuilders=overview.runners?.items||[];
+ renderBuilders();
+}
+function renderBuilders(){
+ const list=$("runners-list");list.replaceChildren();
+ const search=$("builderSearch").value.toLowerCase().trim(),status=$("builderStatus").value;
+ const runners=allBuilders.filter(r=>(!search||[r.name,r.os,r.arch].join(" ").toLowerCase().includes(search))&&
+  (status==="all"||(status==="online"&&r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000)||
+   (status==="offline"&&(!r.lastSeen||Date.now()-Date.parse(r.lastSeen)>=120000))));
  if(!runners.length){list.append(el("p","No build hosts enrolled. Use Add Builder to generate an enrollment token."));return;}
  const table=el("table");table.className="inventory-table";
  const thead=el("thead"),header=el("tr");
@@ -26,6 +34,8 @@ async function load(){
  for(const runner of runners){const row=el("tr");for(const v of [runner.name,runner.os,runner.arch,runner.lastSeen?new Date(runner.lastSeen).toLocaleString():"Never"]){row.append(el("td",v||"—"));}tbody.append(row);}
  table.append(tbody);list.append(table);
 }
+$("builderSearch").addEventListener("input",renderBuilders);
+$("builderStatus").addEventListener("change",renderBuilders);
 $("refresh").addEventListener("click",()=>load().catch(e=>$("notification").textContent=e.message));
 $("invite").addEventListener("click",async()=>{
  const button=$("invite");button.disabled=true;

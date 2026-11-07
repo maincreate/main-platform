@@ -284,7 +284,25 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(changed.status,200);
    assert.equal((await fetch(base+"/",{headers:{cookie:changeCookie},redirect:"manual"})).status,302);
    assert.equal((await json(base,"/api/local/login",{username:adminUsername,password})).status,401);
-   assert.equal((await json(base,"/api/local/login",{username:adminUsername,password:"new-long-credential-987654"})).status,200);
+   const resetLogin=await json(base,"/api/local/login",{username:adminUsername,password:"new-long-credential-987654"});
+   assert.equal(resetLogin.status,200);
+   const resetHeaders={cookie:resetLogin.headers.get("set-cookie").split(";")[0],"x-tt-csrf":resetLogin.data.csrf};
+   const prefs=await (await fetch(base+"/api/local/approval-settings",{headers:{cookie:resetHeaders.cookie}})).json();
+   assert.equal(prefs.buildApproval,"review");assert.equal(prefs.flashApproval,"always");
+   assert.equal((await json(base,"/api/local/approval-settings",{buildApproval:"automatic",flashApproval:"automatic"},resetHeaders)).status,422);
+   assert.equal((await json(base,"/api/local/approval-settings",{buildApproval:"automatic",flashApproval:"always"},resetHeaders)).status,200);
+   const storedPrefs=await (await fetch(base+"/api/local/approval-settings",{headers:{cookie:resetHeaders.cookie}})).json();
+   assert.equal(storedPrefs.buildApproval,"automatic");
+   assert.equal((await json(base,"/api/local/installation/reset",{password:"wrong",confirm:"RESET TINKERTUNNEL"},resetHeaders)).status,401);
+   assert.equal((await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"incorrect"},resetHeaders)).status,422);
+   const reset=await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"RESET TINKERTUNNEL"},resetHeaders);
+   assert.equal(reset.status,200);assert.equal(reset.data.reset,true);
+   assert.match(reset.data.backup,/^reset-backups\/reset-/);
+   assert.equal(statSync(join(dir,reset.data.backup,"state.json")).isFile(),true);
+   assert.equal((await (await fetch(base+"/api/local/public")).json()).claimed,false);
+   assert.equal((await fetch(base+"/api/local/overview",{headers:{cookie:resetHeaders.cookie}})).status,401);
+   assert.equal((await json(base,"/api/local/bootstrap",{username:"fresh-admin",password:"fresh-password-after-reset-123"})).status,200);
+
  } finally {
    portal.kill("SIGTERM");gateway?.kill("SIGTERM");
    rmSync(dir,{recursive:true,force:true});

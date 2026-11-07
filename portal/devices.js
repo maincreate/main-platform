@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null;
+let csrf=null,inventory=[];
 try{const t=localStorage.getItem("tt-theme");if(["midnight","graphite","paper"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
@@ -19,15 +19,29 @@ function node(tag,value,cls){
 function hex(n){return typeof n==="number"?n.toString(16).padStart(4,"0").toUpperCase():"—";}
 function date(s){return s?new Date(s).toLocaleString():"Never";}
 function render(data){
+ inventory=data.devices||[];
+ const select=$("deviceHost"),selected=select.value;select.replaceChildren();
+ const all=node("option","All builders");all.value="all";select.append(all);
+ for(const host of [...new Set(inventory.map(d=>d.runnerName||d.runnerId).filter(Boolean))].sort()){
+  const opt=node("option",host);opt.value=host;select.append(opt);
+ }
+ select.value=[...select.options].some(x=>x.value===selected)?selected:"all";
+ renderInventory(data);
+}
+let lastSummary={};
+function renderInventory(data){
+ lastSummary=data.summary||lastSummary;
  const rows=$("deviceRows");rows.replaceChildren();
- const summary=data.summary||{};
+ const summary=lastSummary;
  $("totals").textContent=(summary.connected||0)+" connected · "+(summary.offline||0)+" recent offline · "+
   (summary.hidden||0)+" hidden · "+(summary.archived||0)+" archived";
- if(!data.devices?.length){
+ const query=$("deviceSearch").value.toLowerCase().trim(),host=$("deviceHost").value;
+ const shown=inventory.filter(item=>(host==="all"||(item.runnerName||item.runnerId)===host)&&(!query||[item.label,item.description,item.product,item.manufacturer,item.runnerName,item.port,item.serialNumber].join(" ").toLowerCase().includes(query)));
+ if(!shown.length){
   const tr=node("tr"),td=node("td","No devices in this view. Discovery is available when a builder runs with TT_RUNNER_DEVICE_DISCOVERY=1.");
   td.colSpan=7;tr.append(td);rows.append(tr);return;
  }
- for(const d of data.devices){
+ for(const d of shown){
   const tr=node("tr");
   const name=node("td"),first=node("strong",d.label||d.product||d.description||"USB serial device");
   const meta=node("small",hex(d.vid)+":"+hex(d.pid)+(d.manufacturer?" · "+d.manufacturer:""));
@@ -68,3 +82,6 @@ async function load(){
 $("showHidden").addEventListener("change",load);
 $("refresh").addEventListener("click",load);
 load();
+ 
+$("deviceSearch").addEventListener("input",()=>renderInventory({}));
+$("deviceHost").addEventListener("change",()=>renderInventory({}));

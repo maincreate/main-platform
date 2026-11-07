@@ -53,6 +53,36 @@
   <button type="submit" class="action">Change password</button>
  </form>
 </section>
+<section class="settings-panel" aria-labelledby="approvalTitle">
+ <h2 id="approvalTitle">Approval preferences</h2>
+ <p>Decide how much TinkerTunnel can do without asking. GitHub Actions runs when its workflows are triggered; those triggers are not changed here.</p>
+ <form id="approvalForm" class="tt-approval-form">
+  <label for="buildApproval">Firmware builds</label>
+  <input type="range" id="buildApproval" min="0" max="1" step="1" value="0" aria-describedby="buildApprovalExplanation">
+  <strong id="buildApprovalLabel">Ask before starting</strong>
+  <p id="buildApprovalExplanation">Review TinkerTunnel-initiated jobs before they start.</p>
+  <label for="flashApproval">Flashing devices</label>
+  <div class="tt-policy-locked"><span>Always ask before flashing</span><span class="inventory-badge">Safety requirement</span></div>
+  <p>Device flashing is not enabled yet. A future trusted-device mode will require verified firmware and a matching device before any automatic operation.</p>
+  <button class="plain-button" type="submit">Save approval preferences</button>
+  <p id="approvalNotice" role="status" aria-live="polite"></p>
+ </form>
+</section>
+<section class="settings-panel tt-danger-zone" aria-labelledby="resetTitle">
+ <h2 id="resetTitle">Reset this TinkerTunnel installation</h2>
+ <p>Return to first-time setup. The local administrator, GitHub connection, inventory, job history, artifacts, and local policies will be moved into a private recovery snapshot.</p>
+ <p><strong>This does not delete GitHub repositories, remove already-installed runners, or change Coolify configuration and environment variables.</strong> Existing runners will need to be re-enrolled.</p>
+ <details><summary>Show reset controls</summary>
+  <form id="resetForm" class="settings-form">
+   <label for="resetPassword">Current administrator password</label>
+   <input id="resetPassword" type="password" autocomplete="current-password" required>
+   <label for="resetConfirm">Type RESET TINKERTUNNEL</label>
+   <input id="resetConfirm" type="text" autocomplete="off" spellcheck="false" required placeholder="RESET TINKERTUNNEL">
+   <button id="resetSubmit" type="submit" class="tt-danger-button">Reset installation</button>
+   <p id="resetNotice" role="status" aria-live="polite"></p>
+  </form>
+ </details>
+</section>
 <section class="settings-panel" aria-labelledby="executionTitle">
  <h2 id="executionTitle">Job approvals and automation</h2>
  <p id="executionStatus">Loading job approval status…</p>

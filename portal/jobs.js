@@ -34,12 +34,15 @@ function showFlash(job){
 }
 function render(){
  const holder=$("jobs-list");holder.replaceChildren();
- if(!currentJobs.length){holder.append(el("p","No jobs recorded yet. GitHub Actions workflow history will appear when that integration is available."));return;}
+ const query=$("localJobSearch").value.toLowerCase().trim(),status=$("localJobStatus").value;
+ const matching=currentJobs.filter(j=>(!query||[j.capability,j.id,j.runner_id,j.status].join(" ").toLowerCase().includes(query))&&
+ (status==="all"||j.status===status));
+ if(!matching.length){holder.append(el("p","No matching local jobs. GitHub Actions workflow history will appear when that integration is available."));return;}
  const table=el("table",undefined,"tt-jobs-table"),thead=el("thead"),hdr=el("tr");
  for(const h of ["Job","Status","Builder","Started","Actions"])hdr.append(el("th",h));
  thead.append(hdr);table.append(thead);
  const tbody=el("tbody");
- for(const j of currentJobs){
+ for(const j of matching){
   const row=el("tr");
   const jobCell=td(row,j.capability||"Job");jobCell.append(el("div",j.id.slice(0,12),"tt-job-meta"));
   const state=td(row,"");state.append(el("span",String(j.status).replaceAll("_"," "),"job-status"));
@@ -85,6 +88,8 @@ async function load(){
   render();message("");
  }catch(e){message(e.message);}finally{$("refreshJobs").disabled=false;}
 }
+$("localJobSearch").addEventListener("input",render);
+$("localJobStatus").addEventListener("change",render);
 $("refreshJobs").addEventListener("click",load);
 window.openGitHubFlash=showFlash;
 $("closeFlash").addEventListener("click",()=>$("flashDialog").close());

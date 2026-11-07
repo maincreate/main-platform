@@ -232,6 +232,15 @@ function requestRepositoryFromMcp(input){
    instruction:"Open TinkerTunnel > Settings > GitHub to approve. An MCP client cannot approve its own request."};
 }
 
+function applyApprovalPreference(tool,args,context){
+  const result=fabricCall(tool,args,context);
+  // No device flashing or arbitrary shell capability can inherit automatic approval.
+  if(tool==="tt_execute"&&state().approvalSettings?.buildApproval==="automatic"&&
+      result?.job?.status==="awaiting_approval"&&result.job.capability==="firmware.esp_idf.build"){
+    return {...result,job:approveJob(result.job.id,"approve").job,requires_approval:false,notice:"Approved automatically under the saved firmware build policy."};
+  }
+  return result;
+}
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
@@ -335,6 +344,47 @@ export async function localRoute(req) {
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
         return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
+      if(path==="/api/local/approval-settings"&&method==="GET"){
+        const settings=state().approvalSettings||{};
+        return reply({buildApproval:settings.buildApproval==="automatic"?"automatic":"review",
+          flashApproval:"always",autoFlashAvailable:false,
+          note:"GitHub Actions workflow triggers operate independently. These settings govern only TinkerTunnel-created jobs; device flashing always requires separate approval."});
+      }
+      if(path==="/api/local/approval-settings"&&method==="POST"){
+        const b=await body(req);
+        if(!["review","automatic"].includes(b.buildApproval)||b.flashApproval!=="always")
+          return deny(422,"Choose an available build approval mode; firmware flashing always requires approval");
+        const stored=state();stored.approvalSettings={buildApproval:b.buildApproval,flashApproval:"always"};
+        save(stored);return reply({buildApproval:b.buildApproval,flashApproval:"always"});
+      }
+      if(path==="/api/local/installation/reset"&&method==="POST"){
+        const b=await body(req),stored=state();
+        if(limited("installation-reset:"+session(req).username,4))return deny(429,"Too many reset attempts");
+        if(!stored.admin)return deny(409,"No administrator configured");
+        if(b.confirm!=="RESET TINKERTUNNEL")return deny(422,"Enter RESET TINKERTUNNEL to confirm");
+        if(typeof b.password!=="string"||!(await verifyPassword(b.password,stored.admin.password)))
+          return deny(401,"Administrator password is incorrect");
+        const running=fabricCall("tt_jobs",{action:"list"}).jobs.some(j=>j.status==="running");
+        if(running)return deny(409,"Stop active local jobs before resetting the installation");
+        // Preserve a private on-disk recovery snapshot. External GitHub repos, host agents
+        // and hosting environment variables are never modified.
+        const backupDir=join(dataDir,"reset-backups","reset-"+new Date().toISOString().replace(/[:.]/g,"-")+"-"+randomBytes(4).toString("hex"));
+        mkdirSync(backupDir,{recursive:true,mode:0o700});
+        const moved=[];
+        try{
+          for(const name of ["state.json","master.key","fabric.json","devices.json","projects.json","assets"]){
+            const from=join(dataDir,name),to=join(backupDir,name);
+            if(existsSync(from)){renameSync(from,to);moved.push(name);}
+          }
+        }catch(e){
+          for(const name of moved.reverse())renameSync(join(backupDir,name),join(dataDir,name));
+          return deny(503,"Reset failed before completion; original data restored");
+        }
+        sessions.clear();githubDeviceFlows.clear();
+        return reply({reset:true,loginRequired:true,backup:"reset-backups/"+backupDir.split("/").pop(),
+          note:"Old state retained in a local private recovery snapshot; external GitHub repositories and environment settings were not changed."},
+          200,{"set-cookie":sessionCookie(req,"",0)});
       }
       if(path==="/api/local/account/password"&&method==="POST") {
         const b=await body(req),s=state();
@@ -635,7 +685,7 @@ export async function localRoute(req) {
           runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
           devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
-        try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+        try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
         catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/jobs/approval"&&method==="POST"){
@@ -706,7 +756,7 @@ export async function localRoute(req) {
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
         runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
           devices:listDevices({mode:"visible"}).devices};
-      try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+      try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/status"&&method==="GET"){
