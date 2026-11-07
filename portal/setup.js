@@ -1,5 +1,9 @@
 "use strict";
 const $=id=>document.getElementById(id);
+try {
+  const chosen=localStorage.getItem("tt-theme");
+  if(["graphite","paper","midnight"].includes(chosen))document.body.dataset.theme=chosen;
+} catch {}
 const notice=msg=>{$("notice").textContent=msg;};
 async function api(path,data){
   const init={cache:"no-store",credentials:"same-origin"};
