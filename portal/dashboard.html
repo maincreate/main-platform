@@ -9,7 +9,7 @@
 <body data-theme="midnight">
 <header class="topbar">
   <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
-  <nav class="primary-nav" aria-label="Main navigation"><a href="/" aria-current="page">Overview</a><a href="/topology">Topology</a></nav>
+  <nav class="primary-nav" aria-label="Main navigation"><a href="/" aria-current="page">Overview</a><a href="/topology">Topology</a><a href="/jobs">Jobs &amp; builders</a></nav>
   <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><button id="accountSettings" class="plain-button">Account</button><button id="signout" class="plain-button">Sign out</button></div>
 </header>
 <main class="main">
@@ -35,7 +35,7 @@
         <h3>Build machines</h3>
         <p>Connect a Raspberry Pi, Mac, Windows or Linux machine to run approved builds on your own hardware.</p>
         <p class="subtle" id="runner-detail">No build machines enrolled.</p>
-        <span class="not-ready">Configure after GitHub</span>
+        <a href="/jobs" class="action action-secondary">Manage build machines</a>
       </article>
       <article class="connection-card">
         <div class="card-top"><span class="number">03</span><span class="status" id="assistant-status">Not connected</span></div>

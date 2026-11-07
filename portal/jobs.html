@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Build operations • TinkerTunnel</title>
+<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/jobs.css">
+<script src="/jobs.js" defer></script>
+</head><body data-theme="midnight">
+<header class="topbar">
+ <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
+ <nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/topology">Topology</a><a href="/jobs" aria-current="page">Jobs &amp; builders</a></nav>
+ <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><a href="/" class="plain-button">Dashboard</a></div>
+</header>
+<main class="main jobs-page">
+ <p class="eyebrow">CAPABILITY FABRIC</p><h1>Builders, plans &amp; jobs.</h1>
+ <p class="page-description">Use a versioned capability on a trusted machine. Every execution requires your approval here; hardware flashing and arbitrary commands are unavailable.</p>
+ <p id="notification" role="status" aria-live="polite" class="notification"></p>
+ <section class="jobs-panel" aria-labelledby="runners-heading">
+  <div class="section-head"><div><h2 id="runners-heading">Build machines</h2><p>Paired machines and last reported heartbeat.</p></div>
+   <button id="refresh" type="button" class="plain-button">Refresh</button></div>
+  <div id="runners-list" class="runner-list">Loading machines…</div>
+  <div class="enroll-panel">
+    <div><h3>Enroll another machine</h3><p>Generate a short-lived pairing token, then run the agent on a trusted computer. Token shown only once.</p></div>
+    <button type="button" id="invite" class="plain-button">Generate pairing token</button>
+  </div>
+  <div id="enrollment" hidden>
+    <p class="muted">Keep this credential private; it expires in 10 minutes. Run from the machine after cloning the TinkerTunnel repository.</p>
+    <code id="enrollCommand"></code>
+  </div>
+ </section>
+ <section class="jobs-panel" aria-labelledby="plan-heading">
+  <div class="section-head"><div><h2 id="plan-heading">Plan an operation</h2>
+   <p>Capability definitions, required parameters and compatibility come from the registry.</p></div></div>
+  <form id="planForm" class="plan-form">
+    <label for="capability">Capability</label><select id="capability" required></select>
+    <label for="runner">Machine</label><select id="runner" required></select>
+    <label for="repository">Repository (for ESP-IDF builds)</label>
+    <input id="repository" placeholder="owner/repository" spellcheck="false">
+    <label for="revision">Exact checkout revision (40-character SHA, required for builds)</label>
+    <input id="revision" placeholder="Paste the approved Git commit SHA" spellcheck="false" maxlength="40">
+    <button class="action" type="submit">Create plan</button>
+  </form>
+  <div id="planResult" hidden class="plan-result">
+   <h3>Validated plan</h3><pre id="planPreview"></pre>
+   <button id="requestExecution" class="action" type="button">Request execution approval</button>
+  </div>
+ </section>
+ <section class="jobs-panel" aria-labelledby="history-heading">
+  <div class="section-head"><div><h2 id="history-heading">Job activity &amp; approvals</h2>
+   <p>Approving a job permits only its pinned capability and parameters. Operator-enabled machines claim jobs outbound.</p></div>
+  <button id="refreshJobs" type="button" class="plain-button">Refresh jobs</button></div>
+  <div id="jobs-list" class="jobs-list">No jobs yet.</div>
+ </section>
+ <footer>Self-hosted · No unrestricted command execution · Explicit administrator approval</footer>
+</main>
+</body></html>

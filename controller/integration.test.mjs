@@ -32,7 +32,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
  const p=await freePort(),g=await freePort();
  const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
  const adminUsername="admin",password="secure-user-created-password-123",service=token(),mcpToken=token();
- const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_GITHUB_CLIENT_ID:"",TT_MASTER_KEY:"",TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1"},stdio:"ignore"});
+ const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_GITHUB_CLIENT_ID:"",TT_MASTER_KEY:"",TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1",TT_ENABLE_FABRIC_EXECUTION:"0"},stdio:"ignore"});
  let gateway;
  try{
    await ready(base);
@@ -62,7 +62,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(authedRoot.status,200);
    const dashboard=await authedRoot.text();
    assert.match(dashboard,/TinkerTunnel • Dashboard/);
-   assert.match(dashboard,/Get connected/);
+   assert.match(dashboard,/Connections/);
+   assert.match(dashboard,/href="\/jobs"/);
    assert.match(dashboard,/Open topology/);
    assert.match(dashboard,/id="github-action"/);
    assert.match(dashboard,/id="github-detail"/);
@@ -81,6 +82,12 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.match(topologyHtml,/id="topoGithubMeta"/);
    assert.match(topologyHtml,/id="topologyMap"/);
    assert.equal((await fetch(base+"/topology.js")).status,401);
+   assert.equal((await fetch(base+"/jobs",{redirect:"manual"})).status,302);
+   assert.equal((await fetch(base+"/jobs",{headers:{cookie}})).status,200);
+   assert.equal((await fetch(base+"/jobs.js")).status,401);
+   assert.equal((await fetch(base+"/jobs.css")).status,401);
+   assert.equal((await fetch(base+"/jobs.js",{headers:{cookie}})).status,200);
+   assert.equal((await fetch(base+"/api/local/fabric",{method:"POST",headers:{"content-type":"application/json"},body:"{}"})).status,401);
    const topoScript=await fetch(base+"/topology.js",{headers:{cookie}});
    assert.equal(topoScript.status,200);
    assert.match(await topoScript.text(),/renderTopology/);
@@ -148,6 +155,35 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id},{authorization:"Bearer "+enrolled.data.token});
    assert.equal(hb.status,200);
    assert.equal(hb.data.jobExecution,"disabled");
+   // End-to-end fabric API: authenticated planning, explicit approval and default no-execution.
+   const fabricHeaders={cookie,"x-tt-csrf":csrf};
+   const fabricCall=async(tool,args={})=>json(base,"/api/local/fabric",{tool,arguments:args},fabricHeaders);
+   const discovered=await fabricCall("tt_discover",{resource:"capabilities"});
+   assert.equal(discovered.status,200);
+   assert(discovered.data.capabilities.some(x=>x.id==="host.snapshot"));
+   assert(discovered.data.capabilities.some(x=>x.id==="firmware.esp_idf.flash"&&x.state==="unavailable"));
+   const planned=await fabricCall("tt_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
+   assert.equal(planned.status,200);
+   assert.equal(planned.data.requires_approval,true);
+   const jobRequest=await fabricCall("tt_execute",{plan_id:planned.data.plan_id});
+   assert.equal(jobRequest.status,200);
+   assert.equal(jobRequest.data.job.status,"awaiting_approval");
+   const noClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
+     {authorization:"Bearer "+enrolled.data.token});
+   assert.equal(noClaim.data.job,null);
+   assert.equal(noClaim.data.executionEnabled,false);
+   assert.equal((await json(base,"/api/local/jobs/approval",{job_id:jobRequest.data.job.id,decision:"approve"}, {cookie})).status,403);
+   const approved=await json(base,"/api/local/jobs/approval",{job_id:jobRequest.data.job.id,decision:"approve"},fabricHeaders);
+   assert.equal(approved.status,200);
+   assert.equal(approved.data.job.status,"queued");
+   const stillNoClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
+     {authorization:"Bearer "+enrolled.data.token});
+   assert.equal(stillNoClaim.data.job,null);
+   const cancelled=await fabricCall("tt_jobs",{action:"cancel",job_id:jobRequest.data.job.id});
+   assert.equal(cancelled.status,200);
+   assert.equal(cancelled.data.job.status,"cancelled");
+   assert.equal((await json(base,"/api/internal/fabric",{tool:"tt_discover",arguments:{resource:"capabilities"}})).status,401);
+
    const topoOverview=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
    assert.equal(topoOverview.runners.count,1);
    assert.equal(topoOverview.runners.items[0].name,"build-pi");
@@ -197,12 +233,16 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const authorized={...headersMcp,authorization:"Bearer "+mcpToken};
    const init=await json(mcp,"/mcp",{jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2025-11-25"}},authorized);
    assert.equal(init.status,200);
-   assert.equal(init.data.result.serverInfo.name,"tinkertunnel-local");
+   assert.equal(init.data.result.serverInfo.name,"tinkertunnel");
    const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
-   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tinkertunnel_status","tinkertunnel_list_runners","tinkertunnel_framework_catalog","tinkertunnel_plan_install"]);
+   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tt_discover","tt_inspect","tt_plan","tt_execute","tt_jobs","tt_assets"]);
    const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"tinkertunnel_list_runners",arguments:{}}},authorized);
    assert.equal(runners.data.result.isError,false);
    assert.match(runners.data.result.content[0].text,/build-pi/);
+   const discovery=await json(mcp,"/mcp",{jsonrpc:"2.0",id:5,method:"tools/call",
+     params:{name:"tt_discover",arguments:{resource:"capabilities"}}},authorized);
+   assert.equal(discovery.data.result.isError,false);
+   assert(discovery.data.result.structuredContent.capabilities.some(x=>x.id==="host.snapshot"));
    const planner=await json(mcp,"/mcp",{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"tinkertunnel_plan_install",arguments:{framework:"esp-idf",os:"linux",arch:"arm64"}}},authorized);
    assert.equal(planner.data.result.isError,false);
    assert.match(planner.data.result.content[0].text,/dry_run/);

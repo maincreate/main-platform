@@ -38,7 +38,7 @@ const server = createServer(async (req, res) => {
     let total = 0;
     for await (const chunk of req) {
       total += chunk.length;
-      if (total > 32768) return reject(res, 413, "Request body too large");
+      if (total > 85000) return reject(res, 413, "Request body too large");
       chunks.push(chunk);
     }
     const options = {method, headers:req.headers};

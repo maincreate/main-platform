@@ -2,6 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
+import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
@@ -150,7 +151,7 @@ function authorized(req,mutation=false) {
 async function body(req) {
   if(!(req.headers.get("content-type")||"").toLowerCase().startsWith("application/json"))throw new Error("JSON required");
   const raw=await req.text();
-  if(raw.length>32768)throw new Error("Request too large");
+  if(raw.length>85000)throw new Error("Request too large");
   const obj=JSON.parse(raw);
   if(!obj||typeof obj!=="object"||Array.isArray(obj))throw new Error("JSON object required");
   return obj;
@@ -165,7 +166,7 @@ function publicSummary() {
     runners:s.runners.length,
     tunnel:"manual_configuration_required",
     mcp:"bearer_token_local_only",
-    warning:"Remote ChatGPT OAuth and framework execution are not yet available"};
+    warning:"Remote ChatGPT OAuth is not yet available. Runner execution requires explicit approval and operator opt-in."};
 }
 async function verifyGithub(s) {
   if(!s.github.appId||!s.github.installationId||!s.github.privateKey)throw new Error("GitHub App ID, Installation ID and private key required");
@@ -201,6 +202,14 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal/github.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if((path==="/github.js"||path==="/github.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
+  }
+  if(path==="/jobs"&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/jobs.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if((path==="/jobs.js"||path==="/jobs.css")&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
   }
@@ -402,7 +411,7 @@ export async function localRoute(req) {
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
             })),
             truncated:stored.runners.length>24,
-            executionEnabled:false
+            executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
           },
           assistant:{connected:false},
           topology:{
@@ -441,6 +450,20 @@ export async function localRoute(req) {
         try {const result=await verifyGithub(s);s.github.verifiedAt=new Date().toISOString();save(s);return reply({verified:true,...result});}
         catch(e){s.github.verifiedAt=null;save(s);return deny(502,e.message);}
       }
+      if(path==="/api/local/fabric"&&method==="POST"){
+        const b=await body(req),s=state();
+        const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
+          runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen}))};
+        if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
+        try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+        catch(e){return deny(e.status||422,e.message);}
+      }
+      if(path==="/api/local/jobs/approval"&&method==="POST"){
+        const b=await body(req);
+        if(typeof b.job_id!=="string")return deny(422,"job_id required");
+        try{return reply(approveJob(b.job_id,b.decision));}
+        catch(e){return deny(e.status||422,e.message);}
+      }
       if(path==="/api/local/runners/invite"&&method==="POST"){
         const s=state(),token=rnd();
         s.invites=(s.invites||[]).filter(x=>x.expires>Date.now());
@@ -466,11 +489,36 @@ export async function localRoute(req) {
       if(!runner)return deny(401,"Invalid runner token");
       runner.lastSeen=new Date().toISOString();save(s);return reply({ok:true,jobExecution:"disabled"});
     }
+    if(["/api/agent/jobs/claim","/api/agent/jobs/complete","/api/agent/assets"].includes(path)&&method==="POST"){
+      const b=await body(req),s=state(),token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
+      const runner=s.runners.find(x=>x.id===b.id&&equal(x.tokenHash,digest(token)));
+      if(!runner)return deny(401,"Invalid runner token");
+      try{
+        if(path==="/api/agent/jobs/claim"){
+          runner.lastSeen=new Date().toISOString();save(s);
+          if(process.env.TT_ENABLE_FABRIC_EXECUTION!=="1")return reply({job:null,executionEnabled:false});
+          return reply({...claimJob(runner),executionEnabled:true});
+        }
+        if(process.env.TT_ENABLE_FABRIC_EXECUTION!=="1")return deny(403,"Runner execution disabled");
+        if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
+        return reply(agentAsset(runner,b));
+      }catch(e){return deny(e.status||422,e.message);}
+    }
+    if(path==="/api/internal/fabric"&&method==="POST"){
+      const service=process.env.TT_SERVICE_TOKEN||"";
+      if(service.length<32)return deny(503,"Internal service unavailable");
+      if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
+      const b=await body(req),s=state();
+      const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
+        runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen}))};
+      try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
+      catch(e){return deny(e.status||422,e.message);}
+    }
     if(path==="/api/internal/status"&&method==="GET"){
       const token=process.env.TT_SERVICE_TOKEN||"";
       if(token.length<32)return deny(503,"Internal service token not configured");
       if(!equal(req.headers.get("authorization")||"","Bearer "+token))return deny(401,"Unauthorized");
-      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:false});
+      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1",fabric:fabricStats()});
     }
     return deny(404,"Not found");
   } catch(e) {
