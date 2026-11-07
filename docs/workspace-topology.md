@@ -15,7 +15,7 @@ The account-first flow is unchanged. Users create a username/password and immedi
 5. **Build machines:** real enrolled runners from persisted controller state, using OS, architecture and last heartbeat.
 6. **Toolkits:** intentionally *not discovered yet* until authenticated runner inventory and validated SDK metadata are available.
 
-Dashed connectors mean **illustrative or unverified relationships**, not observed network traffic. A solid connector from workspace to a runner means its authenticated heartbeat was recorded within the last five minutes; it does **not** mean it can perform builds. Do not infer tunnel connectivity from a DNS name, GitHub organization selection, or installed binaries.
+Dashed connectors mean **illustrative or unverified relationships**, not observed network traffic. A solid GitHub-to-workspace connector means a GitHub user authorization is valid and an organization installation was selected; it does **not** mean a tunnel or data path is online. A solid connector from workspace to a runner means its authenticated heartbeat was recorded within the last five minutes; it does **not** mean it can perform builds. Expired GitHub authorization remains visibly marked **Reconnect required**, retaining the saved organization as context but never showing the link as connected. Do not infer tunnel connectivity from DNS, installation selection or installed binaries.
 
 ## Data contract
 
