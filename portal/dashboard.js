@@ -3,12 +3,12 @@ const $=id=>document.getElementById(id);
 const allowed=["graphite","paper","midnight"];
 let csrf=null;
 function theme(id){
-  if(!allowed.includes(id))id="graphite";
+  if(!allowed.includes(id))id="midnight";
   document.body.dataset.theme=id;
   document.querySelectorAll(".theme-choice").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.palette===id)));
   try{localStorage.setItem("tt-theme",id);}catch{}
 }
-try{theme(localStorage.getItem("tt-theme")||"graphite");}catch{theme("graphite");}
+try{theme(localStorage.getItem("tt-theme")||"midnight");}catch{theme("midnight");}
 document.querySelectorAll(".theme-choice").forEach(b=>b.addEventListener("click",()=>theme(b.dataset.palette)));
 async function load(){
   try{
