@@ -34,6 +34,8 @@ The initial portal can be started without `TT_SERVICE_TOKEN`, `TT_MCP_TOKEN` or 
 
 ## Dashboard — subsequent choices
 
+The dashboard includes a horizontal six-lane workspace topology inspired by developer infrastructure maps: cloud services, secure access, MCP, the workspace, build machines and toolkits. Builder nodes use real enrollment/heartbeat metadata; unverified routes stay dashed, and SDK/toolkit inventory isn't fabricated. You can select a machine to inspect its last heartbeat. See [workspace topology](docs/workspace-topology.md).
+
 The dashboard shows actual connection status rather than pretending integrations are already configured:
 
 - **GitHub:** connect your account and choose an organization. Organizations are recommended for sharing runners across repositories. A single repository does not require an organization.
