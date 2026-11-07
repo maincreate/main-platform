@@ -15,9 +15,9 @@ const object=(properties={},required=[])=>({type:"object",properties,required,ad
 const textField={type:"string"},idField={type:"string",description:"Server-issued identifier"};
 const tools=[
  {name:"tt_discover",title:"Discover TinkerTunnel resources",description:"Find installed runners, workspace details and versioned capability manifests. Read only.",
-  annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["all","capabilities","runners","workspace","jobs","assets"]},query:textField})},
+  annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["all","capabilities","toolkits","runners","workspace","jobs","assets"]},query:textField})},
  {name:"tt_inspect",title:"Inspect one resource",description:"Read the input schema and supported platforms of a capability, an enrolled runner or an existing job. Read only.",
-  annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["capability","runner","job"]},id:idField},["id"])},
+  annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["capability","toolkit","runner","job"]},id:idField},["id"])},
  {name:"tt_plan",title:"Plan a validated capability",description:"Validate parameters for a pinned capability or composed workflow against a specific runner. Produces an immutable expiring plan; no execution.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({capability:textField,runner_id:idField,parameters:{type:"object",description:"Capability-specific parameters from tt_inspect; no arbitrary shell command."}},["capability","runner_id"])},
  {name:"tt_execute",title:"Request approved execution",description:"Submit a previously validated plan as an approval-pending job. Never executes without signed-in portal approval and operator-enabled runner.",
