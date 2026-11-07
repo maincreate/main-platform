@@ -16,9 +16,16 @@
   <div id="notice" class="message" role="status" aria-live="polite"></div>
   <section class="github-panel" id="loading">Checking GitHub connection…</section>
   <section class="github-panel" id="unavailable" hidden>
-    <h2>GitHub sign-in isn't available yet</h2>
-    <p>This installation needs GitHub device authorization enabled by the application distributor. An approved GitHub OAuth or GitHub App client ID must be configured first. You can still use your TinkerTunnel dashboard.</p>
-    <a href="/" class="plain-button">Return to dashboard</a>
+    <h2>Set up the GitHub connection</h2>
+    <p>To connect, TinkerTunnel needs a dedicated <strong>GitHub App</strong> with <strong>Device Flow</strong> enabled. You can configure its public Client ID here once; no access token, password or private key is needed.</p>
+    <form id="githubClientForm">
+      <label for="githubClientId">GitHub App Client ID</label>
+      <input id="githubClientId" type="text" autocomplete="off" spellcheck="false"
+        maxlength="100" placeholder="Iv1… or Ov23…" required>
+      <div class="button-row"><button type="submit" class="primary">Save and continue</button></div>
+    </form>
+    <p class="small">Don't have a GitHub App? <a href="https://github.com/settings/apps/new" target="_blank" rel="noopener noreferrer">Register one on GitHub</a> under your chosen owner or organization. Enable Device Flow in the App's settings. For the first release, use read-only repository metadata permissions; avoid requesting additional access until it's needed.</p>
+    <p class="muted">A deployment integration's GitHub App is a different concern and should remain separate.</p>
   </section>
   <section class="github-panel" id="disconnected" hidden>
     <h2>Authorize your GitHub account</h2>
@@ -38,8 +45,9 @@
     <label for="org">GitHub organization</label>
     <select id="org"><option value="">Choose an organization</option></select>
     <p class="muted" id="organizationHint"></p>
+    <button id="refreshOrganizations" class="plain-button" type="button">Refresh organizations</button>
     <div class="button-row"><button id="saveOrg" class="primary">Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>
-    <p class="small">Don't have an organization? <a href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create one on GitHub</a>, then reconnect to refresh the available organizations. Selecting an organization here does not install runners or grant repository access.</p>
+    <p class="small">To select an organization, first install this GitHub App on that organization in GitHub. Then return and choose Refresh organizations. <a href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create an organization</a> if you don't have one. Selecting an organization does not install or grant runners access.</p>
   </section>
 </main>
 </body></html>
