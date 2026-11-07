@@ -19,15 +19,15 @@
     <p>Your account is ready. The connections below make TinkerTunnel useful, but nothing else is required to get started.</p>
   </div>
   <section aria-labelledby="connections-title">
-    <div class="section-head"><div><h2 id="connections-title">Get connected</h2><p>Choose what to connect when you're ready.</p></div><span class="count" id="connection-count">0 of 3 connected</span></div>
+    <div class="section-head"><div><h2 id="connections-title">Connections</h2><p>See what's connected and configure the remaining services when you're ready.</p></div><span class="count" id="connection-count">0 of 3 connected</span></div>
     <div class="cards">
-      <article class="connection-card priority">
+      <article class="connection-card priority" id="github-card">
         <div class="card-top"><span class="number">01</span><span class="status" id="github-status">Not connected</span></div>
         <div class="symbol" aria-hidden="true">⌘</div>
         <h3>GitHub</h3>
-        <p>Connect your GitHub account and choose an organization. An organization lets build machines serve several repositories.</p>
-        <p class="subtle">Recommended next step. For a single repository, an organization isn't required.</p>
-        <a class="action" href="/github">Connect GitHub <span aria-hidden="true">→</span></a>
+        <p id="github-description">Connect your GitHub account and choose an organization. An organization lets build machines serve several repositories.</p>
+        <p class="subtle" id="github-detail">Recommended next step. For a single repository, an organization isn't required.</p>
+        <a class="action" id="github-action" href="/github">Connect GitHub <span aria-hidden="true">→</span></a>
       </article>
       <article class="connection-card">
         <div class="card-top"><span class="number">02</span><span class="status" id="runners-status">Not connected</span></div>

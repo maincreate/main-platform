@@ -17,7 +17,9 @@ const DEFAULT_GITHUB_CLIENT_ID="Iv23liAxFGcez9en0tY8";
 const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||state().github.oauthClientId||DEFAULT_GITHUB_CLIENT_ID;
 const validGithubClientId=id=>/^[A-Za-z0-9._-]{8,100}$/.test(id);
 function githubIdentityCurrent(g) {
-  return !!g.oauthUser && (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
+  // A saved profile/organization alone is not proof of a usable authorization.
+  return !!g.oauthUser && !!g.oauthToken &&
+    (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
 }
 async function githubDevicePost(url,params) {
   const response=await fetch(url,{method:"POST",headers:{"accept":"application/json","content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params),signal:AbortSignal.timeout(12000)});
@@ -388,8 +390,10 @@ export async function localRoute(req) {
           workspace:{name:stored.config.name==="TinkerTunnel Local"?"TinkerTunnel":stored.config.name},
           github:{
             identityConnected:githubIdentityCurrent(stored.github),
+            authorizationExpired:!!stored.github.oauthUser&&!githubIdentityCurrent(stored.github),
             login:stored.github.oauthUser?.login||null,
             organization:githubIdentityCurrent(stored.github)?stored.github.selectedOrganization||null:null,
+            savedOrganization:stored.github.selectedOrganization||null,
             integrationVerified:!!stored.github.verifiedAt
           },
           runners:{

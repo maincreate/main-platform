@@ -19,8 +19,35 @@ async function load(){
     csrf=d.csrf;
     $("username").textContent=d.username||"administrator";
     const connected=!!d.github?.identityConnected;
-    const hasOrg=!!d.github?.organization;
-    $("github-status").textContent=hasOrg?"Organization selected":connected?"GitHub connected":"Not connected";
+    const hasOrg=connected&&!!d.github?.organization;
+    const expired=!!d.github?.authorizationExpired;
+    const card=$("github-card"),status=$("github-status"),action=$("github-action");
+    const description=$("github-description"),detail=$("github-detail");
+    card.classList.toggle("priority",!hasOrg);
+    card.classList.toggle("is-connected",hasOrg);
+    action.classList.toggle("action-secondary",hasOrg);
+    status.dataset.state=hasOrg?"connected":expired?"attention":connected?"partial":"disconnected";
+    if(hasOrg){
+      status.textContent="Connected";
+      description.textContent="Connected to the "+d.github.organization+" organization.";
+      detail.textContent=(d.github.login?"Authorized as @"+d.github.login+". ":"")+"Build runner access is configured separately.";
+      action.textContent="Edit GitHub Connection";
+    }else if(expired){
+      status.textContent="Reconnect required";
+      description.textContent="The GitHub authorization expired. Reconnect to continue using your organization.";
+      detail.textContent=d.github.savedOrganization?"Previously selected: "+d.github.savedOrganization:"No active GitHub authorization";
+      action.textContent="Reconnect GitHub";
+    }else if(connected){
+      status.textContent="Account linked";
+      description.textContent="Signed in to GitHub"+(d.github.login?" as @"+d.github.login:"")+".";
+      detail.textContent="Choose an organization to share build machines between repositories.";
+      action.textContent="Choose organization";
+    }else{
+      status.textContent="Not connected";
+      description.textContent="Connect your GitHub account and choose an organization. An organization lets build machines serve several repositories.";
+      detail.textContent="Recommended next step. A single-repository setup doesn't require an organization.";
+      action.textContent="Connect GitHub →";
+    }
     const nodes=Number(d.runners?.count||0);
     $("runners-status").textContent=nodes?nodes+" enrolled":"Not connected";
     $("runner-detail").textContent=nodes?nodes+" machine"+(nodes===1?"":"s")+" enrolled. Build execution is not enabled yet.":"No build machines enrolled.";

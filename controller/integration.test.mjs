@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {spawn} from "node:child_process";
-import {mkdtempSync,readFileSync,rmSync,statSync} from "node:fs";
+import {mkdtempSync,readFileSync,writeFileSync,rmSync,statSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join,resolve} from "node:path";
 import {createServer} from "node:net";
@@ -64,6 +64,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.match(dashboard,/TinkerTunnel • Dashboard/);
    assert.match(dashboard,/Get connected/);
    assert.match(dashboard,/Open topology/);
+   assert.match(dashboard,/id="github-action"/);
+   assert.match(dashboard,/id="github-detail"/);
    assert.match(dashboard,/href="\/topology"/);
    assert.doesNotMatch(dashboard,/id="topologyMap"/,"Overview must not render the wide topology");
    const topologyPublic=await fetch(base+"/topology",{redirect:"manual"});
@@ -76,6 +78,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
      assert(topologyHtml.includes(section),"Topology missing "+section);
    }
    assert.match(topologyHtml,/id="topologyRunners"/);
+   assert.match(topologyHtml,/id="topoGithubMeta"/);
    assert.match(topologyHtml,/id="topologyMap"/);
    assert.equal((await fetch(base+"/topology.js")).status,401);
    const topoScript=await fetch(base+"/topology.js",{headers:{cookie}});
@@ -157,6 +160,35 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(cfg.config.name,"Home Lab");
    assert.equal(cfg.runners.length,1);
    assert.equal(cfg.github.hasPrivateKey,true);
+   // The dashboard and topology share one authenticated overview contract:
+   // a selected organization is connected only while an OAuth credential is usable.
+   const statePath=join(dir,"state.json"),originalState=readFileSync(statePath,"utf8");
+   const account=JSON.parse(originalState);
+   account.github.oauthUser={login:"example-user",id:12};
+   account.github.oauthToken={iv:"fixture",ct:"fixture",tag:"fixture"};
+   account.github.selectedOrganization="ExampleOrg";
+   account.github.oauthExpiresAt=new Date(Date.now()+3600_000).toISOString();
+   writeFileSync(statePath,JSON.stringify(account,null,2),{mode:0o600});
+   const linked=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
+   assert.equal(linked.github.identityConnected,true);
+   assert.equal(linked.github.organization,"ExampleOrg");
+   assert.equal(linked.github.login,"example-user");
+   assert.equal(linked.github.authorizationExpired,false);
+   account.github.oauthExpiresAt=new Date(Date.now()-3600_000).toISOString();
+   writeFileSync(statePath,JSON.stringify(account,null,2),{mode:0o600});
+   const expired=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
+   assert.equal(expired.github.identityConnected,false);
+   assert.equal(expired.github.authorizationExpired,true);
+   assert.equal(expired.github.organization,null);
+   assert.equal(expired.github.savedOrganization,"ExampleOrg");
+   delete account.github.oauthToken;
+   account.github.oauthExpiresAt=new Date(Date.now()+3600_000).toISOString();
+   writeFileSync(statePath,JSON.stringify(account,null,2),{mode:0o600});
+   const withoutToken=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
+   assert.equal(withoutToken.github.identityConnected,false);
+   assert.equal(withoutToken.github.authorizationExpired,true);
+   writeFileSync(statePath,originalState,{mode:0o600});
+
    assert(!("token" in cfg.runners[0]));
    gateway=spawn(process.execPath,["gateway/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(g),TT_CONTROLLER_URL:base,TT_MCP_TOKEN:mcpToken,TT_SERVICE_TOKEN:service},stdio:"ignore"});
    await ready(mcp);
