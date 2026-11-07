@@ -72,6 +72,20 @@ $("logout").addEventListener("click",async()=>{
  try{await request("/api/local/logout",{method:"POST",body:"{}"});}catch{}
  csrf=null;await session();show("Signed out.");
 });
+$("passwordForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const next=$("changePassword").value;
+ if(next!==$("changePasswordConfirm").value){show("New passwords do not match.",true);return;}
+ try{
+   await request("/api/local/account/password",{method:"POST",body:JSON.stringify({
+     currentPassword:$("currentPassword").value,newPassword:next
+   })});
+   $("currentPassword").value="";$("changePassword").value="";$("changePasswordConfirm").value="";
+   csrf=null;
+   await session();
+   show("Password updated. Please sign in again.");
+ }catch(err){show(err.message,true);}
+});
 $("instanceForm").addEventListener("submit",async e=>{
  e.preventDefault();
  try{
