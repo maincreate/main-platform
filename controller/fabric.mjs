@@ -260,6 +260,9 @@ export function reportJob(runner,args){
  if(steps.length!==j.steps.length||steps.some((step,i)=>step.capability!==j.steps[i].capability||
    !["completed","failed","skipped"].includes(step.status)))
   throw error(422,"Invalid job step results");
+ if((args.success&&!steps.every(step=>step.status==="completed"))||
+   (!args.success&&!steps.some(step=>step.status==="failed")))
+  throw error(422,"Reported status and step outcomes disagree");
  j.logs=args.logs;j.steps=steps.map((st,i)=>({index:i,capability:st.capability,status:st.status}));
  j.status=args.success?"completed":"failed";
  j.completedAt=new Date().toISOString();
