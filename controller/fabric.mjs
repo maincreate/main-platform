@@ -30,6 +30,15 @@ const CAPS=[
   description:"Reserved for a future device-specific, approval-gated flashing adapter; not executable.",
   platforms:[],parameters:{type:"object",properties:{},additionalProperties:false},steps:[]}
 ];
+const TOOLKITS=[
+ {id:"esp-idf",displayName:"Espressif IoT Development Framework",category:"firmware",
+  state:"catalog-only",installation:"operator-managed",
+  description:"Version is detected and validated on a registered builder at execution time; no automatic SDK installation in this release.",
+  capabilities:["firmware.esp_idf.build","workflow.esp_idf.preflight_build"]},
+ {id:"nodejs",displayName:"Node.js",category:"runtime",state:"catalog-only",
+  installation:"operator-managed",description:"Runner agent uses Node.js 22 or newer; version inventory is available through host.snapshot.",
+  capabilities:["host.snapshot"]}
+];
 const uid=()=>randomBytes(16).toString("hex");
 const sha=x=>createHash("sha256").update(x).digest("hex");
 const error=(code,message)=>Object.assign(new Error(message),{status:code});
@@ -106,6 +115,11 @@ function inspect(args,ctx){
   if(!c)throw error(404,"Unknown capability");
   return c;
  }
+ if(kind==="toolkit"){
+  const t=TOOLKITS.find(x=>x.id===id);
+  if(!t)throw error(404,"Unknown toolkit");
+  return t;
+ }
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
@@ -120,10 +134,11 @@ function inspect(args,ctx){
 }
 function discover(args,ctx){
  const resource=args.resource||"all",q=(args.query||"").toLowerCase();
- if(!["all","capabilities","runners","workspace","jobs","assets"].includes(resource))
+ if(!["all","capabilities","toolkits","runners","workspace","jobs","assets"].includes(resource))
   throw error(422,"Unknown resource type");
  const result={};
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
+ if(resource==="all"||resource==="toolkits")result.toolkits=TOOLKITS.filter(t=>!q||(t.id+" "+t.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
   id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)
  })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
