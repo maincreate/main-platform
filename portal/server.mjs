@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { localRoute, hasLocalAdminSession } from "../controller/routes.mjs";
 
 const port = Number(process.env.PORT ?? "3000");
 const host = process.env.HOST ?? "127.0.0.1";
@@ -22,6 +23,12 @@ function reject(res, status, message) {
   });
   res.end(JSON.stringify({error: message}));
 }
+// A private admin deployment must not expose the unauthenticated dashboard by default.
+const requireLogin = process.env.TT_REQUIRE_LOGIN !== "0";
+if (requireLogin) {
+  if ((process.env.TT_ADMIN_TOKEN || "").length < 32) throw new Error("TT_ADMIN_TOKEN is required for authenticated deployment");
+  if (!/^[a-f0-9]{64}$/i.test(process.env.TT_MASTER_KEY || "")) throw new Error("TT_MASTER_KEY must contain 32 random bytes in hex");
+}
 const server = createServer(async (req, res) => {
   try {
     const method = req.method || "GET";
@@ -34,12 +41,22 @@ const server = createServer(async (req, res) => {
     let total = 0;
     for await (const chunk of req) {
       total += chunk.length;
-      if (total > 8192) return reject(res, 413, "Request body too large");
+      if (total > 32768) return reject(res, 413, "Request body too large");
       chunks.push(chunk);
     }
     const options = {method, headers:req.headers};
     if (method === "POST") options.body = Buffer.concat(chunks);
     const request = new Request(new URL(req.url, "http://127.0.0.1:" + port), options);
+    const localResponse = await localRoute(request);
+    if (localResponse) {
+      res.writeHead(localResponse.status, Object.fromEntries(localResponse.headers.entries()));
+      return method === "HEAD" ? res.end() : res.end(Buffer.from(await localResponse.arrayBuffer()));
+    }
+    // Login protects the application dashboard, not just the configuration API.
+    if (requireLogin && new URL(req.url, "http://localhost").pathname === "/" && !hasLocalAdminSession(request)) {
+      res.writeHead(302, {location:"/setup", "cache-control":"no-store"});
+      return res.end();
+    }
     let responsePromise;
     onFetch({request, respondWith(value){responsePromise = Promise.resolve(value);}});
     if (!responsePromise) throw new Error("Portal did not return a response");

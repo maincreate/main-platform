@@ -1,0 +1,104 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {spawn} from "node:child_process";
+import {mkdtempSync,readFileSync,rmSync,statSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join,resolve} from "node:path";
+import {createServer} from "node:net";
+import {randomBytes} from "node:crypto";
+
+const root=resolve(import.meta.dirname,"..");
+const token=()=>randomBytes(32).toString("hex");
+async function freePort(){
+ return new Promise((resolve,reject)=>{
+   const srv=createServer();srv.once("error",reject);
+   srv.listen(0,"127.0.0.1",()=>{const port=srv.address().port;srv.close(()=>resolve(port));});
+ });
+}
+async function ready(base){
+ for(let i=0;i<100;i++){
+   try{const r=await fetch(base+"/healthz");if(r.ok)return;}catch{}
+   await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ throw new Error("Server failed health check: "+base);
+}
+async function json(base,path,data,headers={}){
+ const r=await fetch(base+path,{method:"POST",headers:{"content-type":"application/json",...headers},body:JSON.stringify(data)});
+ return {status:r.status,data:await r.json(),headers:r.headers};
+}
+
+test("controller configuration persists, secrets stay encrypted, runners enroll once, MCP reads only",{timeout:30000},async()=>{
+ const dir=mkdtempSync(join(tmpdir(),"tt-controller-"));
+ const p=await freePort(),g=await freePort();
+ const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
+ const admin=token(),master=token(),service=token(),mcpToken=token();
+ const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:admin,TT_MASTER_KEY:master,TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1"},stdio:"ignore"});
+ let gateway;
+ try{
+   await ready(base);
+   const anonymousRoot=await fetch(base+"/",{redirect:"manual"});
+   assert.equal(anonymousRoot.status,302);
+   assert.equal(anonymousRoot.headers.get("location"),"/setup");
+   assert.equal((await fetch(base+"/setup")).status,200);
+   assert.equal((await fetch(base+"/setup.css")).status,200);
+   assert.equal((await fetch(base+"/setup.js")).status,200);
+   assert.equal((await fetch(base+"/api/local/config")).status,401);
+   assert.equal((await json(base,"/api/local/login",{token:"invalid"})).status,401);
+   const login=await json(base,"/api/local/login",{token:admin});
+   assert.equal(login.status,200);
+   const cookie=login.headers.get("set-cookie").split(";")[0],csrf=login.data.csrf;
+   const authedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
+   assert.equal(authedRoot.status,200);
+   const httpsLogin=await json(base,"/api/local/login",{token:admin},{"x-forwarded-proto":"https"});
+   assert.equal(httpsLogin.status,200);
+   assert.match(httpsLogin.headers.get("set-cookie")||"",/; Secure$/);
+   const headers={cookie,"x-tt-csrf":csrf};
+   const newState={name:"Home Lab",role:"all-in-one",tunnelHostname:"mcp.example.com"};
+   assert.equal((await json(base,"/api/local/config",newState,{cookie})).status,403);
+   assert.equal((await json(base,"/api/local/config",newState,headers)).status,200);
+   const pem="-----BEGIN PRIVATE KEY-----\nsensitive-test-value\n-----END PRIVATE KEY-----";
+   assert.equal((await json(base,"/api/local/github",{appId:123,installationId:456,repository:"Example/app",privateKey:pem},headers)).status,200);
+   const state=readFileSync(join(dir,"state.json"),"utf8");
+   assert(!state.includes(pem));
+   assert(state.includes('"iv"')&&state.includes('"ct"')&&state.includes('"tag"'));
+   if(process.platform!=="win32")assert.equal(statSync(join(dir,"state.json")).mode & 0o777,0o600);
+   const invite=await json(base,"/api/local/runners/invite",{},headers);
+   assert.equal(invite.status,200);
+   const request={token:invite.data.token,name:"build-pi",os:"linux",arch:"arm64"};
+   const enrolled=await json(base,"/api/agent/enroll",request);
+   assert.equal(enrolled.status,200);
+   assert.equal((await json(base,"/api/agent/enroll",request)).status,401);
+   assert(!readFileSync(join(dir,"state.json"),"utf8").includes(enrolled.data.token));
+   const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id},{authorization:"Bearer "+enrolled.data.token});
+   assert.equal(hb.status,200);
+   assert.equal(hb.data.jobExecution,"disabled");
+   const cfg=await (await fetch(base+"/api/local/config",{headers:{cookie}})).json();
+   assert.equal(cfg.config.name,"Home Lab");
+   assert.equal(cfg.runners.length,1);
+   assert.equal(cfg.github.hasPrivateKey,true);
+   assert(!("token" in cfg.runners[0]));
+   gateway=spawn(process.execPath,["gateway/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(g),TT_CONTROLLER_URL:base,TT_MCP_TOKEN:mcpToken,TT_SERVICE_TOKEN:service},stdio:"ignore"});
+   await ready(mcp);
+   const headersMcp={"content-type":"application/json",accept:"application/json, text/event-stream"};
+   assert.equal((await json(mcp,"/mcp",{jsonrpc:"2.0",id:1,method:"tools/list"},headersMcp)).status,401);
+   const authorized={...headersMcp,authorization:"Bearer "+mcpToken};
+   const init=await json(mcp,"/mcp",{jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2025-11-25"}},authorized);
+   assert.equal(init.status,200);
+   assert.equal(init.data.result.serverInfo.name,"tinkertunnel-local");
+   const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
+   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tinkertunnel_status","tinkertunnel_list_runners","tinkertunnel_framework_catalog","tinkertunnel_plan_install"]);
+   const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"tinkertunnel_list_runners",arguments:{}}},authorized);
+   assert.equal(runners.data.result.isError,false);
+   assert.match(runners.data.result.content[0].text,/build-pi/);
+   const planner=await json(mcp,"/mcp",{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"tinkertunnel_plan_install",arguments:{framework:"esp-idf",os:"linux",arch:"arm64"}}},authorized);
+   assert.equal(planner.data.result.isError,false);
+   assert.match(planner.data.result.content[0].text,/dry_run/);
+   assert.equal((await fetch(base+"/mcp")).status,503);
+   const logout=await json(base,"/api/local/logout",{},headers);
+   assert.equal(logout.status,200);
+   assert.equal((await fetch(base+"/",{headers:{cookie},redirect:"manual"})).status,302);
+ } finally {
+   portal.kill("SIGTERM");gateway?.kill("SIGTERM");
+   rmSync(dir,{recursive:true,force:true});
+ }
+});

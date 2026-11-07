@@ -1,53 +1,39 @@
-# TinkerTunnel Local — web portal/API preview
+# TinkerTunnel Local portal/controller
 
-This component is part of the **self-hosted TinkerTunnel product**, not a separately deployed SaaS product. Its Docker build context is `portal/`, but operators deploy **from the repository root** via [../compose.yaml](../compose.yaml).
+The **repository-root** `compose.yaml` deploys the portal/controller and the separate MCP gateway together; do not use a `/portal` base directory in Coolify.
 
-## Run
+The existing portal serves dashboard, framework catalog and dry-run planner. The new **/setup** page adds an authenticated onboarding wizard for instance metadata, GitHub App installation verification, optional Cloudflare tunnel preparation, MCP credentials, and one-time runner enrollment.
 
-From the repository root:
+## Trust boundaries
 
-```sh
-docker compose up -d --build
-docker compose ps
-curl -fsS http://127.0.0.1:13000/healthz
-```
+- Web administration uses `TT_ADMIN_TOKEN` (at least 32 random characters) and an HttpOnly, SameSite=Strict short-lived session cookie with CSRF protection.
+- `TT_MASTER_KEY` must be 32 bytes hex-encoded (64 hex chars). GitHub PEM private keys are encrypted with AES-256-GCM before being written to the local JSON state volume.
+- State is mounted only on the portal service and written atomically with Unix mode 0600.
+- One-time runner invite tokens expire after 10 minutes; enrolled runner tokens are stored as SHA-256 hashes in the controller.
+- The separate MCP gateway has a distinct `TT_MCP_TOKEN` and `TT_SERVICE_TOKEN`. Only four read-only tools are exposed.
+- The `tunnel` profile is optional and must target **gateway only**. Public browser access is not supported until proper OAuth and identity protections are implemented.
+- No Docker socket, arbitrary shell interface, host filesystem mount or device passthrough is provided.
 
-For Coolify, use the Git-backed Docker Compose Application, repository `TinkerTunnel/tinkertunnel`, branch `main`, **Base Directory `/`**, **Compose Location `compose.yaml`**. Do not use Railpack. Do not set a public domain until authentication is implemented.
+## API status
 
-The service binds `127.0.0.1:13000` on the **Docker host**. For access from a laptop:
+| Method | Route | Access |
+| --- | --- | --- |
+| GET | /healthz | Local health |
+| GET | / | Dashboard preview |
+| GET | /api/v1/catalog | Read-only catalog |
+| POST | /api/v1/plans | Read-only dry-run plan |
+| GET | /setup, /setup.js, /setup.css | Public login/setup assets |
+| POST | /api/local/login | Admin token |
+| GET | /api/local/session | Browser session |
+| GET/POST | /api/local/config | Admin cookie + CSRF for writes |
+| POST | /api/local/github | Admin: encrypted key storage |
+| POST | /api/local/github/verify | Admin: live GitHub App verification |
+| POST | /api/local/runners/invite | Admin: single-use enrollment token |
+| POST | /api/agent/enroll | Single-use invite |
+| POST | /api/agent/heartbeat | Per-runner bearer token |
+| GET | /api/internal/status | Internal service bearer |
+| POST | Gateway :3001/mcp | MCP bearer token |
 
-```sh
-ssh -L 13000:127.0.0.1:13000 USER@COOLIFY-DOCKER-HOST
-```
+Actual job execution, device flashing, artifact publishing, ChatGPT OAuth and tunnel reachability probes are future milestones. The current role selector records topology intent but does not reconfigure containers.
 
-Then open `http://127.0.0.1:13000`. If that host port is already used, set `PORTAL_PORT` and adjust the tunnel. The older `portal/compose.coolify.yaml` is retained for compatibility but is **not the canonical deployment configuration**.
-
-## Implemented preview endpoints
-
-- `GET /` — dashboard preview: Overview, Connections, Marketplace, Build nodes and Activity
-- `GET /healthz` — container health check
-- `GET /api/v1/status` — deliberately unconnected preview status
-- `GET /api/v1/catalog` — curated framework catalog
-- `POST /api/v1/plans` — read-only OS/architecture-aware install plan
-- `GET /mcp`, `/api/v1/install`, `/api/v1/enroll` and `/oauth/...` — intentionally disabled (503)
-
-Run source contract tests on Node 22+:
-
-```sh
-cd portal
-node --test *.test.cjs
-```
-
-## Security and deployment roles
-
-The current Node container is unprivileged, read-only, resource limited, and does not mount the Docker socket or host filesystem. The unauthenticated portal is accessible only through the Docker-host loopback binding unless an operator changes it. **Do not publish it on a LAN or public reverse proxy yet.**
-
-The product's eventual logical roles are Controller + Web, MCP Gateway + optional tunnel, and isolated action runners. **All-in-one** packages these on one host; **Management + infrastructure** separates controller/web, gateway/tunnel and runners onto different hosts. No runner can execute arbitrary shell actions; only approved and policy-scoped recipes are allowed.
-
-The current build contains **only this portal/API preview**. Real identity, encrypted local secrets, GitHub App integration, agent enrollment, runner execution, OAuth-protected MCP and tunnel connectivity remain to be built.
-
-When available, R2 artifact publishing will be optional: the Controller stores protected credentials, provides a short-lived scoped upload URL, and the runner uploads its artifact without receiving permanent R2 secrets.
-
-## Future SaaS
-
-Future hosted SaaS belongs in a **different repository**. This repository remains the local distribution.
+Refer to [../README.md](../README.md) for installation and Docker profile commands.

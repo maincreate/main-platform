@@ -1,23 +1,29 @@
-# Repository-root deployment entry point for TinkerTunnel Local.
-# The current MVP runs the web/API preview only.
-# Controller, MCP gateway, tunnel and runner roles will be added as independently
-# deployable services/profiles without moving the repository build root.
+# TinkerTunnel Local: deployment entry point at the repository ROOT.
+# Default services: management portal/controller + authenticated read-only MCP gateway.
+# Optional profiles: tunnel and runner. No device, Docker socket or host access.
 services:
   portal:
     build:
-      context: ./portal
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: portal/Dockerfile
     restart: unless-stopped
     init: true
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: "3000"
+      TT_DATA_DIR: /data
+      TT_REQUIRE_LOGIN: "1"
+      TT_ADMIN_TOKEN: ${TT_ADMIN_TOKEN:-}
+      TT_MASTER_KEY: ${TT_MASTER_KEY:-}
+      TT_SERVICE_TOKEN: ${TT_SERVICE_TOKEN:-}
+      TT_MCP_TOKEN: ${TT_MCP_TOKEN:-}
     expose:
       - "3000"
-    # Private by default: the UI does not yet have authentication.
     ports:
       - "127.0.0.1:${PORTAL_PORT:-13000}:3000"
+    volumes:
+      - tt_data:/data
     read_only: true
     cap_drop:
       - ALL
@@ -29,12 +35,79 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       start_period: 10s
       retries: 3
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      portal:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3001"
+      TT_CONTROLLER_URL: http://portal:3000
+      TT_SERVICE_TOKEN: ${TT_SERVICE_TOKEN:-}
+      TT_MCP_TOKEN: ${TT_MCP_TOKEN:-}
+      TT_MCP_ALLOWED_ORIGINS: ${TT_MCP_ALLOWED_ORIGINS:-}
+    expose:
+      - "3001"
+    ports:
+      - "127.0.0.1:${TT_MCP_PORT:-13001}:3001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 128m
+    cpus: 0.5
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      TUNNEL_TOKEN: ${TT_TUNNEL_TOKEN:-}
+    command: ["tunnel","--no-autoupdate","run"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+  runner:
+    profiles: ["runner"]
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      portal:
+        condition: service_healthy
+    environment:
+      TT_CONTROLLER_URL: http://portal:3000
+      TT_RUNNER_STATE_DIR: /var/lib/tinkertunnel
+    volumes:
+      - tt_runner:/var/lib/tinkertunnel
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+
+volumes:
+  tt_data:
+  tt_runner:
