@@ -51,13 +51,24 @@ function lastSeenDescription(value){
 }
 function renderTopology(data){
   const gh=!!data.github?.identityConnected;
-  $("topoGithub").textContent=gh?"GitHub account linked":"Not connected";
+  const githubOrg=gh?data.github?.organization:null;
+  const githubAuthorized=!!githubOrg;
+  const githubNode=document.querySelector('[data-topology-node="cloud-github"]');
+  if(githubNode)githubNode.dataset.connected=String(githubAuthorized);
+  $("topoGithub").textContent=githubAuthorized?"Connected · "+githubOrg:
+    gh?"Account linked":data.github?.authorizationExpired?"Reconnect required":"Not connected";
+  $("topoGithubMeta").textContent=githubAuthorized?
+    (data.github?.login?"Authorized as @"+data.github.login:"GitHub account authorized"):
+    gh?"Choose an organization to connect the workspace":
+    data.github?.authorizationExpired?
+      (data.github?.savedOrganization?"Previously selected: "+data.github.savedOrganization:"Authorization expired"):
+      "Code and repositories";
   $("topoWorkspace").textContent=data.workspace?.name||"TinkerTunnel";
   const records=Array.isArray(data.runners?.items)?data.runners.items.slice(0,8):[];
   const holder=$("topologyRunners");
   holder.replaceChildren();
   topoEdges=[
-    ["cloud-github","workspace",false],
+    ["cloud-github","workspace",githubAuthorized],
     ["cloud-assistant","secure",false],
     ["secure","mcp",false],
     ["mcp","workspace",false]
@@ -70,7 +81,7 @@ function renderTopology(data){
       createSpan("topology-hint","Add a trusted machine when ready"));
     holder.append(node);
     topoEdges.push(["workspace","runner-empty",false],["runner-empty","toolkits",false]);
-    $("topologySummary").textContent="No machines enrolled. GitHub and build connections can be configured after account creation.";
+    $("topologySummary").textContent=(githubAuthorized?"GitHub connected to "+githubOrg+". ":"")+"No machines enrolled. Build machines can be added when ready.";
   }else{
     let recent=0;
     for(const runner of records){
