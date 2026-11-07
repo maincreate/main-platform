@@ -100,6 +100,18 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const ghStatus=await (await fetch(base+"/api/local/github/device/status",{headers:{cookie}})).json();
    assert.equal(ghStatus.available,false);
    assert.equal(ghStatus.connected,false);
+   const ghHeaders={cookie,"x-tt-csrf":csrf};
+   const sampleClientId="sample-public-github-app-id";
+   assert.equal((await json(base,"/api/local/github/device/config",{clientId:sampleClientId})).status,401);
+   assert.equal((await json(base,"/api/local/github/device/config",{clientId:sampleClientId},{cookie})).status,403);
+   assert.equal((await json(base,"/api/local/github/device/config",{clientId:"bad"},ghHeaders)).status,422);
+   assert.equal((await json(base,"/api/local/github/device/config",{clientId:sampleClientId},ghHeaders)).status,200);
+   const ghConfigured=await (await fetch(base+"/api/local/github/device/status",{headers:{cookie}})).json();
+   assert.equal(ghConfigured.available,true);
+   assert.equal(ghConfigured.clientId,sampleClientId);
+   assert.equal(ghConfigured.configuredByEnvironment,false);
+   assert.equal((await json(base,"/api/local/github/device/installations/refresh",{},ghHeaders)).status,409);
+
    assert.equal((await json(base,"/api/local/github/device/start",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,503);
    assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
    assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example"},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
