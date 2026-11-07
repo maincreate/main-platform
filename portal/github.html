@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect GitHub • TinkerTunnel</title>
+<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/github.css">
+<script src="/github.js" defer></script></head>
+<body data-theme="graphite">
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
+  <a href="/" class="plain-button">Back to dashboard</a>
+</header>
+<main class="github-shell">
+  <p class="eyebrow">CONNECTIONS / GITHUB</p>
+  <h1>Connect GitHub</h1>
+  <p class="intro-text">Sign in with GitHub, then choose the organization whose repositories you want to work with. This happens after your TinkerTunnel account is created.</p>
+  <div id="notice" class="message" role="status" aria-live="polite"></div>
+  <section class="github-panel" id="loading">Checking GitHub connection…</section>
+  <section class="github-panel" id="unavailable" hidden>
+    <h2>GitHub sign-in isn't available yet</h2>
+    <p>This installation needs a GitHub App with device authorization enabled before users can connect. The application distributor must configure its public client ID. You can still use your TinkerTunnel dashboard.</p>
+    <a href="/" class="plain-button">Return to dashboard</a>
+  </section>
+  <section class="github-panel" id="disconnected" hidden>
+    <h2>Authorize your GitHub account</h2>
+    <p>You'll approve TinkerTunnel on GitHub. No personal access token or private key needs to be pasted here.</p>
+    <button id="start" class="primary">Sign in with GitHub →</button>
+  </section>
+  <section class="github-panel" id="authorizing" hidden>
+    <h2>Finish signing in on GitHub</h2>
+    <p>Copy the code, open GitHub, and approve the authorization request. We'll detect the result here.</p>
+    <div class="device-code" id="userCode" aria-label="GitHub authorization code"></div>
+    <div class="button-row"><button class="plain-button" id="copyCode">Copy code</button><a href="https://github.com/login/device" target="_blank" rel="noopener noreferrer" class="primary">Open GitHub authorization →</a></div>
+    <p class="muted" id="authProgress">Waiting for GitHub authorization…</p>
+  </section>
+  <section class="github-panel" id="connected" hidden>
+    <h2>GitHub account connected</h2>
+    <p>Signed in as <strong id="githubLogin"></strong>. Select an organization to make it possible to share build machines between repositories later.</p>
+    <label for="org">GitHub organization</label>
+    <select id="org"><option value="">Choose an organization</option></select>
+    <p class="muted" id="organizationHint"></p>
+    <div class="button-row"><button id="saveOrg" class="primary">Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>
+    <p class="small">Don't have an organization? <a href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create one on GitHub</a>, then reconnect to refresh the available organizations. Selecting an organization here does not install runners or grant repository access.</p>
+  </section>
+</main>
+</body></html>
