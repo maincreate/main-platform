@@ -32,10 +32,13 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
  const p=await freePort(),g=await freePort();
  const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
  const admin=token(),master=token(),service=token(),mcpToken=token();
- const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:admin,TT_MASTER_KEY:master,TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken},stdio:"ignore"});
+ const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:admin,TT_MASTER_KEY:master,TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1"},stdio:"ignore"});
  let gateway;
  try{
    await ready(base);
+   const anonymousRoot=await fetch(base+"/",{redirect:"manual"});
+   assert.equal(anonymousRoot.status,302);
+   assert.equal(anonymousRoot.headers.get("location"),"/setup");
    assert.equal((await fetch(base+"/setup")).status,200);
    assert.equal((await fetch(base+"/setup.css")).status,200);
    assert.equal((await fetch(base+"/setup.js")).status,200);
@@ -44,6 +47,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const login=await json(base,"/api/local/login",{token:admin});
    assert.equal(login.status,200);
    const cookie=login.headers.get("set-cookie").split(";")[0],csrf=login.data.csrf;
+   const authedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
+   assert.equal(authedRoot.status,200);
    const headers={cookie,"x-tt-csrf":csrf};
    const newState={name:"Home Lab",role:"all-in-one",tunnelHostname:"mcp.example.com"};
    assert.equal((await json(base,"/api/local/config",newState,{cookie})).status,403);
