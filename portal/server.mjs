@@ -24,7 +24,8 @@ function reject(res, status, message) {
   res.end(JSON.stringify({error: message}));
 }
 // A private admin deployment must not expose the unauthenticated dashboard by default.
-if (process.env.TT_REQUIRE_LOGIN === "1") {
+const requireLogin = process.env.TT_REQUIRE_LOGIN !== "0";
+if (requireLogin) {
   if ((process.env.TT_ADMIN_TOKEN || "").length < 32) throw new Error("TT_ADMIN_TOKEN is required for authenticated deployment");
   if (!/^[a-f0-9]{64}$/i.test(process.env.TT_MASTER_KEY || "")) throw new Error("TT_MASTER_KEY must contain 32 random bytes in hex");
 }
@@ -52,7 +53,7 @@ const server = createServer(async (req, res) => {
       return method === "HEAD" ? res.end() : res.end(Buffer.from(await localResponse.arrayBuffer()));
     }
     // Login protects the application dashboard, not just the configuration API.
-    if (process.env.TT_REQUIRE_LOGIN === "1" && new URL(req.url, "http://localhost").pathname === "/" && !hasLocalAdminSession(request)) {
+    if (requireLogin && new URL(req.url, "http://localhost").pathname === "/" && !hasLocalAdminSession(request)) {
       res.writeHead(302, {location:"/setup", "cache-control":"no-store"});
       return res.end();
     }
