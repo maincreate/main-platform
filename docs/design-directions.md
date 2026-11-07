@@ -10,7 +10,7 @@ The product should feel like a professional developer tool, not a dark-green hom
 | Warm Paper | `#FAF7F1` | `#FFFDF8` | `#36332D` | `#AD593F` | Editorial, human, approachable |
 | Midnight | `#0D1526` | `#172339` | `#F2F6FF` | `#24C9BD` | Technical, immersive, low light |
 
-The default for the current preview is Graphite + Iris, replacing the original teal/mint-on-black theme. The dashboard allows users to select among the three; the selection is browser-local and does not affect other users yet.
+The default for the current preview is Midnight, replacing the original teal/mint-on-black theme. The dashboard allows users to select among the three; the selection is browser-local and does not affect other users yet.
 
 ## Design-system candidates
 
