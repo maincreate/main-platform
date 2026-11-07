@@ -183,6 +183,14 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
   }
+  if(path==="/topology"&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/topology.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if(path==="/topology.js"&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal/topology.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
+  }
   if((path==="/dashboard.js"||path==="/dashboard.css")&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     const type=path.endsWith(".js")?"text/javascript":"text/css";
@@ -324,7 +332,7 @@ export async function localRoute(req) {
         const stored=state(),current=session(req);
         return reply({
           username:current.username,csrf:current.csrf,
-          workspace:{name:stored.config.name},
+          workspace:{name:stored.config.name==="TinkerTunnel Local"?"TinkerTunnel":stored.config.name},
           github:{
             identityConnected:githubIdentityCurrent(stored.github),
             login:stored.github.oauthUser?.login||null,

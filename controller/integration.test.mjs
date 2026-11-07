@@ -63,13 +63,24 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const dashboard=await authedRoot.text();
    assert.match(dashboard,/TinkerTunnel • Dashboard/);
    assert.match(dashboard,/Get connected/);
-   assert.match(dashboard,/Your development workspace/);
-   assert.match(dashboard,/Cloud services/);
-   assert.match(dashboard,/Secure access/);
-   assert.match(dashboard,/MCP gateway/);
-   assert.match(dashboard,/Build machines/);
-   assert.match(dashboard,/Toolkits/);
-   assert.match(dashboard,/topologyRunners/);
+   assert.match(dashboard,/Open topology/);
+   assert.match(dashboard,/href="\/topology"/);
+   assert.doesNotMatch(dashboard,/id="topologyMap"/,"Overview must not render the wide topology");
+   const topologyPublic=await fetch(base+"/topology",{redirect:"manual"});
+   assert.equal(topologyPublic.status,302);
+   assert.equal(topologyPublic.headers.get("location"),"/setup");
+   const topologyPrivate=await fetch(base+"/topology",{headers:{cookie}});
+   assert.equal(topologyPrivate.status,200);
+   const topologyHtml=await topologyPrivate.text();
+   for(const section of ["Cloud services","Secure access","MCP gateway","Workspace","Build machines","Toolkits"]){
+     assert(topologyHtml.includes(section),"Topology missing "+section);
+   }
+   assert.match(topologyHtml,/id="topologyRunners"/);
+   assert.match(topologyHtml,/id="topologyMap"/);
+   assert.equal((await fetch(base+"/topology.js")).status,401);
+   const topoScript=await fetch(base+"/topology.js",{headers:{cookie}});
+   assert.equal(topoScript.status,200);
+   assert.match(await topoScript.text(),/renderTopology/);
    assert.equal((await fetch(base+"/setup",{headers:{cookie},redirect:"manual"})).status,302);
    assert.equal((await fetch(base+"/dashboard.css")).status,401);
    assert.equal((await fetch(base+"/dashboard.js",{headers:{cookie}})).status,200);
