@@ -13,6 +13,9 @@ const sessions = new Map();
 const failures = new Map();
 const githubDeviceFlows=new Map();
 const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||"";
+function githubIdentityCurrent(g) {
+  return !!g.oauthUser && (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
+}
 async function githubDevicePost(url,params) {
   const response=await fetch(url,{method:"POST",headers:{"accept":"application/json","content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params),signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw new Error("GitHub authorization service unavailable");
@@ -256,7 +259,7 @@ export async function localRoute(req) {
       }
       if(path==="/api/local/github/device/status"&&method==="GET"){
         const g=state().github,configured=/^[A-Za-z0-9._-]{8,100}$/.test(githubClientId());
-        return reply({available:configured,connected:!!g.oauthUser,login:g.oauthUser?.login||null,
+        return reply({available:configured,connected:githubIdentityCurrent(g),login:g.oauthUser?.login||null,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
           selectedOrganization:g.selectedOrganization||null,
           note:configured?null:"A GitHub App with device authorization must be configured by the TinkerTunnel distributor."});
@@ -264,7 +267,7 @@ export async function localRoute(req) {
       if(path==="/api/local/github/device/start"&&method==="POST"){
         const clientId=githubClientId();
         if(!/^[A-Za-z0-9._-]{8,100}$/.test(clientId))return deny(503,"GitHub sign-in is not enabled for this installation");
-        if(state().github.oauthUser)return deny(409,"Disconnect the existing GitHub account first");
+        if(githubIdentityCurrent(state().github))return deny(409,"Disconnect the existing GitHub account first");
         if(limited("github-device-start",10))return deny(429,"Too many authorization attempts");
         const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId});
         if(out.error) return deny(502,"GitHub device authorization is unavailable; check GitHub App device-flow settings");
@@ -323,9 +326,9 @@ export async function localRoute(req) {
           username:current.username,csrf:current.csrf,
           workspace:{name:stored.config.name},
           github:{
-            identityConnected:!!stored.github.oauthUser,
+            identityConnected:githubIdentityCurrent(stored.github),
             login:stored.github.oauthUser?.login||null,
-            organization:stored.github.selectedOrganization||null,
+            organization:githubIdentityCurrent(stored.github)?stored.github.selectedOrganization||null:null,
             integrationVerified:!!stored.github.verifiedAt
           },
           runners:{count:stored.runners.length},
