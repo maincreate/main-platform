@@ -41,7 +41,7 @@ The portal is at `http://127.0.0.1:13000/setup` **on the Docker host**. When usi
 ssh -L 13000:127.0.0.1:13000 -L 13001:127.0.0.1:13001 USER@DOCKER-HOST
 ```
 
-Then visit `http://127.0.0.1:13000/setup`. On the very first boot, open the application's Coolify **Runtime Logs** and locate the single-use `TinkerTunnel first-run setup code:` line. Enter that code once on the page, choose an administrator username and a strong password (12+ characters), and finish setup. The code is not your password, is never available through an unauthenticated API, and cannot create another account after the first administrator exists. On subsequent visits, use the username/password form. Ensure the host stays privately accessible or is additionally protected by Cloudflare Access during first-run setup.
+Then visit `http://127.0.0.1:13000/setup`. On first boot, create an administrator username and a strong password (12+ characters) directly in the web portal. No setup code is needed. Once the first administrator exists, further registration is disabled. Subsequent visits use the username/password sign-in form. **Important:** whoever reaches an unclaimed instance first can register, so keep the service on a trusted private network or behind Cloudflare Access during initial setup.
 
 ### Coolify deployment: portal-first login milestone
 
@@ -55,7 +55,7 @@ Deploy the **portal/controller only** before enabling MCP or runners. This is de
 - **Reachability:** use only private/VPN access or a properly authenticated Cloudflare Access hostname. Do **not** expose the bare administration portal to the public Internet just because it has a token login.
 - **Readiness:** `GET /healthz` must respond 200; anonymous `GET /` redirects to `/setup`; `POST /api/local/login` validates the admin token and grants an HttpOnly session; authenticated `GET /` serves the dashboard.
 
-The original deployment did not have a usable start command and repeatedly exited when its entrypoint invoked `/bin/bash`. Switching to the repository's root Dockerfile fixes that configuration only when Coolify is actually set to build using Dockerfile. The Docker image initializes a one-time setup code at first boot; its account database and encryption key must be writable and persistent.
+The original deployment did not have a usable start command and repeatedly exited when its entrypoint invoked `/bin/bash`. Switching to the repository's root Dockerfile fixes that configuration only when Coolify is actually set to build using Dockerfile. The administrator account and encryption key must be writable and persistent under `/data`.
 
 For an end-to-end login check **after deployment**, run from a trusted computer with HTTPS access (or from the Docker host using localhost):
 

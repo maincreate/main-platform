@@ -32,9 +32,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
  const p=await freePort(),g=await freePort();
  const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
  const adminUsername="admin",password="secure-user-created-password-123",service=token(),mcpToken=token();
- const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:"",TT_MASTER_KEY:"",TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1"},stdio:["ignore","pipe","pipe"]});
- let startupOutput="";
- portal.stdout.on("data",chunk=>{startupOutput+=chunk.toString();});
+ const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_MASTER_KEY:"",TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1"},stdio:"ignore"});
  let gateway;
  try{
    await ready(base);
@@ -47,16 +45,12 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await fetch(base+"/api/local/config")).status,401);
    const publicInfo=await (await fetch(base+"/api/local/public")).json();
    assert.equal(publicInfo.claimed,false);
-   const setupCode=startupOutput.match(/first-run setup code: ([A-Za-z0-9_-]+)/)?.[1];
-   assert(setupCode&&setupCode.length>=24,"Setup code is printed to server owner console only");
-   assert(!JSON.stringify(publicInfo).includes(setupCode),"Setup code must never appear in public API");
    assert.equal((await json(base,"/api/local/login",{username:adminUsername,password})).status,409);
-   assert.equal((await json(base,"/api/local/bootstrap",{username:adminUsername,password,setupCode:"invalid"})).status,403);
-   assert.equal((await json(base,"/api/local/bootstrap",{username:adminUsername,password:"short",setupCode})).status,422);
-   const bootstrap=await json(base,"/api/local/bootstrap",{username:adminUsername,password,setupCode});
+   assert.equal((await json(base,"/api/local/bootstrap",{username:adminUsername,password:"short"})).status,422);
+   const bootstrap=await json(base,"/api/local/bootstrap",{username:adminUsername,password});
    assert.equal(bootstrap.status,200);
    assert.equal(bootstrap.data.username,adminUsername);
-   assert.equal((await json(base,"/api/local/bootstrap",{username:"attacker",password,setupCode})).status,409);
+   assert.equal((await json(base,"/api/local/bootstrap",{username:"attacker",password})).status,409);
    assert.equal((await (await fetch(base+"/api/local/public")).json()).claimed,true);
    assert.equal((await json(base,"/api/local/login",{username:adminUsername,password:"invalid"})).status,401);
    const login=await json(base,"/api/local/login",{username:adminUsername,password});
@@ -78,7 +72,6 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const state=readFileSync(join(dir,"state.json"),"utf8");
    assert(!state.includes(pem));
    assert(!state.includes(password),"Password must never be persisted as plaintext");
-   assert(!state.includes(setupCode),"Setup code must never be persisted");
    assert(state.includes('"algorithm": "scrypt"'),"Persistent password hash uses scrypt");
    assert(state.includes('"iv"')&&state.includes('"ct"')&&state.includes('"tag"'));
    if(process.platform!=="win32")assert.equal(statSync(join(dir,"state.json")).mode & 0o777,0o600);
@@ -141,24 +134,18 @@ test("first administrator persists across server restarts without a login enviro
  const env={...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:"",TT_MASTER_KEY:"",TT_REQUIRE_LOGIN:"1"};
  let child;
  const launch=async()=>{
-   child=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env,stdio:["ignore","pipe","pipe"]});
-   let out="";
-   child.stdout.on("data",b=>{out+=b.toString();});
+   child=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env,stdio:"ignore"});
    await ready(base);
-   return ()=>out;
  };
  try {
-   const firstOutput=await launch();
-   const setupCode=firstOutput().match(/first-run setup code: ([A-Za-z0-9_-]+)/)?.[1];
-   assert(setupCode,"First boot must issue a setup code");
-   const registered=await json(base,"/api/local/bootstrap",{username:"owner",password,setupCode});
+   await launch();
+   const registered=await json(base,"/api/local/bootstrap",{username:"owner",password});
    assert.equal(registered.status,200);
    const keyBefore=readFileSync(join(dir,"master.key")).toString("hex");
    await new Promise(resolve=>{child.once("exit",resolve);child.kill("SIGTERM");});
-   const secondOutput=await launch();
-   assert(!secondOutput().includes("first-run setup code:"),"Claimed instance must not reopen registration");
+   await launch();
    assert.equal((await (await fetch(base+"/api/local/public")).json()).claimed,true);
-   assert.equal((await json(base,"/api/local/bootstrap",{username:"intruder",password,setupCode})).status,409);
+   assert.equal((await json(base,"/api/local/bootstrap",{username:"intruder",password})).status,409);
    assert.equal((await json(base,"/api/local/login",{username:"owner",password})).status,200);
    assert.equal(readFileSync(join(dir,"master.key")).toString("hex"),keyBefore);
  } finally {
