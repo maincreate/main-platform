@@ -22,3 +22,7 @@ Project builds and device firmware compilation use GitHub Actions self-hosted ru
 - Coolify records the matching deployment with `Webhook` as its source.
 - The deployment completes successfully and the existing application remains healthy.
 - `GET` to the webhook path and requests to other paths on the public hostname remain blocked.
+
+## Deploy-trigger behavior
+
+Coolify intentionally ignores push webhooks when every commit in the push includes `[skip ci]` or `[skip cd]` in its commit message. To validate automatic deployments, use a commit without a skip marker. GitHub Actions and Coolify deployments are separate systems even when both observe the same push.
