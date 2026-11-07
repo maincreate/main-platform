@@ -49,6 +49,9 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const cookie=login.headers.get("set-cookie").split(";")[0],csrf=login.data.csrf;
    const authedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
    assert.equal(authedRoot.status,200);
+   const httpsLogin=await json(base,"/api/local/login",{token:admin},{"x-forwarded-proto":"https"});
+   assert.equal(httpsLogin.status,200);
+   assert.match(httpsLogin.headers.get("set-cookie")||"",/; Secure$/);
    const headers={cookie,"x-tt-csrf":csrf};
    const newState={name:"Home Lab",role:"all-in-one",tunnelHostname:"mcp.example.com"};
    assert.equal((await json(base,"/api/local/config",newState,{cookie})).status,403);
@@ -91,6 +94,9 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(planner.data.result.isError,false);
    assert.match(planner.data.result.content[0].text,/dry_run/);
    assert.equal((await fetch(base+"/mcp")).status,503);
+   const logout=await json(base,"/api/local/logout",{},headers);
+   assert.equal(logout.status,200);
+   assert.equal((await fetch(base+"/",{headers:{cookie},redirect:"manual"})).status,302);
  } finally {
    portal.kill("SIGTERM");gateway?.kill("SIGTERM");
    rmSync(dir,{recursive:true,force:true});
