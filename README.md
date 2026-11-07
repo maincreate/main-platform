@@ -40,7 +40,7 @@ The dashboard shows actual connection status rather than pretending integrations
 
 - **GitHub:** connect your account and choose an organization. Organizations are recommended for sharing runners across repositories. A single repository does not require an organization.
 - **Build machines:** enroll trusted Linux, macOS or Windows nodes when you're ready; use **Jobs & Builders** for enrollment, planning, approvals, jobs and artifacts. Runner execution is **disabled by default** until explicitly enabled by the operator.
-- **AI assistant:** remote OAuth authorization and ChatGPT connection are future work. A local read-only MCP gateway exists separately.
+- **AI assistant (optional):** remote OAuth authorization and ChatGPT connection are future work. A private MCP gateway exists separately; AI is not required for the workspace.
 
 The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Paper** available as alternatives. Each browser remembers its selection.
 
@@ -49,6 +49,21 @@ The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Pape
 The gateway exposes **six stable MCP tools**: `tt_discover`, `tt_inspect`, `tt_plan`, `tt_execute`, `tt_jobs`, and `tt_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
 
 **The controller does not execute jobs by default.** Live job dispatch requires `TT_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `TT_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
+
+## Operational workspace v0.3
+
+After account creation, the **homepage is the workspace's real operational state**, not a repeated setup flow. It shows projects, recent jobs, enrolled builders, connected hardware and pending approvals. The main areas are:
+
+- **Overview** (`/`): builds, repos, builders, attached devices and activity.
+- **Projects** (`/projects`): read-only synchronization of the selected GitHub App installation's repository metadata and associated TinkerTunnel jobs. Synchronization is manual for now.
+- **Builders & Jobs** (`/jobs`): machine enrollment, approved plans, logs and artifacts.
+- **Devices** (`/devices`): read-only USB inventory reported by trusted builders. Devices are hidden after 7 unseen days, archived after 30 days, and recognized when they return.
+- **Topology** (`/topology`): correctly connects GitHub directly to the workspace, and devices to their reporting builder.
+- **Settings** (`/settings`): GitHub, optional AI, appearance, account and execution policy.
+
+To discover USB serial devices across Linux, macOS, or Windows, run the current host agent with `TT_RUNNER_DEVICE_DISCOVERY=1` and Python + `pyserial`. Existing builders without this opt-in continue heartbeat and jobs but report no devices. Physical USB access is not automatically available inside containers.
+
+**Manual flashing and Git-triggered build/flash automation are not enabled yet.** A discovered serial port is not sufficient proof of a safe flash target. The future flow is verified image → exact target device → fresh identity/chip check → explicit approval → audited adapter; automation additionally requires an authenticated event source and rule. See [Operational workspace and device-aware release architecture](docs/operational-workspace.md).
 
 ## GitHub connection
 
