@@ -2,7 +2,7 @@
 # the private administration portal; the MCP gateway is a separate service.
 FROM node:22-alpine
 WORKDIR /app
-COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html portal/setup.js portal/setup.css portal/dashboard.html portal/dashboard.js portal/dashboard.css portal/github.html portal/github.js portal/github.css ./portal/
+COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html portal/setup.js portal/setup.css portal/dashboard.html portal/dashboard.js portal/dashboard.css portal/github.html portal/github.js portal/github.css portal/topology.html portal/topology.js ./portal/
 COPY --chown=node:node controller/routes.mjs ./controller/
 RUN mkdir -p /data && chown node:node /data
 USER node
