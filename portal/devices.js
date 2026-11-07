@@ -60,11 +60,11 @@ async function load(){
    const overview=await api("/api/local/overview");
    csrf=overview.csrf;$("username").textContent=overview.username||"administrator";
   }
-  render(await api("/api/local/devices?mode="+encodeURIComponent($("filter").value)));
+  render(await api("/api/local/devices?mode="+($("showHidden").checked?"all":"visible")));
   $("notice").textContent="";
  }catch(e){$("notice").textContent=e.message;}
  finally{$("refresh").disabled=false;}
 }
-$("filter").addEventListener("change",load);
+$("showHidden").addEventListener("change",load);
 $("refresh").addEventListener("click",load);
 load();
