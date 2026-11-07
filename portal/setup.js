@@ -28,7 +28,7 @@ async function submit(event,path,fields){
   button.disabled=true;
   try{
     await api(path,fields());
-    window.location.replace("/");
+    window.location.replace(path==="/api/local/bootstrap"?"/github":"/");
   }catch(err){notice(err.message);button.disabled=false;}
 }
 $("firstRunForm").addEventListener("submit",e=>submit(e,"/api/local/bootstrap",()=>{
