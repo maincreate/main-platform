@@ -12,7 +12,9 @@ const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
 const githubDeviceFlows=new Map();
-const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||state().github.oauthClientId||"";
+// Public product identity. Instances can override this for private/enterprise GitHub Apps.
+const DEFAULT_GITHUB_CLIENT_ID="Iv23liAxFGcez9en0tY8";
+const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||state().github.oauthClientId||DEFAULT_GITHUB_CLIENT_ID;
 const validGithubClientId=id=>/^[A-Za-z0-9._-]{8,100}$/.test(id);
 function githubIdentityCurrent(g) {
   return !!g.oauthUser && (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
@@ -287,6 +289,7 @@ export async function localRoute(req) {
         return reply({available:configured,connected:githubIdentityCurrent(g),
           login:githubIdentityCurrent(g)?g.oauthUser.login:null,
           clientId:githubClientId(),configuredByEnvironment:!!process.env.TT_GITHUB_CLIENT_ID,
+          usingDefaultApp:!process.env.TT_GITHUB_CLIENT_ID&&!g.oauthClientId,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
           selectedOrganization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
           installationsTotal:g.oauthInstallationsTotal||0,
