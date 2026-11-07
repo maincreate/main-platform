@@ -1,7 +1,7 @@
 "use strict";
 (function(){
  const $=id=>document.getElementById(id),container=$("githubActionsRuns"),source=$("actionsSource");
- function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);return n;}
+ function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;}
  function cell(row,value){const td=el("td",value);row.append(td);return td;}
  function clear(){container.replaceChildren();}
  async function load(){
