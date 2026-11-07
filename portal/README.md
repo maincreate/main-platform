@@ -6,8 +6,9 @@ The existing portal serves dashboard, framework catalog and dry-run planner. The
 
 ## Trust boundaries
 
-- Web administration uses `TT_ADMIN_TOKEN` (at least 32 random characters) and an HttpOnly, SameSite=Strict short-lived session cookie with CSRF protection.
-- `TT_MASTER_KEY` must be 32 bytes hex-encoded (64 hex chars). GitHub PEM private keys are encrypted with AES-256-GCM before being written to the local JSON state volume.
+- On first boot, the administrator creates a username and 12+ character password in the browser after entering a high-entropy one-time setup code shown only in the server's Runtime Logs. Registration closes permanently after the first administrator is claimed.
+- The password is stored only as a salted Node scrypt hash; login uses an HttpOnly, SameSite=Strict, HTTPS-Secure session cookie with CSRF protection and rate limiting. No administrator login secret is stored in environment variables.
+- A random 32-byte encryption key is generated and persisted at `/data/master.key` (0600), while GitHub PEM private keys are encrypted with AES-256-GCM before being written to `/data/state.json`. Back up both together. Existing deployments may continue to provide a legacy `TT_MASTER_KEY` for migration, but fresh installs do not require it.
 - State is mounted only on the portal service and written atomically with Unix mode 0600.
 - One-time runner invite tokens expire after 10 minutes; enrolled runner tokens are stored as SHA-256 hashes in the controller.
 - The separate MCP gateway has a distinct `TT_MCP_TOKEN` and `TT_SERVICE_TOKEN`. Only four read-only tools are exposed.
@@ -23,7 +24,9 @@ The existing portal serves dashboard, framework catalog and dry-run planner. The
 | GET | /api/v1/catalog | Read-only catalog |
 | POST | /api/v1/plans | Read-only dry-run plan |
 | GET | /setup, /setup.js, /setup.css | Public login/setup assets |
-| POST | /api/local/login | Admin token |
+| POST | /api/local/bootstrap | One-time server-owner code (only before first account) |
+| POST | /api/local/login | Admin username/password |
+| POST | /api/local/account/password | Signed-in administrator + CSRF |
 | GET | /api/local/session | Browser session |
 | GET/POST | /api/local/config | Admin cookie + CSRF for writes |
 | POST | /api/local/github | Admin: encrypted key storage |
