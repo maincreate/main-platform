@@ -80,7 +80,7 @@ function renderTopology(data){
       createSpan("topology-state","Not enrolled"),
       createSpan("topology-hint","Add a trusted machine when ready"));
     holder.append(node);
-    topoEdges.push(["workspace","runner-empty",false],["runner-empty","toolkits",false]);
+    topoEdges.push(["workspace","runner-empty",false]);
     $("topologySummary").textContent=(githubAuthorized?"GitHub connected to "+githubOrg+". ":"")+"No machines enrolled. Build machines can be added when ready.";
   }else{
     let recent=0;
@@ -99,11 +99,42 @@ function renderTopology(data){
       node.addEventListener("click",()=>selectRunner(runner,records));
       holder.append(node);
       topoEdges.push(["workspace",node.dataset.topologyNode,fresh]);
-      topoEdges.push([node.dataset.topologyNode,"toolkits",false]);
+      // Device links are rendered separately, scoped to each reporting builder.
     }
     const hidden=Number(data.runners?.count||0)-records.length;
     if(hidden>0)holder.append(createSpan("topology-overflow","+"+hidden+" more enrolled machines"));
     $("topologySummary").textContent=records.length+" machine(s) shown; "+recent+" with a recent heartbeat. Toolkit inventory has not been implemented.";
+  }
+  const devices=Array.isArray(data.devices?.items)?data.devices.items.slice(0,10):[];
+  const deviceHolder=$("topologyDevices");
+  deviceHolder.replaceChildren();
+  if(!devices.length){
+    const node=document.createElement("div");
+    node.className="topology-node empty";node.dataset.topologyNode="device-empty";
+    node.append(createSpan("topology-label","No devices reported"),
+      createSpan("topology-state","Not discovered"),
+      createSpan("topology-hint","Opt-in USB discovery on a builder"));
+    deviceHolder.append(node);
+    for(const r of records)topoEdges.push(["runner-"+r.id,"device-empty",false]);
+    if(!records.length)topoEdges.push(["runner-empty","device-empty",false]);
+    topoEdges.push(["device-empty","toolkits",false]);
+  }else{
+    for(const d of devices){
+      const node=document.createElement("div");
+      node.className="topology-node";
+      node.dataset.topologyNode="device-"+d.id;
+      node.dataset.connected=String(d.lifecycle==="connected");
+      node.append(createSpan("topology-label",d.label||d.product||d.description||"USB serial"),
+        createSpan("topology-state",d.lifecycle==="connected"?"Connected":"Last seen device"),
+        createSpan("topology-hint",(d.runnerName||"Builder")+" · "+d.port));
+      deviceHolder.append(node);
+      const runner=records.find(r=>r.id===d.runnerId);
+      if(runner)topoEdges.push(["runner-"+runner.id,"device-"+d.id,
+         d.lifecycle==="connected"&&recentHeartbeat(runner.lastSeen)]);
+      topoEdges.push(["device-"+d.id,"toolkits",false]);
+    }
+    $( "topologySummary").textContent+=" "+devices.filter(d=>d.lifecycle==="connected").length+
+      " connected serial device(s) in inventory.";
   }
   $("topologyReset").hidden=true;
   selectedRunner=null;
@@ -121,7 +152,7 @@ function selectRunner(runner,records){
   $("topologyReset").hidden=!focused;
   $("topologySummary").textContent=focused?
     (focused.name||"Machine")+" · "+(focused.os||"unknown")+"/"+(focused.arch||"unknown")+" · "+
-      lastSeenDescription(focused.lastSeen)+". Build execution is not enabled.":
+      lastSeenDescription(focused.lastSeen)+". Jobs are controlled through the Builders & Jobs page.":
     records.length+" displayed machine(s); toolkits are not discovered yet.";
   scheduleTopologyLines();
 }
@@ -155,7 +186,15 @@ function drawTopologyLines(){
     if(!a||!b||b.x1<=a.x2)continue;
     const mid=(a.x2+b.x1)/2;
     const path=document.createElementNS(topoSVG,"path");
-    path.setAttribute("d","M "+a.x2+" "+a.y+" H "+mid+" V "+b.y+" H "+b.x1);
+    // GitHub belongs to the controller directly. Route this long edge ABOVE
+    // the Secure Access and MCP cards, never through the MCP gateway node.
+    if(from==="cloud-github"&&to==="workspace"){
+      const topY=85,lead=a.x2+13,tail=b.x1-13;
+      path.setAttribute("d","M "+a.x2+" "+a.y+" H "+lead+" V "+topY+
+        " H "+tail+" V "+b.y+" H "+b.x1);
+    }else{
+      path.setAttribute("d","M "+a.x2+" "+a.y+" H "+mid+" V "+b.y+" H "+b.x1);
+    }
     path.setAttribute("class",observed?"is-observed":"is-planned");
     // The map never calls a conceptual edge a verified connection.
     svg.append(path);

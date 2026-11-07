@@ -3,6 +3,8 @@ import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
+import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
+import {listProjects,syncProjects} from "./projects.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
@@ -205,6 +207,15 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
   }
+  if((path==="/settings"||path==="/devices"||path==="/projects")&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal"+path+".html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if(["/settings.js","/devices.js","/projects.js","/workspace.css"].includes(path)&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{
+      "content-type":(path.endsWith(".css")?"text/css":"text/javascript")+"; charset=utf-8","cache-control":"no-store"}});
+  }
   if(path==="/jobs"&&method==="GET"){
     if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/jobs.html",import.meta.url),"utf8"),{headers:htmlHeaders});
@@ -392,6 +403,32 @@ export async function localRoute(req) {
         save(stored);githubDeviceFlows.delete(session(req).csrf);
         return reply({ok:true});
       }
+      if(path==="/api/local/projects"&&method==="GET"){
+        const gh=state().github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        try{
+          const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
+          return reply(listProjects(org,jobs));
+        }catch(e){return deny(e.status||503,e.message);}
+      }
+      if(path==="/api/local/projects/sync"&&method==="POST"){
+        const gh=state().github;
+        if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)return deny(409,"Connect a GitHub organization first");
+        const match=gh.oauthOrganizations?.find(o=>o.login===gh.selectedOrganization);
+        if(!match?.installationId)return deny(409,"GitHub App installation not selected");
+        try{
+          return reply(await syncProjects({organization:gh.selectedOrganization,
+            installationId:match.installationId,accessToken:unseal(gh.oauthToken)}));
+        }catch(e){return deny(e.status||502,e.message);}
+      }
+      if(path==="/api/local/devices"&&method==="GET"){
+        try{return reply(listDevices({mode:new URL(req.url).searchParams.get("mode")||"visible"}));}
+        catch(e){return deny(e.status||503,e.message);}
+      }
+      if(path==="/api/local/devices/label"&&method==="POST"){
+        const b=await body(req);
+        try{return reply({device:renameDevice(b.device_id,b.label)});}
+        catch(e){return deny(e.status||422,e.message);}
+      }
       if(path==="/api/local/overview"&&method==="GET"){
         const stored=state(),current=session(req);
         return reply({
@@ -413,6 +450,16 @@ export async function localRoute(req) {
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
           },
+          devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
+          projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+             const d=listProjects(org);return {count:d.repositories.length,updatedAt:d.updatedAt,
+             organization:d.organization};})(),
+          jobs:(()=>{const j=fabricCall("tt_jobs",{action:"list"}).jobs;
+            return {count:j.length,running:j.filter(x=>x.status==="running").length,
+              pending:j.filter(x=>x.status==="awaiting_approval").length,
+              failed:j.filter(x=>x.status==="failed").length,
+              completed:j.filter(x=>x.status==="completed").length,
+              recent:j.slice(0,6)};})(),
           assistant:{connected:false},
           topology:{
             secureConnectionVerified:false,
@@ -453,7 +500,8 @@ export async function localRoute(req) {
       if(path==="/api/local/fabric"&&method==="POST"){
         const b=await body(req),s=state();
         const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
-          runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen}))};
+          runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
+          devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
         try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
         catch(e){return deny(e.status||422,e.message);}
@@ -489,6 +537,13 @@ export async function localRoute(req) {
       if(!runner)return deny(401,"Invalid runner token");
       runner.lastSeen=new Date().toISOString();save(s);return reply({ok:true,jobExecution:"disabled"});
     }
+    if(path==="/api/agent/devices"&&method==="POST"){
+      const b=await body(req),s=state(),token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
+      const runner=s.runners.find(x=>x.id===b.id&&equal(x.tokenHash,digest(token)));
+      if(!runner)return deny(401,"Invalid runner token");
+      try{return reply(reportDevices(runner,b.devices));}
+      catch(e){return deny(e.status||422,e.message);}
+    }
     if(["/api/agent/jobs/claim","/api/agent/jobs/complete","/api/agent/assets"].includes(path)&&method==="POST"){
       const b=await body(req),s=state(),token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
       const runner=s.runners.find(x=>x.id===b.id&&equal(x.tokenHash,digest(token)));
@@ -510,7 +565,8 @@ export async function localRoute(req) {
       if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
       const b=await body(req),s=state();
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
-        runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen}))};
+        runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
+          devices:listDevices({mode:"visible"}).devices};
       try{return reply(fabricCall(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
     }

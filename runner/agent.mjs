@@ -3,6 +3,7 @@ import {join,resolve,isAbsolute,sep} from "node:path";
 import {homedir,hostname,platform,arch,cpus,totalmem,freemem,uptime} from "node:os";
 import {createHash} from "node:crypto";
 import {spawn} from "node:child_process";
+import {fileURLToPath} from "node:url";
 
 const configDir=process.env.TT_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
 const path=join(configDir,"runner.json");
@@ -138,6 +139,28 @@ async function executeJob(config,job){
   logs,steps:results,asset_ids:ids},config.token);
  console.log("Job "+job.id+" "+(failed?"failed":"completed")+"; artifacts "+ids.length);
 }
+async function scanSerialDevices(){
+ const python=process.env.TT_RUNNER_PYTHON||(os==="windows"?"python":"python3");
+ const script=fileURLToPath(new URL("./scan_devices.py",import.meta.url));
+ return new Promise((resolve,reject)=>{
+  const child=spawn(python,[script],{shell:false,windowsHide:true,stdio:["ignore","pipe","pipe"]});
+  let raw="",errors="";
+  const cap=buffer=>String(buffer).slice(0,1024);
+  child.stdout.on("data",chunk=>{raw+=String(chunk);if(raw.length>64*1024)child.kill("SIGKILL");});
+  child.stderr.on("data",chunk=>errors+=cap(chunk));
+  const timeout=setTimeout(()=>child.kill("SIGKILL"),12000);
+  child.once("error",e=>{clearTimeout(timeout);reject(e);});
+  child.once("close",code=>{
+   clearTimeout(timeout);
+   if(code!==0)return reject(new Error("USB discovery unavailable: "+(errors||raw).slice(0,180)));
+   try{
+    const result=JSON.parse(raw);
+    if(!Array.isArray(result.devices))throw new Error("Invalid inventory output");
+    resolve(result.devices);
+   }catch(e){reject(e);}
+  });
+ });
+}
 async function run(){
  const config=JSON.parse(readFileSync(path,"utf8"));
  if(config.url!==endpoint)throw new Error("Controller URL does not match enrollment");
@@ -146,7 +169,16 @@ async function run(){
   post("/api/agent/heartbeat",{id:config.id},config.token).catch(e=>console.error("Heartbeat:",e.message));
  },30000);
  try{
+  let nextScan=0;
   for(;;){
+   if(process.env.TT_RUNNER_DEVICE_DISCOVERY==="1"&&Date.now()>=nextScan){
+    nextScan=Date.now()+60000;
+    try{
+     const devices=await scanSerialDevices();
+     const summary=await post("/api/agent/devices",{id:config.id,devices},config.token);
+     console.log("Device inventory: "+summary.seen+" USB serial device(s) on "+config.name);
+    }catch(e){console.error("Device inventory skipped (previous inventory preserved):",e.message);}
+   }
    try{
     const response=await post("/api/agent/jobs/claim",{id:config.id},config.token);
     if(response.job)await executeJob(config,response.job);

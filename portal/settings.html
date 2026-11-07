@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings • TinkerTunnel</title>
+<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
+<script src="/settings.js" defer></script></head><body data-theme="midnight">
+<header class="topbar">
+<a class="brand" href="/"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
+<nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/jobs">Builders &amp; Jobs</a>
+<a href="/devices">Devices</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav>
+<div class="account"><span class="signed-in" id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
+<main class="main settings-page">
+<p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
+<p id="notice" class="home-error" role="status" aria-live="polite"></p>
+<section class="settings-panel" aria-labelledby="githubTitle">
+ <div class="setting-row"><div><h2 id="githubTitle">GitHub connection</h2>
+ <p>Source repository access is configured independently from AI. A GitHub App installation determines available repositories.</p>
+ <div class="setting-meta" id="githubState">Checking connection…</div></div>
+ <a href="/github" class="plain-button">Edit GitHub Connection</a></div>
+</section>
+<section class="settings-panel" aria-labelledby="aiTitle">
+ <h2 id="aiTitle">AI assistants (optional)</h2>
+ <p>TinkerTunnel works with IDEs, Git commits, build machines and direct portal controls without an AI assistant.</p>
+ <div class="setting-meta">Remote MCP OAuth connection is not yet configured. Local/private MCP development is separate from GitHub authorization.</div>
+</section>
+<section class="settings-panel" aria-labelledby="appearanceTitle">
+ <h2 id="appearanceTitle">Appearance</h2><p>Choose a color palette for this browser.</p>
+ <div class="themes" role="group" aria-label="Color palette">
+ <button class="theme-choice" data-palette="graphite" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Graphite + Iris</span></button>
+ <button class="theme-choice" data-palette="paper" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Warm Paper</span></button>
+ <button class="theme-choice" data-palette="midnight" aria-pressed="true"><span class="swatches"><i></i><i></i><i></i></span><span>Midnight</span></button>
+ </div>
+</section>
+<section class="settings-panel" aria-labelledby="passwordTitle">
+ <h2 id="passwordTitle">Account security</h2>
+ <p>Change the administrator password. This signs out all existing sessions.</p>
+ <form id="passwordForm" class="settings-form">
+  <label for="currentPassword">Current password</label><input id="currentPassword" type="password" autocomplete="current-password" required>
+  <label for="nextPassword">New password</label><input id="nextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+  <label for="confirmNextPassword">Confirm new password</label><input id="confirmNextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+  <button type="submit" class="action">Change password</button>
+ </form>
+</section>
+<section class="settings-panel" aria-labelledby="executionTitle">
+ <h2 id="executionTitle">Execution and automation policy</h2>
+ <p id="executionStatus">Checking controller execution policy…</p>
+ <p>Connected hardware must never be flashed automatically merely because a port appears. Automation requires a trusted build, verified device identity, an explicit rule and an approved flash capability.</p>
+ <a class="quiet-link" href="/jobs">Review approved jobs</a>
+</section>
+<footer>Self-hosted · Your workspace settings</footer>
+</main></body></html>

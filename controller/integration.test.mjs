@@ -61,12 +61,12 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const authedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
    assert.equal(authedRoot.status,200);
    const dashboard=await authedRoot.text();
-   assert.match(dashboard,/TinkerTunnel • Dashboard/);
-   assert.match(dashboard,/Connections/);
+   assert.match(dashboard,/Workspace overview/);
+   assert.match(dashboard,/id="recentJobs"/);
    assert.match(dashboard,/href="\/jobs"/);
-   assert.match(dashboard,/Open topology/);
-   assert.match(dashboard,/id="github-action"/);
-   assert.match(dashboard,/id="github-detail"/);
+   assert.match(dashboard,/id="devicesList"/);
+   assert.match(dashboard,/id="buildersList"/);
+   assert.match(dashboard,/id="projectList"/);
    assert.match(dashboard,/href="\/topology"/);
    assert.doesNotMatch(dashboard,/id="topologyMap"/,"Overview must not render the wide topology");
    const topologyPublic=await fetch(base+"/topology",{redirect:"manual"});
@@ -79,9 +79,21 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
      assert(topologyHtml.includes(section),"Topology missing "+section);
    }
    assert.match(topologyHtml,/id="topologyRunners"/);
+   assert.match(topologyHtml,/id="topologyDevices"/);
    assert.match(topologyHtml,/id="topoGithubMeta"/);
    assert.match(topologyHtml,/id="topologyMap"/);
    assert.equal((await fetch(base+"/topology.js")).status,401);
+   for(const page of ["settings","devices","projects"]){
+     assert.equal((await fetch(base+"/"+page,{redirect:"manual"})).status,302);
+     assert.equal((await fetch(base+"/"+page,{headers:{cookie}})).status,200);
+     assert.equal((await fetch(base+"/"+page+".js")).status,401);
+     assert.equal((await fetch(base+"/"+page+".js",{headers:{cookie}})).status,200);
+   }
+   assert.equal((await fetch(base+"/workspace.css")).status,401);
+   assert.equal((await fetch(base+"/workspace.css",{headers:{cookie}})).status,200);
+   assert.equal((await fetch(base+"/api/local/devices")).status,401);
+   assert.equal((await fetch(base+"/api/local/projects")).status,401);
+
    assert.equal((await fetch(base+"/jobs",{redirect:"manual"})).status,302);
    assert.equal((await fetch(base+"/jobs",{headers:{cookie}})).status,200);
    assert.equal((await fetch(base+"/jobs.js")).status,401);
