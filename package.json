@@ -1,8 +1,8 @@
 {
   "name": "tinkertunnel-local",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Self-hosted TinkerTunnel local controller; no untrusted execution",
+  "description": "TinkerTunnel capability registry, approved runner jobs and bounded artifacts",
   "type": "module",
   "engines": {
     "node": ">=22"
