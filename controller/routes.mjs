@@ -450,7 +450,7 @@ export async function localRoute(req) {
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
           },
-          devices:deviceOverview(),
+          devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
           projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
              const d=listProjects(org);return {count:d.repositories.length,updatedAt:d.updatedAt,
              organization:d.organization};})(),
