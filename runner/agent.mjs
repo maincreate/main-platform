@@ -111,11 +111,13 @@ async function executeJob(config,job){
     const repo=job.parameters?.repository;
     if(typeof repo!=="string")throw new Error("Repository missing");
     const checkout=approvedCheckout(repo);
-    if(job.parameters?.revision){
-     const actual=(await processTool("git",["rev-parse","HEAD"],checkout,20000)).trim();
-     if(actual.toLowerCase()!==job.parameters.revision.toLowerCase())
-      throw new Error("Checkout revision differs from approved plan; update the checkout separately");
-    }
+    if(typeof job.parameters?.revision!=="string"||!/^[a-f0-9]{40}$/i.test(job.parameters.revision))
+     throw new Error("An exact Git revision must be approved before building");
+    const actual=(await processTool("git",["rev-parse","HEAD"],checkout,20000)).trim();
+    if(actual.toLowerCase()!==job.parameters.revision.toLowerCase())
+     throw new Error("Checkout revision differs from approved plan; update the checkout separately");
+    const dirty=(await processTool("git",["status","--porcelain=v1","--untracked-files=normal"],checkout,20000)).trim();
+    if(dirty)throw new Error("Approved checkout has modified or untracked files; use a clean pinned checkout");
     // No user-provided executable, flags, environment, working directory, URL or command string.
     const output=await processTool(process.env.TT_RUNNER_IDF_CMD||"idf.py",["-C",checkout,"build"],
      checkout,20*60*1000);
