@@ -83,6 +83,17 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.match(topologyHtml,/id="topoGithubMeta"/);
    assert.match(topologyHtml,/id="topologyMap"/);
    assert.equal((await fetch(base+"/topology.js")).status,401);
+   for(const page of ["settings","devices","projects"]){
+     assert.equal((await fetch(base+"/"+page,{redirect:"manual"})).status,302);
+     assert.equal((await fetch(base+"/"+page,{headers:{cookie}})).status,200);
+     assert.equal((await fetch(base+"/"+page+".js")).status,401);
+     assert.equal((await fetch(base+"/"+page+".js",{headers:{cookie}})).status,200);
+   }
+   assert.equal((await fetch(base+"/workspace.css")).status,401);
+   assert.equal((await fetch(base+"/workspace.css",{headers:{cookie}})).status,200);
+   assert.equal((await fetch(base+"/api/local/devices")).status,401);
+   assert.equal((await fetch(base+"/api/local/projects")).status,401);
+
    assert.equal((await fetch(base+"/jobs",{redirect:"manual"})).status,302);
    assert.equal((await fetch(base+"/jobs",{headers:{cookie}})).status,200);
    assert.equal((await fetch(base+"/jobs.js")).status,401);
