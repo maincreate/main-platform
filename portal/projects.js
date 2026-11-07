@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null,selectedOrg=null;
+let csrf=null,selectedOrg=null,projectInventory=[],projectUpdatedAt=null,projectTruncated=false;
 try{const t=localStorage.getItem("tt-theme");if(["midnight","paper","graphite"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
@@ -13,6 +13,11 @@ async function api(path,payload){
 }
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 function render(result){
+ projectInventory=result.repositories||[];projectUpdatedAt=result.updatedAt;projectTruncated=!!result.truncated;
+ renderProjectList();
+}
+function renderProjectList(){
+ const result={repositories:projectInventory,organization:selectedOrg,updatedAt:projectUpdatedAt,truncated:projectTruncated};
  $("organization").textContent=result.organization?result.organization+" repositories":"GitHub repositories";
  $("syncStatus").textContent=result.updatedAt?
   "Last synchronized "+new Date(result.updatedAt).toLocaleString()+(result.truncated?" · first 500 repositories only":""):
@@ -23,7 +28,11 @@ function render(result){
   const link=node("a",result.organization?"Sync GitHub repositories":"Open connection settings","quiet-link");
   link.href=result.organization?"/projects":"/settings";empty.append(link);holder.append(empty);return;
  }
- for(const project of result.repositories){
+ const query=$("projectSearch").value.toLowerCase().trim(),filter=$("projectFilter").value;
+ const items=result.repositories.filter(item=>(!query||[item.fullName,item.description,item.defaultBranch].join(" ").toLowerCase().includes(query))&&
+  (filter==="all"||(filter==="active"&&!item.archived)||(filter==="archived"&&item.archived)||(filter==="private"&&item.private)||(filter==="public"&&!item.private)));
+ if(!items.length){holder.append(node("p","No matching repositories.","home-empty"));return;}
+ for(const project of items){
   const card=node("article",undefined,"project-entry"),left=node("div"),right=node("div",undefined,"project-right");
   const name=node("strong",project.fullName),description=node("small",project.description||"Default: "+(project.defaultBranch||"unknown"));
   left.append(name,description);
@@ -82,3 +91,6 @@ $("newRepoForm").addEventListener("submit",async event=>{
  }catch(e){$("newRepoNotice").textContent=e.message;}
  finally{button.disabled=false;}
 });
+ 
+$("projectSearch").addEventListener("input",renderProjectList);
+$("projectFilter").addEventListener("change",renderProjectList);

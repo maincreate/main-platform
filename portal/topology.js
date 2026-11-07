@@ -189,11 +189,10 @@ function drawTopologyLines(){
     // GitHub belongs to the controller directly. Route this long edge ABOVE
     // the Secure Access and MCP cards, never through the MCP gateway node.
     if(from==="cloud-github"&&to==="workspace"){
-      const topY=76,arc=85;
+      // One smooth, direct connection; nodes remain above connection strokes.
+      const distance=b.x1-a.x2,control=Math.max(30,distance*0.34);
       path.setAttribute("d","M "+a.x2+" "+a.y+
-        " C "+(a.x2+arc)+" "+a.y+" "+(a.x2+arc)+" "+topY+" "+(a.x2+2*arc)+" "+topY+
-        " L "+(b.x1-2*arc)+" "+topY+
-        " C "+(b.x1-arc)+" "+topY+" "+(b.x1-arc)+" "+b.y+" "+b.x1+" "+b.y);
+        " C "+(a.x2+control)+" "+a.y+" "+(b.x1-control)+" "+b.y+" "+b.x1+" "+b.y);
     }else{
       path.setAttribute("d","M "+a.x2+" "+a.y+" H "+mid+" V "+b.y+" H "+b.x1);
     }
