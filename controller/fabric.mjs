@@ -1,5 +1,5 @@
 import {randomBytes,createHash} from "node:crypto";
-import {mkdirSync,existsSync,readFileSync,writeFileSync,renameSync,chmodSync,openSync,writeSync,closeSync,statSync,rmSync} from "node:fs";
+import {mkdirSync,existsSync,readFileSync,writeFileSync,renameSync,chmodSync,openSync,writeSync,readSync,closeSync,statSync,rmSync} from "node:fs";
 import {join} from "node:path";
 
 const root=process.env.TT_DATA_DIR||"./.tinkertunnel-data";
@@ -212,9 +212,13 @@ function getAsset(args){
  if(!Number.isSafeInteger(offset)||offset<0||offset>a.size||
   !Number.isSafeInteger(length)||length<1||length>MAX_CHUNK)
   throw error(422,"Invalid range");
- const file=readFileSync(assetFile(a.id));const chunk=file.subarray(offset,Math.min(a.size,offset+length));
- return {asset:publicAsset(a),offset,content_base64:chunk.toString("base64"),next_offset:offset+chunk.length,
-  complete:offset+chunk.length>=a.size};
+ const chunk=Buffer.alloc(Math.min(length,a.size-offset));
+ const fd=openSync(assetFile(a.id),"r");
+ let bytes;
+ try{bytes=readSync(fd,chunk,0,chunk.length,offset);}finally{closeSync(fd);}
+ if(bytes!==chunk.length)throw error(503,"Asset file truncated");
+ return {asset:publicAsset(a),offset,content_base64:chunk.toString("base64"),next_offset:offset+bytes,
+  complete:offset+bytes>=a.size};
 }
 function assets(args){
  switch(args.action||"list"){
