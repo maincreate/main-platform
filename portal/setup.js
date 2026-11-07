@@ -36,24 +36,55 @@ async function populate(){
 }
 async function session(){
  try{
-   const s=await request("/api/local/session");
+   const [s,info]=await Promise.all([request("/api/local/session"),request("/api/local/public")]);
    csrf=s.csrf;
-   $("login").hidden=!!s.authenticated;
+   $("firstRun").hidden=!!s.authenticated||!!info.claimed;
+   $("login").hidden=!!s.authenticated||!info.claimed;
    $("workspace").hidden=!s.authenticated;
    $("logout").hidden=!s.authenticated;
    if(s.authenticated){await populate();tab(["instance","github","tunnel","mcp","runners"].includes(location.hash.slice(1))?location.hash.slice(1):"instance");}
  }catch(e){show(e.message,true);}
 }
 document.querySelectorAll("[data-tab]").forEach(btn=>btn.addEventListener("click",()=>tab(btn.dataset.tab)));
+$("firstRunForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const password=$("newPassword").value;
+ if(password!==$("confirmPassword").value){show("Passwords do not match.",true);return;}
+ try {
+   const data=await request("/api/local/bootstrap",{method:"POST",body:JSON.stringify({
+     username:$("newUsername").value.trim(),password,setupCode:$("setupCode").value.trim()
+   })});
+   csrf=data.csrf;
+   $("newPassword").value="";$("confirmPassword").value="";$("setupCode").value="";
+   await session();
+   show("Administrator account created. You're signed in.");
+ }catch(err){show(err.message,true);}
+});
 $("loginForm").addEventListener("submit",async e=>{
  e.preventDefault();try{
-   const data=await request("/api/local/login",{method:"POST",body:JSON.stringify({token:$("adminToken").value})});
-   csrf=data.csrf;$("adminToken").value="";await session();show("Local configuration unlocked.");
+   const data=await request("/api/local/login",{method:"POST",body:JSON.stringify({
+     username:$("loginUsername").value.trim(),password:$("loginPassword").value
+   })});
+   csrf=data.csrf;$("loginPassword").value="";await session();show("Signed in.");
  }catch(err){show(err.message,true);}
 });
 $("logout").addEventListener("click",async()=>{
  try{await request("/api/local/logout",{method:"POST",body:"{}"});}catch{}
  csrf=null;await session();show("Signed out.");
+});
+$("passwordForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const next=$("changePassword").value;
+ if(next!==$("changePasswordConfirm").value){show("New passwords do not match.",true);return;}
+ try{
+   await request("/api/local/account/password",{method:"POST",body:JSON.stringify({
+     currentPassword:$("currentPassword").value,newPassword:next
+   })});
+   $("currentPassword").value="";$("changePassword").value="";$("changePasswordConfirm").value="";
+   csrf=null;
+   await session();
+   show("Password updated. Please sign in again.");
+ }catch(err){show(err.message,true);}
 });
 $("instanceForm").addEventListener("submit",async e=>{
  e.preventDefault();

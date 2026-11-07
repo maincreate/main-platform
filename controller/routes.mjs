@@ -1,18 +1,59 @@
-import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipheriv, createSign} from "node:crypto";
+import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipheriv, createSign, scrypt} from "node:crypto";
+import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
+const masterKeyFile = join(dataDir, "master.key");
+const scryptAsync = promisify(scrypt);
+const firstRunCode = randomBytes(24).toString("base64url");
+let bootstrapBusy = false;
+const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
 function digest(s) { return createHash("sha256").update(String(s)).digest("hex"); }
 function equal(a,b) { const x=Buffer.from(digest(a),"hex"), y=Buffer.from(digest(b),"hex"); return timingSafeEqual(x,y); }
 function rnd() { return randomBytes(32).toString("hex"); }
 function key() {
-  const k=process.env.TT_MASTER_KEY || "";
-  if(!/^[a-f0-9]{64}$/i.test(k)) throw new Error("TT_MASTER_KEY must be 32 random bytes encoded as 64 hex characters");
-  return Buffer.from(k,"hex");
+  const external=process.env.TT_MASTER_KEY || "";
+  if(external) {
+    if(!/^[a-f0-9]{64}$/i.test(external)) throw new Error("Invalid legacy TT_MASTER_KEY");
+    return Buffer.from(external,"hex");
+  }
+  mkdirSync(dataDir,{recursive:true,mode:0o700});
+  try { writeFileSync(masterKeyFile,randomBytes(32),{flag:"wx",mode:0o600}); }
+  catch(e){if(e.code!=="EEXIST")throw e;}
+  const stored=readFileSync(masterKeyFile);
+  if(stored.length!==32)throw new Error("Invalid persisted master key");
+  return stored;
+}
+async function passwordHash(password,salt=randomBytes(16).toString("hex")) {
+  const derived=await scryptAsync(password,Buffer.from(salt,"hex"),64,SCRYPT_PARAMS);
+  return {algorithm:"scrypt",salt,hash:derived.toString("hex")};
+}
+async function verifyPassword(password,record) {
+  if(!record||record.algorithm!=="scrypt"||!/^[0-9a-f]{32}$/.test(record.salt||"")||!/^[0-9a-f]{128}$/.test(record.hash||""))return false;
+  const derived=await scryptAsync(password,Buffer.from(record.salt,"hex"),64,SCRYPT_PARAMS);
+  return timingSafeEqual(derived,Buffer.from(record.hash,"hex"));
+}
+function limited(name,limit=5) {
+  const now=Date.now(),attempt=failures.get(name)||{n:0,until:now+60000};
+  if(now>attempt.until){attempt.n=0;attempt.until=now+60000;}
+  if(attempt.n>=limit)return true;
+  attempt.n++;failures.set(name,attempt);return false;
+}
+function sessionCookie(req,id,maxAge=28800) {
+  return "ttsid="+id+"; HttpOnly; SameSite=Strict; Path=/; Max-Age="+maxAge+(req.headers.get("x-forwarded-proto")==="https"?"; Secure":"");
+}
+function newSession(req,username) {
+  const id=rnd(),csrf=rnd();
+  sessions.set(id,{username,csrf,expires:Date.now()+8*3600*1000});
+  return reply({authenticated:true,username,csrf},200,{"set-cookie":sessionCookie(req,id)});
+}
+export function initializeFirstRun() {
+  key(); // Provision durable encryption before accepting credentials; fail on unwritable storage.
+  if(!state().admin)console.info("TinkerTunnel first-run setup code: "+firstRunCode);
 }
 function seal(clear) {
   const iv=randomBytes(12), cipher=createCipheriv("aes-256-gcm",key(),iv);
@@ -70,8 +111,8 @@ async function body(req) {
 function bounded(s,max=100) {return typeof s==="string"&&s.length>0&&s.length<=max?s.trim():"";}
 function publicSummary() {
   const s=state();
-  return {configured:!!process.env.TT_ADMIN_TOKEN && (process.env.TT_ADMIN_TOKEN||"").length>=32,
-    encryptionReady:/^[0-9a-f]{64}$/i.test(process.env.TT_MASTER_KEY||""),
+  return {configured:!!s.admin,claimed:!!s.admin,
+    encryptionReady:existsSync(masterKeyFile)||/^[0-9a-f]{64}$/i.test(process.env.TT_MASTER_KEY||""),
     name:s.config.name,role:s.config.role,
     githubVerified:!!s.github.verifiedAt,
     runners:s.runners.length,
@@ -119,22 +160,40 @@ export async function localRoute(req) {
         mcp:{verified:false,label:"OAuth not configured"}
       },warning:p.warning});
     }
-    if(path==="/api/local/login"&&method==="POST"){
-      const secret=process.env.TT_ADMIN_TOKEN||"";
-      if(secret.length<32)return deny(503,"Set TT_ADMIN_TOKEN (at least 32 random characters) in Coolify first");
-      const ip=(req.headers.get("x-forwarded-for")||req.headers.get("host")||"local").slice(0,100);
-      const attempt=failures.get(ip)||{n:0,until:Date.now()+60000};
-      if(Date.now()>attempt.until){attempt.n=0;attempt.until=Date.now()+60000;}
-      if(attempt.n>=5)return deny(429,"Too many login attempts");
+    if(path==="/api/local/bootstrap"&&method==="POST") {
+      // Prevent unauthenticated first-claim: setup requires the server-owner-only console code.
+      if(state().admin)return deny(409,"Administrator is already configured");
+      if(bootstrapBusy)return deny(409,"First-run setup is already in progress");
+      if(limited("bootstrap",8))return deny(429,"Too many setup attempts");
       const b=await body(req);
-      if(!equal(b.token||"",secret)){attempt.n++;failures.set(ip,attempt);return deny(401,"Invalid admin token");}
-      failures.delete(ip);
-      const id=rnd(),csrf=rnd();
-      sessions.set(id,{csrf,expires:Date.now()+8*3600*1000});
-      return reply({authenticated:true,csrf},200,{"set-cookie":"ttsid="+id+"; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800"+(req.headers.get("x-forwarded-proto")==="https"?"; Secure":"")});
+      const username=typeof b.username==="string"?b.username.trim():"";
+      if(!/^[a-zA-Z0-9_.-]{3,40}$/.test(username))return deny(422,"Username must be 3–40 letters, digits, periods, underscores or hyphens");
+      if(typeof b.password!=="string"||b.password.length<12||b.password.length>128)return deny(422,"Password must be 12–128 characters");
+      if(!equal(typeof b.setupCode==="string"?b.setupCode:"",firstRunCode))return deny(403,"Invalid first-run setup code");
+      bootstrapBusy=true;
+      try {
+        const s=state();if(s.admin)return deny(409,"Administrator is already configured");
+        s.admin={username,password:await passwordHash(b.password),createdAt:new Date().toISOString()};
+        save(s);
+        failures.delete("bootstrap");
+        return newSession(req,username);
+      } finally {bootstrapBusy=false;}
+    }
+    if(path==="/api/local/login"&&method==="POST"){
+      const b=await body(req);
+      const username=typeof b.username==="string"?b.username.trim():"";
+      const password=typeof b.password==="string"?b.password:"";
+      if(username.length>80||password.length>256)return deny(401,"Invalid credentials");
+      const rateKey="login:"+username.toLowerCase();
+      if(limited("login-global",100)||limited(rateKey,6))return deny(429,"Too many login attempts");
+      const admin=state().admin;
+      if(!admin)return deny(409,"Create the administrator account first");
+      if(username!==admin.username||!(await verifyPassword(password,admin.password)))return deny(401,"Invalid credentials");
+      failures.delete(rateKey);
+      return newSession(req,username);
     }
     if(path==="/api/local/session"&&method==="GET") {
-      const s=session(req);return reply({authenticated:!!s,csrf:s?.csrf||null});
+      const s=session(req);return reply({authenticated:!!s,username:s?.username||null,csrf:s?.csrf||null});
     }
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
@@ -142,7 +201,18 @@ export async function localRoute(req) {
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
-        return reply({ok:true},200,{"set-cookie":"ttsid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"+(req.headers.get("x-forwarded-proto")==="https"?"; Secure":"")});
+        return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
+      if(path==="/api/local/account/password"&&method==="POST") {
+        const b=await body(req),s=state();
+        if(!s.admin)return deny(409,"No administrator configured");
+        if(typeof b.currentPassword!=="string"||!(await verifyPassword(b.currentPassword,s.admin.password)))return deny(401,"Current password is incorrect");
+        if(typeof b.newPassword!=="string"||b.newPassword.length<12||b.newPassword.length>128)return deny(422,"New password must be 12–128 characters");
+        if(b.newPassword===b.currentPassword)return deny(422,"Choose a different password");
+        s.admin.password=await passwordHash(b.newPassword);
+        save(s);
+        sessions.clear();
+        return reply({ok:true,loginRequired:true},200,{"set-cookie":sessionCookie(req,"",0)});
       }
       if(path==="/api/local/config"&&method==="GET"){
         const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
@@ -209,7 +279,7 @@ export async function localRoute(req) {
     if(e instanceof SyntaxError)return deny(400,"Invalid JSON");
     if(e.message==="Request too large")return deny(413,e.message);
     if(e.message==="JSON required"||e.message==="JSON object required")return deny(400,e.message);
-    console.error("Controller request error:",e.message==="TT_MASTER_KEY must be 32 random bytes encoded as 64 hex characters"?e.message:"Operation failed");
+    console.error("Controller request error: Operation failed");
     return deny(503,"Configuration unavailable or invalid");
   }
 }

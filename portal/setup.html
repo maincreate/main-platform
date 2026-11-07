@@ -18,10 +18,26 @@
 <main>
   <header><div><p class="eyebrow">CONFIGURATION WIZARD</p><h1>Build your workspace</h1><p>Configure your local control plane, connect GitHub, and enroll trusted machines.</p></div><button id="logout" class="ghost" hidden>Sign out</button></header>
   <div id="banner" role="status" aria-live="polite"></div>
-  <section id="login" class="panel">
-    <p class="eyebrow">ADMINISTRATOR LOGIN</p><h2>Unlock local configuration</h2>
-    <p>Set <code>TT_ADMIN_TOKEN</code> and <code>TT_MASTER_KEY</code> as environment secrets in Coolify before configuring services. Access is restricted to the Docker-host loopback by default.</p>
-    <form id="loginForm"><label>Admin token<input id="adminToken" type="password" autocomplete="off" placeholder="Paste TT_ADMIN_TOKEN" required></label><button type="submit">Unlock configuration</button></form>
+  <section id="firstRun" class="panel" hidden>
+    <p class="eyebrow">FIRST-RUN SETUP</p><h2>Create your administrator account</h2>
+    <p>This installation has no administrator yet. Create a username and password here; no login token or password needs to be configured in Coolify.</p>
+    <p class="note">To prevent another visitor from claiming the server, copy the one-time <strong>first-run setup code</strong> from this application's <strong>Coolify Runtime Logs</strong>. The code is not your password and expires permanently after the account is created.</p>
+    <form id="firstRunForm">
+      <label>Administrator username<input id="newUsername" name="username" autocomplete="username" minlength="3" maxlength="40" pattern="[a-zA-Z0-9_.-]{3,40}" required></label>
+      <label>Password (12 characters minimum)<input id="newPassword" name="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+      <label>Confirm password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+      <label>One-time setup code<input id="setupCode" type="text" autocomplete="off" spellcheck="false" required></label>
+      <button type="submit">Create administrator</button>
+    </form>
+  </section>
+  <section id="login" class="panel" hidden>
+    <p class="eyebrow">ADMINISTRATOR LOGIN</p><h2>Welcome back</h2>
+    <p>Sign in with the administrator account created during initial setup.</p>
+    <form id="loginForm">
+      <label>Username<input id="loginUsername" type="text" autocomplete="username" required></label>
+      <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
   </section>
   <div id="workspace" hidden>
     <section class="panel" data-view="instance">
@@ -33,6 +49,16 @@
         <label>Tunnel hostname (optional)<input id="tunnelHostname" placeholder="mcp.example.com" autocomplete="off"></label>
         <button type="submit">Save instance settings</button>
       </form>
+      <div class="steps" style="margin-top:24px">
+        <h3>Administrator security</h3>
+        <p>Update your login password without changing Coolify environment variables.</p>
+        <form id="passwordForm">
+          <label>Current password<input id="currentPassword" type="password" autocomplete="current-password" required></label>
+          <label>New password (12 characters minimum)<input id="changePassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <label>Confirm new password<input id="changePasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <button type="submit">Change password</button>
+        </form>
+      </div>
     </section>
     <section class="panel" data-view="github" hidden>
       <p class="eyebrow">02 · GITHUB</p><h2>Connect a GitHub App</h2>
