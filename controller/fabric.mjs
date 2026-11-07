@@ -109,6 +109,14 @@ function inspect(args,ctx){
   if(!t)throw error(404,"Unknown toolkit");
   return t;
  }
+ if(kind==="device"){
+  const d=(ctx.devices||[]).find(x=>x.id===id);
+  if(!d)throw error(404,"Unknown device");
+  return {id:d.id,runnerId:d.runnerId,runnerName:d.runnerName,port:d.port,
+   product:d.product,description:d.description,vid:d.vid,pid:d.pid,
+   identityConfidence:d.identityConfidence,connected:d.lifecycle==="connected",
+   lifecycle:d.lifecycle,lastSeen:d.lastSeen,label:d.label||null};
+ }
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
@@ -123,7 +131,7 @@ function inspect(args,ctx){
 }
 function discover(args,ctx){
  const resource=args.resource||"all",q=(args.query||"").toLowerCase();
- if(!["all","capabilities","toolkits","runners","workspace","jobs","assets"].includes(resource))
+ if(!["all","capabilities","toolkits","runners","devices","workspace","jobs","assets"].includes(resource))
   throw error(422,"Unknown resource type");
  const result={};
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
@@ -131,6 +139,11 @@ function discover(args,ctx){
  if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
   id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)
  })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
+ if(resource==="all"||resource==="devices")result.devices=(ctx.devices||[]).filter(d=>
+  !q||((d.label||"")+" "+(d.product||"")+" "+(d.port||"")+" "+(d.runnerName||"")).toLowerCase().includes(q))
+  .slice(0,50).map(d=>({id:d.id,runnerId:d.runnerId,runnerName:d.runnerName,
+   product:d.product,port:d.port,identityConfidence:d.identityConfidence,
+   lastSeen:d.lastSeen,lifecycle:d.lifecycle,label:d.label||null}));
  if(resource==="all"||resource==="workspace")result.workspace=ctx.workspace||{name:"TinkerTunnel"};
  if(resource==="jobs")result.jobs=store().jobs.slice(-30).reverse().map(publicJob);
  if(resource==="assets")result.assets=store().assets.filter(x=>x.complete).map(publicAsset);
