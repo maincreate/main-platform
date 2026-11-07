@@ -1,0 +1,213 @@
+import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipheriv, createSign} from "node:crypto";
+import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
+import {join} from "node:path";
+
+const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
+const dataFile = join(dataDir, "state.json");
+const sessions = new Map();
+const failures = new Map();
+function digest(s) { return createHash("sha256").update(String(s)).digest("hex"); }
+function equal(a,b) { const x=Buffer.from(digest(a),"hex"), y=Buffer.from(digest(b),"hex"); return timingSafeEqual(x,y); }
+function rnd() { return randomBytes(32).toString("hex"); }
+function key() {
+  const k=process.env.TT_MASTER_KEY || "";
+  if(!/^[a-f0-9]{64}$/i.test(k)) throw new Error("TT_MASTER_KEY must be 32 random bytes encoded as 64 hex characters");
+  return Buffer.from(k,"hex");
+}
+function seal(clear) {
+  const iv=randomBytes(12), cipher=createCipheriv("aes-256-gcm",key(),iv);
+  const enc=Buffer.concat([cipher.update(String(clear),"utf8"),cipher.final()]);
+  return {iv:iv.toString("base64"),ct:enc.toString("base64"),tag:cipher.getAuthTag().toString("base64")};
+}
+function unseal(data) {
+  const decipher=createDecipheriv("aes-256-gcm",key(),Buffer.from(data.iv,"base64"));
+  decipher.setAuthTag(Buffer.from(data.tag,"base64"));
+  return Buffer.concat([decipher.update(Buffer.from(data.ct,"base64")),decipher.final()]).toString("utf8");
+}
+function state() {
+  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel Local",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
+  const s=JSON.parse(readFileSync(dataFile,"utf8"));
+  if(s.schema!==1) throw new Error("Unsupported state schema");
+  return s;
+}
+function save(s) {
+  mkdirSync(dataDir,{recursive:true,mode:0o700});
+  const tmp=join(dataDir,".state-"+process.pid+"-"+randomBytes(4).toString("hex"));
+  writeFileSync(tmp,JSON.stringify(s,null,2),{mode:0o600,flag:"wx"});
+  renameSync(tmp,dataFile); chmodSync(dataFile,0o600);
+}
+function reply(obj,status=200,extra={}) {
+  return new Response(JSON.stringify(obj),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff",...extra}});
+}
+function deny(status,reason) {return reply({error:reason},status);}
+function session(req) {
+  const cookie=req.headers.get("cookie")||"";
+  const id=cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("ttsid="))?.slice(6);
+  const s=id&&sessions.get(id);
+  if(!s||s.expires<Date.now()){if(id)sessions.delete(id);return null;}
+  return s;
+}
+function sameOrigin(req) {
+  const origin=req.headers.get("origin");
+  if(!origin)return true; // Non-browser clients require authentication and CSRF too.
+  try {return new URL(origin).host===(req.headers.get("host")||"");}catch{return false;}
+}
+function authorized(req,mutation=false) {
+  const s=session(req);
+  if(!s)return deny(401,"Admin login required");
+  if(mutation && !equal(req.headers.get("x-tt-csrf")||"",s.csrf))return deny(403,"CSRF token required");
+  return null;
+}
+async function body(req) {
+  if(!(req.headers.get("content-type")||"").toLowerCase().startsWith("application/json"))throw new Error("JSON required");
+  const raw=await req.text();
+  if(raw.length>32768)throw new Error("Request too large");
+  const obj=JSON.parse(raw);
+  if(!obj||typeof obj!=="object"||Array.isArray(obj))throw new Error("JSON object required");
+  return obj;
+}
+function bounded(s,max=100) {return typeof s==="string"&&s.length>0&&s.length<=max?s.trim():"";}
+function publicSummary() {
+  const s=state();
+  return {configured:!!process.env.TT_ADMIN_TOKEN && (process.env.TT_ADMIN_TOKEN||"").length>=32,
+    encryptionReady:/^[0-9a-f]{64}$/i.test(process.env.TT_MASTER_KEY||""),
+    name:s.config.name,role:s.config.role,
+    githubVerified:!!s.github.verifiedAt,
+    runners:s.runners.length,
+    tunnel:"manual_configuration_required",
+    mcp:"bearer_token_local_only",
+    warning:"Remote ChatGPT OAuth and framework execution are not yet available"};
+}
+async function verifyGithub(s) {
+  if(!s.github.appId||!s.github.installationId||!s.github.privateKey)throw new Error("GitHub App ID, Installation ID and private key required");
+  const pem=unseal(s.github.privateKey);
+  const now=Math.floor(Date.now()/1000);
+  const enc=x=>Buffer.from(JSON.stringify(x)).toString("base64url");
+  const part=enc({alg:"RS256",typ:"JWT"})+"."+enc({iat:now-60,exp:now+540,iss:String(s.github.appId)});
+  const signer=createSign("RSA-SHA256");signer.update(part);signer.end();
+  const jwt=part+"."+signer.sign(pem).toString("base64url");
+  async function gh(url,headers,method="GET") {
+    const r=await fetch("https://api.github.com"+url,{method,headers:{"accept":"application/vnd.github+json","x-github-api-version":"2022-11-28",...headers},signal:AbortSignal.timeout(12000)});
+    if(!r.ok)throw new Error("GitHub API rejected credentials or installation: HTTP "+r.status);
+    return r.json();
+  }
+  const app=await gh("/app",{authorization:"Bearer "+jwt});
+  if(Number(app.id)!==Number(s.github.appId))throw new Error("GitHub App identity mismatch");
+  const access=await gh("/app/installations/"+s.github.installationId+"/access_tokens",{authorization:"Bearer "+jwt},"POST");
+  if(!access.token)throw new Error("GitHub installation token unavailable");
+  const repos=await gh("/installation/repositories?per_page=100",{authorization:"Bearer "+access.token});
+  if(!repos.repositories?.some(r=>r.full_name.toLowerCase()===s.github.repository.toLowerCase()))throw new Error("Configured repository not in first 100 accessible installation repositories");
+  return {app:app.slug,repository:s.github.repository};
+}
+export async function localRoute(req) {
+  const path=new URL(req.url).pathname,method=req.method;
+  if(path==="/setup"&&method==="GET"){
+    return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}});
+  }
+  if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
+  if(!path.startsWith("/api/local/")&&!path.startsWith("/api/agent/")&&!path.startsWith("/api/internal/")&&path!=="/api/v1/status")return null;
+  if(!sameOrigin(req))return deny(403,"Origin rejected");
+  try {
+    if(path==="/api/local/public"&&method==="GET")return reply(publicSummary());
+    if(path==="/api/v1/status"&&method==="GET") {
+      const p=publicSummary();
+      return reply({schema_version:1,mode:"local",connections:{
+        github:{verified:p.githubVerified,label:p.githubVerified?"Verified":"Not verified"},
+        agent:{verified:p.runners>0,label:p.runners>0?"Enrolled":"Not enrolled"},
+        mcp:{verified:false,label:"OAuth not configured"}
+      },warning:p.warning});
+    }
+    if(path==="/api/local/login"&&method==="POST"){
+      const secret=process.env.TT_ADMIN_TOKEN||"";
+      if(secret.length<32)return deny(503,"Set TT_ADMIN_TOKEN (at least 32 random characters) in Coolify first");
+      const ip=(req.headers.get("x-forwarded-for")||req.headers.get("host")||"local").slice(0,100);
+      const attempt=failures.get(ip)||{n:0,until:Date.now()+60000};
+      if(Date.now()>attempt.until){attempt.n=0;attempt.until=Date.now()+60000;}
+      if(attempt.n>=5)return deny(429,"Too many login attempts");
+      const b=await body(req);
+      if(!equal(b.token||"",secret)){attempt.n++;failures.set(ip,attempt);return deny(401,"Invalid admin token");}
+      failures.delete(ip);
+      const id=rnd(),csrf=rnd();
+      sessions.set(id,{csrf,expires:Date.now()+8*3600*1000});
+      return reply({authenticated:true,csrf},200,{"set-cookie":"ttsid="+id+"; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800"});
+    }
+    if(path==="/api/local/session"&&method==="GET") {
+      const s=session(req);return reply({authenticated:!!s,csrf:s?.csrf||null});
+    }
+    if(path.startsWith("/api/local/")) {
+      const rejected=authorized(req,method!=="GET");
+      if(rejected)return rejected;
+      if(path==="/api/local/logout"&&method==="POST"){
+        const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
+        if(id)sessions.delete(id);
+        return reply({ok:true},200,{"set-cookie":"ttsid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});
+      }
+      if(path==="/api/local/config"&&method==="GET"){
+        const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
+      }
+      if(path==="/api/local/config"&&method==="POST"){
+        const b=await body(req),s=state();
+        if(!["all-in-one","management","gateway"].includes(b.role))return deny(422,"Invalid deployment role");
+        if(!bounded(b.name,80))return deny(422,"Name must be 1-80 characters");
+        if(b.tunnelHostname && !/^[a-z0-9.-]{3,253}$/i.test(b.tunnelHostname))return deny(422,"Invalid tunnel hostname");
+        s.config={name:b.name.trim(),role:b.role,tunnelHostname:(b.tunnelHostname||"").toLowerCase()};
+        save(s);return reply({ok:true,config:s.config});
+      }
+      if(path==="/api/local/github"&&method==="POST"){
+        const b=await body(req),s=state();
+        if(!Number.isSafeInteger(Number(b.appId))||Number(b.appId)<1||!Number.isSafeInteger(Number(b.installationId))||Number(b.installationId)<1)return deny(422,"Positive App and Installation IDs required");
+        if(!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(b.repository||""))return deny(422,"owner/repository required");
+        const changed=Number(b.appId)!==Number(s.github.appId)||Number(b.installationId)!==Number(s.github.installationId)||b.repository!==s.github.repository;
+        s.github.appId=Number(b.appId);s.github.installationId=Number(b.installationId);s.github.repository=b.repository;
+        if(b.privateKey){
+          if(typeof b.privateKey!=="string"||b.privateKey.length>16384||!b.privateKey.includes("PRIVATE KEY"))return deny(422,"Invalid PEM key");
+          s.github.privateKey=seal(b.privateKey);
+        }
+        if(changed||b.privateKey)s.github.verifiedAt=null;
+        save(s);return reply({saved:true,verified:false,hasPrivateKey:!!s.github.privateKey});
+      }
+      if(path==="/api/local/github/verify"&&method==="POST"){
+        const s=state();
+        try {const result=await verifyGithub(s);s.github.verifiedAt=new Date().toISOString();save(s);return reply({verified:true,...result});}
+        catch(e){s.github.verifiedAt=null;save(s);return deny(502,e.message);}
+      }
+      if(path==="/api/local/runners/invite"&&method==="POST"){
+        const s=state(),token=rnd();
+        s.invites=(s.invites||[]).filter(x=>x.expires>Date.now());
+        s.invites.push({hash:digest(token),expires:Date.now()+10*60*1000});
+        save(s);return reply({token,expiresInSeconds:600,warning:"Shown once. Do not put this token in Git or logs."});
+      }
+      return deny(404,"Unknown management endpoint");
+    }
+    if(path==="/api/agent/enroll"&&method==="POST"){
+      const b=await body(req),s=state();
+      const invite=(s.invites||[]).find(x=>equal(x.hash,digest(b.token||""))&&x.expires>Date.now());
+      if(!invite)return deny(401,"Enrollment token invalid or expired");
+      if(!bounded(b.name,64)||!["linux","macos","windows"].includes(b.os)||!["x64","arm64"].includes(b.arch))return deny(422,"Invalid agent identity");
+      s.invites=s.invites.filter(x=>x!==invite);
+      const token=rnd(),id=randomBytes(12).toString("hex");
+      s.runners.push({id,name:b.name,os:b.os,arch:b.arch,tokenHash:digest(token),registeredAt:new Date().toISOString(),lastSeen:null});
+      save(s);return reply({id,token,heartbeatPath:"/api/agent/heartbeat"});
+    }
+    if(path==="/api/agent/heartbeat"&&method==="POST"){
+      const b=await body(req),s=state();
+      const token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
+      const runner=s.runners.find(x=>x.id===b.id && equal(x.tokenHash, digest(token)));
+      if(!runner)return deny(401,"Invalid runner token");
+      runner.lastSeen=new Date().toISOString();save(s);return reply({ok:true,jobExecution:"disabled"});
+    }
+    if(path==="/api/internal/status"&&method==="GET"){
+      const token=process.env.TT_SERVICE_TOKEN||"";
+      if(token.length<32)return deny(503,"Internal service token not configured");
+      if(!equal(req.headers.get("authorization")||"","Bearer "+token))return deny(401,"Unauthorized");
+      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:false});
+    }
+    return deny(404,"Not found");
+  } catch(e) {
+    if(e instanceof SyntaxError)return deny(400,"Invalid JSON");
+    if(e.message==="Request too large")return deny(413,e.message);
+    if(e.message==="JSON required"||e.message==="JSON object required")return deny(400,e.message);
+    console.error("Controller request error:",e.message==="TT_MASTER_KEY must be 32 random bytes encoded as 64 hex characters"?e.message:"Operation failed");
+    return deny(503,"Configuration unavailable or invalid");
+  }
+}
