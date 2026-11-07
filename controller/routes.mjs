@@ -12,7 +12,8 @@ const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
 const githubDeviceFlows=new Map();
-const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||"";
+const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||state().github.oauthClientId||"";
+const validGithubClientId=id=>/^[A-Za-z0-9._-]{8,100}$/.test(id);
 function githubIdentityCurrent(g) {
   return !!g.oauthUser && (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
 }
@@ -21,21 +22,37 @@ async function githubDevicePost(url,params) {
   if(!response.ok)throw new Error("GitHub authorization service unavailable");
   return response.json();
 }
+async function githubInstallations(token) {
+  const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
+    "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+  // Unlike classic OAuth tokens, GitHub App user access tokens return an empty
+  // organization list from /user/orgs. Read installations of THIS app instead.
+  const r=await fetch("https://api.github.com/user/installations?per_page=100",
+    {headers,signal:AbortSignal.timeout(12000)});
+  if(!r.ok)throw new Error("Unable to read this GitHub App's installations. Check authorization and installation permissions.");
+  const values=await r.json();
+  if(!Array.isArray(values.installations))throw new Error("Invalid GitHub installations response");
+  const seen=new Set(),organizations=[];
+  for(const item of values.installations){
+    if(item?.account?.type!=="Organization"||typeof item.account.login!=="string")continue;
+    if(!Number.isSafeInteger(item.id)||!Number.isSafeInteger(item.account.id))continue;
+    const key=item.account.id;
+    if(seen.has(key))continue;
+    seen.add(key);
+    organizations.push({login:item.account.login,id:key,installationId:item.id});
+  }
+  return {organizations,installationsTotal:Number(values.total_count)||0,
+    hasMoreInstallations:(Number(values.total_count)||0)>values.installations.length};
+}
 async function githubUser(token) {
-  const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,"user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+  const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
+    "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
   const r=await fetch("https://api.github.com/user",{headers,signal:AbortSignal.timeout(12000)});
   if(!r.ok)throw new Error("GitHub could not verify your account");
   const profile=await r.json();
-  if(!Number.isSafeInteger(profile.id)||typeof profile.login!=="string")throw new Error("GitHub account response incomplete");
-  let organizations=[],organizationsReadable=false;
-  try {
-    const o=await fetch("https://api.github.com/user/orgs?per_page=100",{headers,signal:AbortSignal.timeout(12000)});
-    if(o.ok) {
-      const values=await o.json();
-      if(Array.isArray(values)){organizations=values.filter(x=>x&&typeof x.login==="string").map(x=>({login:x.login,id:x.id}));organizationsReadable=true;}
-    }
-  }catch{}
-  return {user:{login:profile.login,id:profile.id},organizations,organizationsReadable};
+  if(!Number.isSafeInteger(profile.id)||typeof profile.login!=="string")
+    throw new Error("GitHub account response incomplete");
+  return {user:{login:profile.login,id:profile.id},...await githubInstallations(token)};
 }
 
 function digest(s) { return createHash("sha256").update(String(s)).digest("hex"); }
@@ -266,18 +283,32 @@ export async function localRoute(req) {
         return reply({ok:true,loginRequired:true},200,{"set-cookie":sessionCookie(req,"",0)});
       }
       if(path==="/api/local/github/device/status"&&method==="GET"){
-        const g=state().github,configured=/^[A-Za-z0-9._-]{8,100}$/.test(githubClientId());
-        return reply({available:configured,connected:githubIdentityCurrent(g),login:g.oauthUser?.login||null,
+        const g=state().github,configured=validGithubClientId(githubClientId());
+        return reply({available:configured,connected:githubIdentityCurrent(g),
+          login:githubIdentityCurrent(g)?g.oauthUser.login:null,
+          clientId:githubClientId(),configuredByEnvironment:!!process.env.TT_GITHUB_CLIENT_ID,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
-          selectedOrganization:g.selectedOrganization||null,
-          note:configured?null:"A GitHub App with device authorization must be configured by the TinkerTunnel distributor."});
+          selectedOrganization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
+          installationsTotal:g.oauthInstallationsTotal||0,
+          hasMoreInstallations:!!g.oauthHasMoreInstallations,
+          note:configured?null:"Enter the public Client ID of your GitHub App to enable authorization."});
+      }
+      if(path==="/api/local/github/device/config"&&method==="POST"){
+        if(process.env.TT_GITHUB_CLIENT_ID)return deny(409,"GitHub App Client ID is managed by the hosting environment");
+        if(githubIdentityCurrent(state().github))return deny(409,"Disconnect GitHub before changing its application");
+        const input=await body(req),clientId=typeof input.clientId==="string"?input.clientId.trim():"";
+        if(!validGithubClientId(clientId))return deny(422,"Enter a valid GitHub App Client ID");
+        const stored=state();
+        stored.github.oauthClientId=clientId;
+        save(stored);
+        return reply({available:true,configured:true});
       }
       if(path==="/api/local/github/device/start"&&method==="POST"){
         const clientId=githubClientId();
-        if(!/^[A-Za-z0-9._-]{8,100}$/.test(clientId))return deny(503,"GitHub sign-in is not enabled for this installation");
+        if(!validGithubClientId(clientId))return deny(503,"Configure the GitHub App Client ID first");
         if(githubIdentityCurrent(state().github))return deny(409,"Disconnect the existing GitHub account first");
         if(limited("github-device-start",10))return deny(429,"Too many authorization attempts");
-        const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId,scope:"read:org"});
+        const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId});
         if(out.error) return deny(502,"GitHub device authorization is unavailable; check GitHub App device-flow settings");
         if(typeof out.device_code!=="string"||typeof out.user_code!=="string"||out.verification_uri!=="https://github.com/login/device")return deny(502,"Unexpected GitHub authorization response");
         const interval=Math.max(5,Math.min(60,Number(out.interval)||5));
@@ -303,18 +334,36 @@ export async function localRoute(req) {
         const stored=state();
         stored.github.oauthUser=result.user;
         stored.github.oauthOrganizations=result.organizations;
-        stored.github.oauthOrganizationsReadable=result.organizationsReadable;
+        stored.github.oauthOrganizationsReadable=true;
+        stored.github.oauthInstallationsTotal=result.installationsTotal;
+        stored.github.oauthHasMoreInstallations=result.hasMoreInstallations;
         stored.github.selectedOrganization=null;
         stored.github.oauthToken=seal(out.access_token);
         stored.github.oauthExpiresAt=out.expires_in?new Date(Date.now()+Number(out.expires_in)*1000).toISOString():null;
         if(typeof out.refresh_token==="string")stored.github.oauthRefreshToken=seal(out.refresh_token);
+        else delete stored.github.oauthRefreshToken;
         save(stored);githubDeviceFlows.delete(slot);
         return reply({state:"connected",login:result.user.login,organizations:result.organizations});
+      }
+      if(path==="/api/local/github/device/installations/refresh"&&method==="POST"){
+        const stored=state();
+        if(!githubIdentityCurrent(stored.github)||!stored.github.oauthToken)
+          return deny(409,"Connect or reconnect your GitHub account first");
+        const result=await githubInstallations(unseal(stored.github.oauthToken));
+        stored.github.oauthOrganizations=result.organizations;
+        stored.github.oauthOrganizationsReadable=true;
+        stored.github.oauthInstallationsTotal=result.installationsTotal;
+        stored.github.oauthHasMoreInstallations=result.hasMoreInstallations;
+        if(!result.organizations.some(o=>o.login===stored.github.selectedOrganization))
+          stored.github.selectedOrganization=null;
+        save(stored);
+        return reply({organizations:result.organizations,installationsTotal:result.installationsTotal,
+          hasMoreInstallations:result.hasMoreInstallations});
       }
       if(path==="/api/local/github/device/organization"&&method==="POST"){
         const input=await body(req),stored=state();
         const value=typeof input.organization==="string"?input.organization:"";
-        if(!stored.github.oauthUser)return deny(409,"Connect your GitHub account first");
+        if(!githubIdentityCurrent(stored.github))return deny(409,"Connect your GitHub account first");
         if(!stored.github.oauthOrganizations?.some(o=>o.login===value))return deny(422,"Organization is not visible to the connected account");
         stored.github.selectedOrganization=value;
         save(stored);return reply({ok:true,organization:value,runnerAccessVerified:false});
@@ -324,6 +373,7 @@ export async function localRoute(req) {
         delete stored.github.oauthToken;delete stored.github.oauthRefreshToken;
         delete stored.github.oauthUser;delete stored.github.oauthExpiresAt;
         delete stored.github.oauthOrganizations;delete stored.github.oauthOrganizationsReadable;
+        delete stored.github.oauthInstallationsTotal;delete stored.github.oauthHasMoreInstallations;
         delete stored.github.selectedOrganization;
         save(stored);githubDeviceFlows.delete(session(req).csrf);
         return reply({ok:true});
