@@ -203,6 +203,17 @@ export async function localRoute(req) {
         if(id)sessions.delete(id);
         return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
       }
+      if(path==="/api/local/account/password"&&method==="POST") {
+        const b=await body(req),s=state();
+        if(!s.admin)return deny(409,"No administrator configured");
+        if(typeof b.currentPassword!=="string"||!(await verifyPassword(b.currentPassword,s.admin.password)))return deny(401,"Current password is incorrect");
+        if(typeof b.newPassword!=="string"||b.newPassword.length<12||b.newPassword.length>128)return deny(422,"New password must be 12–128 characters");
+        if(b.newPassword===b.currentPassword)return deny(422,"Choose a different password");
+        s.admin.password=await passwordHash(b.newPassword);
+        save(s);
+        sessions.clear();
+        return reply({ok:true,loginRequired:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
       if(path==="/api/local/config"&&method==="GET"){
         const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
       }
