@@ -13,6 +13,7 @@ services:
       HOST: 0.0.0.0
       PORT: "3000"
       TT_DATA_DIR: /data
+      TT_REQUIRE_LOGIN: "1"
       TT_ADMIN_TOKEN: ${TT_ADMIN_TOKEN:-}
       TT_MASTER_KEY: ${TT_MASTER_KEY:-}
       TT_SERVICE_TOKEN: ${TT_SERVICE_TOKEN:-}
