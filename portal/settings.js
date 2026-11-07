@@ -32,6 +32,7 @@ async function load(){
    d.github?.authorizationExpired?"Authorization expired — reconnect required":
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
   await loadRepositoryPreferences();
+  await loadApprovalPreferences();
   $("executionStatus").textContent=(d.jobs?.pending||0)+
    " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
  }catch(e){$("notice").textContent=e.message;}
@@ -99,3 +100,39 @@ $("visibilityForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 $("refreshRepoRequests").addEventListener("click",()=>loadRepositoryPreferences().catch(e=>$("visibilityNotice").textContent=e.message));
+
+async function loadApprovalPreferences(){
+ const config=await api("/api/local/approval-settings");
+ $("buildApproval").value=config.buildApproval==="automatic"?"1":"0";
+ renderApprovalPreference();
+}
+function renderApprovalPreference(){
+ const auto=$("buildApproval").value==="1";
+ $("buildApprovalLabel").textContent=auto?"Build without asking":"Ask before starting";
+ $("buildApprovalExplanation").textContent=auto?
+  "Approved ESP-IDF build profiles may start automatically when requested through TinkerTunnel. Flashing still requires approval.":
+  "TinkerTunnel waits for your approval before starting its managed build jobs.";
+}
+$("buildApproval").addEventListener("input",renderApprovalPreference);
+$("approvalForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const button=event.currentTarget.querySelector("button");button.disabled=true;
+ try{
+  const buildApproval=$("buildApproval").value==="1"?"automatic":"review";
+  await api("/api/local/approval-settings",{buildApproval,flashApproval:"always"});
+  $("approvalNotice").textContent="Saved. Firmware flashing will continue to require separate approval.";
+ }catch(e){$("approvalNotice").textContent=e.message;}
+ finally{button.disabled=false;}
+});
+$("resetForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const password=$("resetPassword").value,confirmText=$("resetConfirm").value,button=$("resetSubmit");
+ if(confirmText!=="RESET TINKERTUNNEL"){$("resetNotice").textContent="Enter the exact confirmation phrase.";return;}
+ if(!window.confirm("Reset the local TinkerTunnel installation and sign out all users? A private snapshot will be kept on this host. External GitHub resources will remain."))return;
+ button.disabled=true;
+ try{
+  const result=await api("/api/local/installation/reset",{password,confirm:confirmText});
+  if(!result.reset)throw Error("Reset not confirmed");
+  window.location.replace("/setup");
+ }catch(e){$("resetNotice").textContent=e.message;button.disabled=false;}
+});
