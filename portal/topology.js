@@ -103,7 +103,7 @@ function renderTopology(data){
     }
     const hidden=Number(data.runners?.count||0)-records.length;
     if(hidden>0)holder.append(createSpan("topology-overflow","+"+hidden+" more enrolled machines"));
-    $("topologySummary").textContent=records.length+" machine(s) shown; "+recent+" with a recent heartbeat. Toolkit inventory has not been implemented.";
+    $("topologySummary").textContent=records.length+" machine(s) shown; "+recent+" with a recent heartbeat. Available tools are shown on each builder.";
   }
   const devices=Array.isArray(data.devices?.items)?data.devices.items.slice(0,10):[];
   const deviceHolder=$("topologyDevices");
@@ -113,7 +113,7 @@ function renderTopology(data){
     node.className="topology-node empty";node.dataset.topologyNode="device-empty";
     node.append(createSpan("topology-label","No devices reported"),
       createSpan("topology-state","Not discovered"),
-      createSpan("topology-hint","Opt-in USB discovery on a builder"));
+      createSpan("topology-hint","Automatic hardware discovery when a builder is enrolled"));
     deviceHolder.append(node);
     for(const r of records)topoEdges.push(["runner-"+r.id,"device-empty",false]);
     if(!records.length)topoEdges.push(["runner-empty","device-empty",false]);
@@ -152,7 +152,7 @@ function selectRunner(runner,records){
   $("topologyReset").hidden=!focused;
   $("topologySummary").textContent=focused?
     (focused.name||"Machine")+" · "+(focused.os||"unknown")+"/"+(focused.arch||"unknown")+" · "+
-      lastSeenDescription(focused.lastSeen)+". Jobs are controlled through the Builders & Jobs page.":
+      lastSeenDescription(focused.lastSeen)+". Manage runs from Jobs.":
     records.length+" displayed machine(s); toolkits are not discovered yet.";
   scheduleTopologyLines();
 }
@@ -160,51 +160,6 @@ $("topologyReset").addEventListener("click",()=>{
   const selected=document.querySelector('#topologyRunners [aria-pressed="true"]');
   if(selected)selected.click();
 });
-let topoDrawQueued=false;
-function scheduleTopologyLines(){
-  if(topoDrawQueued)return;
-  topoDrawQueued=true;
-  requestAnimationFrame(()=>{topoDrawQueued=false;drawTopologyLines();});
-}
-function drawTopologyLines(){
-  const map=$("topologyMap"),svg=$("topologyLinks");
-  if(!map||!svg)return;
-  svg.replaceChildren();
-  const box=map.getBoundingClientRect();
-  const width=map.offsetWidth,height=map.offsetHeight;
-  svg.setAttribute("viewBox","0 0 "+width+" "+height);
-  svg.setAttribute("width",String(width));svg.setAttribute("height",String(height));
-  const nodeRect=id=>{
-    const node=Array.from(map.querySelectorAll("[data-topology-node]"))
-      .find(el=>el.dataset.topologyNode===id);
-    if(!node)return null;
-    const r=node.getBoundingClientRect();
-    return {x1:r.left-box.left,y:r.top-box.top+r.height/2,x2:r.right-box.left};
-  };
-  for(const [from,to,observed] of topoEdges){
-    const a=nodeRect(from),b=nodeRect(to);
-    if(!a||!b||b.x1<=a.x2)continue;
-    const mid=(a.x2+b.x1)/2;
-    const path=document.createElementNS(topoSVG,"path");
-    // GitHub belongs to the controller directly. Route this long edge ABOVE
-    // the Secure Access and MCP cards, never through the MCP gateway node.
-    if(from==="cloud-github"&&to==="workspace"){
-      // One smooth, direct connection; nodes remain above connection strokes.
-      const distance=b.x1-a.x2,control=Math.max(30,distance*0.34);
-      path.setAttribute("d","M "+a.x2+" "+a.y+
-        " C "+(a.x2+control)+" "+a.y+" "+(b.x1-control)+" "+b.y+" "+b.x1+" "+b.y);
-    }else{
-      path.setAttribute("d","M "+a.x2+" "+a.y+" H "+mid+" V "+b.y+" H "+b.x1);
-    }
-    path.setAttribute("class",observed?"is-observed":"is-planned");
-    // The map never calls a conceptual edge a verified connection.
-    svg.append(path);
-  }
-}
-window.addEventListener("resize",scheduleTopologyLines);
-if(typeof ResizeObserver!=="undefined"){
-  const observer=new ResizeObserver(scheduleTopologyLines);
-  observer.observe($("topologyMap"));
-}
-
+// The topology uses a responsive two-track layout. No SVG routing or crossing lines.
+function scheduleTopologyLines(){}
 load();

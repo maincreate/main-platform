@@ -149,3 +149,18 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 #newRepo:focus-visible,.tt-toolbar-actions>.action:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 @media(max-width:950px){.tt-service-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:580px){.tt-service-kpis{grid-template-columns:1fr}}
+
+/* Topology: two readable sequential tracks rather than crossing long SVG edges. */
+.tt-topology-flow-wrap{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:22px;margin-top:22px}
+.tt-topology-track-title{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:2px 0 13px}
+.tt-topology-flow{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:30px;overflow-x:auto;padding:5px 0 24px}
+.tt-topology-ai-flow{grid-template-columns:repeat(4,minmax(170px,1fr));border-top:1px solid var(--line);padding-top:23px}
+.tt-topology-stage{position:relative;min-width:0}
+.tt-topology-stage>h3{text-transform:uppercase;font-size:11px;letter-spacing:.07em;color:var(--muted);margin:0 0 18px}
+.tt-topology-stage:not(.tt-topology-final)::after{content:"→";position:absolute;right:-24px;top:64px;font-size:22px;font-weight:700;color:var(--accent)}
+.tt-topology-stage .topology-node{position:relative;min-height:92px;width:100%;z-index:1}
+.tt-topology-stage .topology-node-stack{display:grid;gap:10px}
+.tt-topology-stage .topology-node-stack>.topology-node{margin:0}
+.tt-topology-flow-wrap .topology-node.empty{border-style:dashed}
+.tt-topology-flow-wrap .topology-node.hub{border-color:var(--accent)}
+@media(max-width:1100px){.tt-topology-flow{grid-template-columns:repeat(5,205px)}.tt-topology-ai-flow{grid-template-columns:repeat(4,205px)}}
