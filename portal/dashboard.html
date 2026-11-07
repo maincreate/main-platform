@@ -17,6 +17,48 @@
     <h1>You're in. Build from here.</h1>
     <p>Your account is ready. The connections below make TinkerTunnel useful, but nothing else is required to get started.</p>
   </div>
+  <section class="workspace-topology" aria-labelledby="topology-title">
+    <div class="section-head topology-head">
+      <div><p class="eyebrow">WORKSPACE MAP</p><h2 id="topology-title">Your development workspace</h2>
+        <p>A horizontal view of your services, workspace, machines and toolkits. Only reported connections are treated as verified.</p></div>
+      <div class="topology-key" aria-label="Connection legend">
+        <span><i class="legend-line observed"></i> Recent heartbeat</span>
+        <span><i class="legend-line planned"></i> Planned or unverified</span>
+      </div>
+    </div>
+    <div class="topology-scroll" id="topologyScroll" tabindex="0" role="region" aria-label="Scrollable workspace topology, from cloud services through toolkits">
+      <div class="topology-map" id="topologyMap">
+        <svg class="topology-links" id="topologyLinks" aria-hidden="true"></svg>
+        <div class="topology-lanes">
+          <div class="topology-lane" id="lane-cloud"><h3>Cloud services</h3>
+            <div class="topology-node-stack">
+              <div class="topology-node" data-topology-node="cloud-github"><span class="topology-label">GitHub</span><span class="topology-state" id="topoGithub">Not connected</span><small>Code and repositories</small></div>
+              <div class="topology-node" data-topology-node="cloud-assistant"><span class="topology-label">AI assistant</span><span class="topology-state">Not connected</span><small>Optional external assistant</small></div>
+            </div>
+          </div>
+          <div class="topology-lane" id="lane-secure"><h3>Secure access</h3>
+            <div class="topology-node-stack"><div class="topology-node empty" data-topology-node="secure"><span class="topology-label">Secure connection</span><span class="topology-state">Not verified</span><small>Only needed for external access</small></div></div>
+          </div>
+          <div class="topology-lane" id="lane-mcp"><h3>MCP gateway</h3>
+            <div class="topology-node-stack"><div class="topology-node empty" data-topology-node="mcp"><span class="topology-label">Tool gateway</span><span class="topology-state">Not connected</span><small>Remote authorization unavailable</small></div></div>
+          </div>
+          <div class="topology-lane" id="lane-workspace"><h3>Workspace</h3>
+            <div class="topology-node-stack"><div class="topology-node hub" data-topology-node="workspace"><span class="topology-label" id="topoWorkspace">TinkerTunnel</span><span class="topology-state">Dashboard active</span><small>Self-hosted controller</small></div></div>
+          </div>
+          <div class="topology-lane" id="lane-runners"><h3>Build machines</h3>
+            <div class="topology-node-stack" id="topologyRunners"><div class="topology-node empty" data-topology-node="runner-empty"><span class="topology-label">No machines yet</span><span class="topology-state">Not enrolled</span><small>Enroll a machine when ready</small></div></div>
+          </div>
+          <div class="topology-lane" id="lane-toolkits"><h3>Toolkits</h3>
+            <div class="topology-node-stack"><div class="topology-node empty" data-topology-node="toolkits"><span class="topology-label">No discovered toolkits</span><span class="topology-state">Not available yet</span><small>Detected SDKs will appear here</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="topology-foot">
+      <p id="topologySummary" aria-live="polite">Workspace is available. Connections will appear as you set them up.</p>
+      <button class="plain-button" id="topologyReset" hidden>Clear selection</button>
+    </div>
+  </section>
   <section aria-labelledby="connections-title">
     <div class="section-head"><div><h2 id="connections-title">Get connected</h2><p>Choose what to connect when you're ready.</p></div><span class="count" id="connection-count">0 of 3 connected</span></div>
     <div class="cards">
