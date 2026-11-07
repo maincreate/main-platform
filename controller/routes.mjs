@@ -22,7 +22,7 @@ async function githubDevicePost(url,params) {
   if(!response.ok)throw new Error("GitHub authorization service unavailable");
   return response.json();
 }
-async function githubInstallations(token) {
+export async function githubInstallations(token) {
   const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
     "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
   // Unlike classic OAuth tokens, GitHub App user access tokens return an empty
