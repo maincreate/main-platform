@@ -1,0 +1,14 @@
+{
+  "name": "tinkertunnel-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted TinkerTunnel local controller; no untrusted execution",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node portal/server.mjs",
+    "test": "node --test portal/*.test.cjs controller/*.test.mjs"
+  }
+}
