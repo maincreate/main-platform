@@ -6,7 +6,7 @@ The same first-use experience applies to any supported deployment: visiting the 
 
 The instance's default display name is **TinkerTunnel**, not “TinkerTunnel Local”. Host topology, GitHub, runner enrollment and other settings are not part of creating the first user.
 
-The dashboard shows the actual status of GitHub identity/organization selection, enrolled build machines and assistant availability. Identity and account password management are in the account menu, not the first-use wizard.
+The dashboard is a **live operational homepage**: recent build jobs, GitHub repository inventory, enrolled builders, detected USB serial devices, and activity. Optional GitHub, AI, appearance, and account security settings are in `/settings`. USB inventory is at `/devices`; Projects at `/projects`; Jobs & Builders at `/jobs`; the topology at `/topology`. First-use setup remains account-only.
 
 ## API and access
 
