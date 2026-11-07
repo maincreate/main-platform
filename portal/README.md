@@ -46,3 +46,9 @@ The dashboard is a **live operational homepage**: recent build jobs, GitHub repo
 ## Design
 
 The static portal uses CSS variables and simple accessible HTML, with no runtime UI framework dependency. Three palettes can be previewed on the dashboard. See [design directions](../docs/design-directions.md) before choosing a more comprehensive component system.
+
+## Penpot MVP UI implementation
+
+The persistent sidebar is based on the connected Penpot MVP design and separates Builders (`/builders`) from local Jobs (`/jobs`). Marketplace (`/marketplace`) reads the existing framework catalog without enabling installation. Existing login/session checks and controller operations are unchanged.
+
+**Not yet implemented:** native GitHub Actions runner installation/label management, GitHub workflow-run history, project-to-runner compatibility assignments, production firmware flash workflows, AI tunnel onboarding. Current builder enrollment registers a TinkerTunnel host agent, not a GitHub Actions runner. These distinctions are explicit in the interface.

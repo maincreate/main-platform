@@ -5,18 +5,11 @@
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
 <script src="/dashboard.js" defer></script></head>
 <body data-theme="midnight">
-<header class="topbar">
- <a class="brand" href="/"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
- <nav class="primary-nav" aria-label="Main navigation">
-  <a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a>
-  <a href="/jobs">Builders &amp; Jobs</a><a href="/devices">Devices</a>
-  <a href="/topology">Topology</a><a href="/settings">Settings</a>
- </nav><div class="account"><span class="signed-in" id="username">administrator</span></div>
-</header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
 <main class="main operations-home">
  <div class="home-heading">
   <div><p class="eyebrow">WORKSPACE / OVERVIEW</p>
-  <h1>Workspace overview</h1><p>Builds, projects, connected hardware and activity — in one place.</p></div>
+  <h1>Overview</h1><p>GitHub source, build hosts, connected devices and operational activity.</p></div>
   <button id="refresh" class="plain-button" type="button">Refresh status</button>
  </div>
  <p class="home-error" id="statusMessage" role="status" aria-live="polite"></p>
