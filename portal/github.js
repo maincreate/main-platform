@@ -90,12 +90,19 @@ $("copyCode").addEventListener("click",async()=>{
   catch{notice("Select and copy the code shown above.");}
 });
 $("saveOrg").addEventListener("click",async()=>{
-  if(!$("org").value){notice("Choose an organization first.");return;}
+  const organization=$("org").value;
+  if(!organization){notice("Choose an organization first.");return;}
+  const button=$("saveOrg");
+  button.disabled=true;
+  notice("");
   try{
-    await api("/api/local/github/device/organization",{organization:$("org").value});
-    notice("Organization selected. Runner access still needs to be configured.");
-    await refresh();
-  }catch(e){notice(e.message);}
+    const saved=await api("/api/local/github/device/organization",{organization});
+    if(saved.organization!==organization||saved.ok!==true)throw new Error("Organization selection could not be confirmed");
+    window.location.assign("/");
+  }catch(e){
+    notice(e.message);
+    button.disabled=false;
+  }
 });
 $("disconnect").addEventListener("click",async()=>{
   try{await api("/api/local/github/device/disconnect",{});notice("GitHub disconnected.");await refresh();}
