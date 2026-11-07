@@ -57,6 +57,14 @@ Deploy the **portal/controller only** before enabling MCP or runners. This is de
 
 The original deployment did not have a usable start command and repeatedly exited when its entrypoint invoked `/bin/bash`. Switching to the repository's root Dockerfile fixes that configuration only when Coolify is actually set to build using Dockerfile. The Docker image fails closed if required admin secrets are absent.
 
+For an end-to-end login check **after deployment**, run from a trusted computer with HTTPS access (or from the Docker host using localhost):
+
+```sh
+TT_PORTAL_URL="https://your-private-portal-host" TT_ADMIN_TOKEN="$TT_ADMIN_TOKEN" node scripts/smoke-login.mjs
+```
+
+The script verifies health, setup page, anonymous redirect, real session login, authenticated dashboard and logout. It refuses non-loopback plain HTTP and never logs your token. Set `TT_PORTAL_URL` and `TT_ADMIN_TOKEN` in your terminal environment; do not copy the token into code, command history, or screenshots. The application must be configured in Coolify before the GitHub webhook can deploy it correctly.
+
 **Later, full-stack deployment:** use the root `compose.yaml` to run portal and a separate bearer-protected MCP gateway. The optional `tunnel` and `runner` profiles remain disabled in this login milestone. No remote ChatGPT OAuth or device flashing is active.
 
 ## GitHub App integration
