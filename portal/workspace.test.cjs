@@ -1,7 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const {readFileSync} = require("node:fs");
+const {resolve} = require("node:path");
 
 test("Penpot MVP workspace routes provide separated, editable UI without a new execution engine", async () => {
+  for (const dockerfile of [resolve(__dirname, "../Dockerfile"), resolve(__dirname, "Dockerfile")]) {
+    const contents = readFileSync(dockerfile, "utf8");
+    for (const artifact of ["portal/builders.html", "portal/builders.js", "portal/marketplace.html", "portal/marketplace.js"]) {
+      assert(contents.includes(artifact), dockerfile + " must ship " + artifact);
+    }
+  }
   const previous = process.env.TT_REQUIRE_LOGIN;
   process.env.TT_REQUIRE_LOGIN = "0";
   try {
