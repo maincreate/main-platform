@@ -269,7 +269,7 @@ export async function localRoute(req) {
         if(!/^[A-Za-z0-9._-]{8,100}$/.test(clientId))return deny(503,"GitHub sign-in is not enabled for this installation");
         if(githubIdentityCurrent(state().github))return deny(409,"Disconnect the existing GitHub account first");
         if(limited("github-device-start",10))return deny(429,"Too many authorization attempts");
-        const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId});
+        const out=await githubDevicePost("https://github.com/login/device/code",{client_id:clientId,scope:"read:org"});
         if(out.error) return deny(502,"GitHub device authorization is unavailable; check GitHub App device-flow settings");
         if(typeof out.device_code!=="string"||typeof out.user_code!=="string"||out.verification_uri!=="https://github.com/login/device")return deny(502,"Unexpected GitHub authorization response");
         const interval=Math.max(5,Math.min(60,Number(out.interval)||5));
