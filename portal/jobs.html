@@ -7,7 +7,7 @@
 </head><body data-theme="midnight">
 <header class="topbar">
  <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
- <nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/topology">Topology</a><a href="/jobs" aria-current="page">Jobs &amp; builders</a></nav>
+ <nav class="primary-nav" aria-label="Main navigation"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/jobs" aria-current="page">Builders &amp; Jobs</a><a href="/devices">Devices</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav>
  <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><a href="/" class="plain-button">Dashboard</a></div>
 </header>
 <main class="main jobs-page">
@@ -45,7 +45,7 @@
   </div>
  </section>
  <section class="jobs-panel" aria-labelledby="history-heading">
-  <div class="section-head"><div><h2 id="history-heading">Job activity &amp; approvals</h2>
+  <div class="section-head" id="history"><div><h2 id="history-heading">Job activity &amp; approvals</h2>
    <p>Approving a job permits only its pinned capability and parameters. Operator-enabled machines claim jobs outbound.</p></div>
   <button id="refreshJobs" type="button" class="plain-button">Refresh jobs</button></div>
   <div id="jobs-list" class="jobs-list">No jobs yet.</div>
