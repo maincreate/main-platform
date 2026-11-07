@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark"><title>TinkerTunnel Local · Setup</title><link rel="stylesheet" href="/setup.css"></head>
+<body>
+<div class="frame">
+<aside>
+  <a class="brand" href="/">T<span>↗</span> <strong>TinkerTunnel</strong></a>
+  <p class="eyebrow">LOCAL CONTROLLER</p>
+  <nav aria-label="Configuration">
+    <button data-tab="instance" class="active">01 · Instance</button>
+    <button data-tab="github">02 · GitHub</button>
+    <button data-tab="tunnel">03 · Tunnel</button>
+    <button data-tab="mcp">04 · MCP server</button>
+    <button data-tab="runners">05 · Runners</button>
+  </nav>
+  <div class="side-foot"><span class="dot"></span> Self-hosted · No SaaS<br><small>Execution disabled in foundation release</small></div>
+</aside>
+<main>
+  <header><div><p class="eyebrow">CONFIGURATION WIZARD</p><h1>Build your workspace</h1><p>Configure your local control plane, connect GitHub, and enroll trusted machines.</p></div><button id="logout" class="ghost" hidden>Sign out</button></header>
+  <div id="banner" role="status" aria-live="polite"></div>
+  <section id="login" class="panel">
+    <p class="eyebrow">ADMINISTRATOR LOGIN</p><h2>Unlock local configuration</h2>
+    <p>Set <code>TT_ADMIN_TOKEN</code> and <code>TT_MASTER_KEY</code> as environment secrets in Coolify before configuring services. Access is restricted to the Docker-host loopback by default.</p>
+    <form id="loginForm"><label>Admin token<input id="adminToken" type="password" autocomplete="off" placeholder="Paste TT_ADMIN_TOKEN" required></label><button type="submit">Unlock configuration</button></form>
+  </section>
+  <div id="workspace" hidden>
+    <section class="panel" data-view="instance">
+      <p class="eyebrow">01 · INSTANCE</p><h2>One product, several deployment roles</h2>
+      <p>Choose the intended role. The controller, gateway and runner are separate code components; role selection is informational in this foundation build and does not change your running Compose services.</p>
+      <form id="instanceForm">
+        <label>Display name<input id="instanceName" maxlength="80" required></label>
+        <label>Deployment role<select id="instanceRole"><option value="all-in-one">All-in-one (controller + gateway + local runner)</option><option value="management">Management only (separate infrastructure)</option><option value="gateway">Gateway infrastructure (MCP + tunnel)</option></select></label>
+        <label>Tunnel hostname (optional)<input id="tunnelHostname" placeholder="mcp.example.com" autocomplete="off"></label>
+        <button type="submit">Save instance settings</button>
+      </form>
+    </section>
+    <section class="panel" data-view="github" hidden>
+      <p class="eyebrow">02 · GITHUB</p><h2>Connect a GitHub App</h2>
+      <p>Separate from the GitHub App Coolify uses for deployments. TinkerTunnel verifies its own installation with GitHub before reporting the connection as verified. The private key is AES-256-GCM encrypted on the local controller.</p>
+      <form id="githubForm">
+        <div class="cols"><label>GitHub App ID<input id="appId" type="number" min="1" required></label><label>Installation ID<input id="installationId" type="number" min="1" required></label></div>
+        <label>Allowed repository<input id="repository" placeholder="MainCreate/WaymarkerOS" required></label>
+        <label>GitHub App private key PEM<textarea id="privateKey" rows="5" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----"></textarea></label>
+        <div class="actions"><button type="submit">Save locally</button><button type="button" id="verifyGithub" class="secondary">Verify against GitHub</button></div>
+      </form>
+      <p id="githubState" class="note">Not verified.</p>
+    </section>
+    <section class="panel" data-view="tunnel" hidden>
+      <p class="eyebrow">03 · SECURE TUNNEL</p><h2>External connectivity, isolated gateway</h2>
+      <p>Cloudflare Tunnel runs as an optional container. Create a remotely managed Cloudflare Tunnel, then add its connector token as <code>TT_TUNNEL_TOKEN</code> to Coolify's protected environment variables.</p>
+      <div class="steps"><p><strong>1.</strong> Create a tunnel in Cloudflare Zero Trust → Networks → Tunnels.</p><p><strong>2.</strong> Configure only the MCP hostname to proxy to <code>http://gateway:3001</code> on the TinkerTunnel Docker network.</p><p><strong>3.</strong> Enable the Compose <code>tunnel</code> profile when authentication is ready. Do not publish the controller portal.</p><p><strong>4.</strong> Verify the connector and TLS/hostname through Cloudflare; a saved hostname does not prove the tunnel is online.</p></div>
+      <p class="warning">Remote ChatGPT connections still require supported OAuth authorization. Do not consider a running cloudflared container proof that ChatGPT integration is ready.</p>
+    </section>
+    <section class="panel" data-view="mcp" hidden>
+      <p class="eyebrow">04 · MCP SERVER</p><h2>Read-only tools, separate gateway</h2>
+      <p>Configure <code>TT_MCP_TOKEN</code> and <code>TT_SERVICE_TOKEN</code> (each at least 32 random characters) in Coolify. The default MCP endpoint is locally bound to <code>http://127.0.0.1:13001/mcp</code>.</p>
+      <div class="steps"><p>Available: <code>tinkertunnel_status</code>, <code>tinkertunnel_list_runners</code>, <code>tinkertunnel_framework_catalog</code>, <code>tinkertunnel_plan_install</code>.</p><p>Not available: installs, builds, flashing, publishing, arbitrary shell, and remote ChatGPT OAuth. All execution must remain policy-gated.</p></div>
+      <p id="mcpState" class="note">Checking environment configuration…</p>
+    </section>
+    <section class="panel" data-view="runners" hidden>
+      <p class="eyebrow">05 · SELF-HOSTED RUNNERS</p><h2>Enroll a trusted runner</h2>
+      <p>Choose a host, generate a 10-minute single-use enrollment token, then run the agent on that machine using Node.js 22+. Enrolled runners send heartbeats only; no commands are executed yet.</p>
+      <label>Runner's controller address<input id="runnerUrl" value="https://tinkertunnel.example.internal" placeholder="https://tinkertunnel.example.internal"></label>
+      <label>Runner operating system<select id="runnerOS"><option value="linux">Linux (Raspberry Pi / x64 VM)</option><option value="macos">macOS (Xcode)</option><option value="windows">Windows (LattePanda)</option></select></label>
+      <button id="createInvite">Generate enrollment token</button>
+      <div id="inviteOutput" hidden><p class="warning">Copy the token now. It cannot be retrieved later.</p><textarea id="inviteCommand" rows="5" readonly></textarea><button id="copyInvite" class="secondary">Copy instructions</button></div>
+      <h3>Registered runners</h3><div id="runnerList" class="rows">No runners enrolled.</div>
+      <p class="note">Distributed runners need a reachable private HTTPS controller address. Docker-host loopback is only suitable for all-in-one deployments or SSH forwarding.</p>
+    </section>
+  </div>
+  <footer>Local-first · Explicit authorization · No arbitrary command execution</footer>
+</main></div><script src="/setup.js" defer></script></body></html>
