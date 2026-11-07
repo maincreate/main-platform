@@ -33,7 +33,7 @@ function empty(parent,heading,description,href,label){
 }
 function renderJobs(jobs){
  const holder=$("recentJobs");holder.replaceChildren();
- if(!jobs?.length)return empty(holder,"No jobs yet","Builds and other approved operations will appear here.","/jobs","Open Jobs & Builders");
+ if(!jobs?.length)return empty(holder,"No jobs yet","Builds and other approved operations will appear here.","/jobs","Open Jobs");
  for(const job of jobs.slice(0,5)){
   const source=job.source?.repository?" · "+job.source.repository:"";
   row(holder,job.capability,(job.created_at?relative(job.created_at):"")+" · "+job.runner_id.slice(0,10)+source,job.status.replaceAll("_"," "));
@@ -55,7 +55,7 @@ function renderBuilders(overview){
  const holder=$("buildersList");holder.replaceChildren();
  const list=overview.runners?.items||[];
  if(!list.length)return empty(holder,"No build machines enrolled","Enroll a trusted Linux, macOS or Windows host to begin recording capabilities and jobs.",
-  "/jobs","Manage build machines");
+  "/builders","Manage build machines");
  for(const runner of list.slice(0,5)){
   const recent=Number.isFinite(Date.parse(runner.lastSeen))&&Date.now()-Date.parse(runner.lastSeen)<120000;
   row(holder,runner.name,runner.os+" / "+runner.arch,recent?"Online":relative(runner.lastSeen));

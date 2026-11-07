@@ -10,21 +10,8 @@
  <p class="eyebrow">CAPABILITY FABRIC</p><h1>Jobs &amp; approvals</h1>
  <p class="page-description">Local controlled operations, approvals, logs and artifacts. GitHub Actions runner integration is tracked separately.</p>
  <p id="notification" role="status" aria-live="polite" class="notification"></p>
- <section class="jobs-panel" aria-labelledby="runners-heading">
-  <div class="section-head"><div><h2 id="runners-heading">Build machines</h2><p>Paired machines and last reported heartbeat.</p></div>
-   <button id="refresh" type="button" class="plain-button">Refresh</button></div>
-  <div id="runners-list" class="runner-list">Loading machines…</div>
-  <div class="enroll-panel">
-    <div><h3>Enroll another machine</h3><p>Generate a short-lived pairing token, then run the agent on a trusted computer. Token shown only once.</p></div>
-    <button type="button" id="invite" class="plain-button">Generate pairing token</button>
-  </div>
-  <div id="enrollment" hidden>
-    <p class="muted">Keep this credential private; it expires in 10 minutes. Run from the machine after cloning the TinkerTunnel repository.</p>
-    <code id="enrollCommand"></code>
-  </div>
- </section>
  <section class="jobs-panel" aria-labelledby="plan-heading">
-  <div class="section-head"><div><h2 id="plan-heading">Plan an operation</h2>
+  <div class="section-head"><div><h2 id="plan-heading">Plan a local operation</h2>
    <p>Capability definitions, required parameters and compatibility come from the registry.</p></div></div>
   <form id="planForm" class="plan-form">
     <label for="capability">Capability</label><select id="capability" required></select>
@@ -41,7 +28,7 @@
   </div>
  </section>
  <section class="jobs-panel" aria-labelledby="history-heading">
-  <div class="section-head" id="history"><div><h2 id="history-heading">Job activity &amp; approvals</h2>
+  <div class="section-head" id="history"><div><h2 id="history-heading">Local job history &amp; approvals</h2>
    <p>Approving a job permits only its pinned capability and parameters. Operator-enabled machines claim jobs outbound.</p></div>
   <button id="refreshJobs" type="button" class="plain-button">Refresh jobs</button></div>
   <div id="jobs-list" class="jobs-list">No jobs yet.</div>

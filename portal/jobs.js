@@ -35,19 +35,20 @@ function button(label,handler){
 }
 function renderBuilders(){
  const list=$("runners-list"),select=$("runner");
- list.replaceChildren();select.replaceChildren();
- if(!builders.length){list.append(el("p","No machines enrolled yet."));}
+ if(!list && !select)return;
+ if(list)list.replaceChildren();if(select)select.replaceChildren();
+ if(!builders.length&&list){list.append(el("p","No machines enrolled yet."));}
  for(const runner of builders){
   const entry=el("div",undefined,"runner-entry"),left=el("div"),right=el("small",runner.online?"Recent heartbeat":"Not recently seen");
   left.append(el("strong",runner.name),el("small",runner.os+" / "+runner.arch+" · "+runner.id.slice(0,12)));
-  entry.append(left,right);list.append(entry);
+  entry.append(left,right);if(list)list.append(entry);
   const opt=el("option",runner.name+" ("+runner.os+")");
-  opt.value=runner.id;select.append(opt);
+  opt.value=runner.id;if(select)select.append(opt);
  }
- if(!builders.length){const opt=el("option","Enroll a machine first");opt.value="";select.append(opt);}
+ if(!builders.length&&select){const opt=el("option","Enroll a machine first");opt.value="";select.append(opt);}
 }
 function renderCapabilities(){
- const select=$("capability");select.replaceChildren();
+ const select=$("capability");if(!select)return;select.replaceChildren();
  for(const cap of capabilities){
   const opt=el("option",cap.id+" · "+cap.risk+(cap.state!=="available"?" (not available)":""));
   opt.value=cap.id;opt.disabled=cap.state!=="available";select.append(opt);
@@ -56,6 +57,7 @@ function renderCapabilities(){
  if(available)select.value=available.id;
 }
 async function fetchJobs(){
+ if(!$("jobs-list"))return;
  const [all,files]=await Promise.all([fabric("tt_jobs",{action:"list"}),fabric("tt_assets",{action:"list"})]);
  renderJobs(all.jobs||[],files.assets||[]);
 }
@@ -111,15 +113,15 @@ async function download(asset){
 }
 async function refreshAll(){
  const overview=await api("/api/local/overview");csrf=overview.csrf;
- $("username").textContent=overview.username||"administrator";
+ if($("username"))$("username").textContent=overview.username||"administrator";
  const d=await fabric("tt_discover",{resource:"all"});
  builders=d.runners||[];capabilities=d.capabilities||[];
  renderBuilders();renderCapabilities();
   await fetchJobs();
 }
-$("refresh").addEventListener("click",()=>refreshAll().catch(e=>message(e.message)));
-$("refreshJobs").addEventListener("click",()=>fetchJobs().catch(e=>message(e.message)));
-$("invite").addEventListener("click",async()=>{
+$("refresh")?.addEventListener("click",()=>refreshAll().catch(e=>message(e.message)));
+$("refreshJobs")?.addEventListener("click",()=>fetchJobs().catch(e=>message(e.message)));
+$("invite")?.addEventListener("click",async()=>{
  $("invite").disabled=true;
  try{
   const invitation=await api("/api/local/runners/invite",{});
@@ -128,7 +130,7 @@ $("invite").addEventListener("click",async()=>{
   message("Pairing credential generated. It is only displayed once and expires in 10 minutes.");
  }catch(e){message(e.message);}finally{$("invite").disabled=false;}
 });
-$("planForm").addEventListener("submit",async event=>{
+$("planForm")?.addEventListener("submit",async event=>{
  event.preventDefault();
  const cap=$("capability").value,runner=$("runner").value;
  if(!runner)return message("Enroll a machine first.");
@@ -147,7 +149,7 @@ $("planForm").addEventListener("submit",async event=>{
   message("Plan created. Requesting a job does not execute it until you approve the job separately.");
  }catch(e){message(e.message);}
 });
-$("requestExecution").addEventListener("click",async()=>{
+$("requestExecution")?.addEventListener("click",async()=>{
  if(!selectedPlan)return;
  $("requestExecution").disabled=true;
  try{
