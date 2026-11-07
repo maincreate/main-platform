@@ -35,7 +35,7 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.match(marketplace, /Catalog is currently read-only/);
     const devices = await page("/devices");
     assert.match(devices, /id="deviceSearch"/);
-    assert.match(devices, /id="deviceStatus"/);
+    assert.match(devices, /id="deviceHost"/);
     assert.match(devices, /id="showHidden"/);
     assert.doesNotMatch(devices, /id="filter"/);
     const dashboardScript = await page("/dashboard.js");
