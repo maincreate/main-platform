@@ -14,6 +14,8 @@ services:
       PORT: "3000"
       TT_DATA_DIR: /data
       TT_REQUIRE_LOGIN: "1"
+      # Must be explicitly enabled by the operator AFTER reviewing the trust model.
+      TT_ENABLE_FABRIC_EXECUTION: ${TT_ENABLE_FABRIC_EXECUTION:-0}
       # Browser-created account credentials are persisted under /data.
       # For legacy encrypted-state migrations only, explicitly pass TT_MASTER_KEY.
       TT_SERVICE_TOKEN: ${TT_SERVICE_TOKEN:-}
