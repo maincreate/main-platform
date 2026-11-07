@@ -90,7 +90,7 @@ async function load(){
   statusText("gitStatus",overview.github?.identityConnected&&overview.github?.organization?
    "GitHub: "+overview.github.organization:overview.github?.authorizationExpired?"GitHub: reconnect required":"GitHub: not connected");
   statusText("aiStatus","AI MCP: not connected (optional)");
-  statusText("executionStatus",overview.runners?.executionEnabled?"Controlled execution enabled":"Execution: disabled");
+  statusText("executionStatus","Jobs: "+String(overview.jobs?.pending||0)+" pending approval");
   renderJobs(overview.jobs?.recent||[]);
   renderProjects(projects);
   renderBuilders(overview);

@@ -72,7 +72,7 @@ function renderJobs(jobs,assets){
   if(j.status==="awaiting_approval"){
    actions.append(button("Approve this job",async()=>{
     await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});
-    message("Job approved. It will run only if execution is enabled and this machine polls for it.");
+    message("Job approved and queued. Track its progress in the job history.");
     await fetchJobs();
    }));
    actions.append(button("Reject",async()=>{
@@ -115,10 +115,7 @@ async function refreshAll(){
  const d=await fabric("tt_discover",{resource:"all"});
  builders=d.runners||[];capabilities=d.capabilities||[];
  renderBuilders();renderCapabilities();
- if(overview.runners?.executionEnabled===false){
-  message("Execution is disabled on this controller until the operator enables TT_ENABLE_FABRIC_EXECUTION=1. Plans and approvals remain available.");
- }
- await fetchJobs();
+  await fetchJobs();
 }
 $("refresh").addEventListener("click",()=>refreshAll().catch(e=>message(e.message)));
 $("refreshJobs").addEventListener("click",()=>fetchJobs().catch(e=>message(e.message)));
