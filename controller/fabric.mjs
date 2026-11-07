@@ -15,7 +15,7 @@ function validateRegistry(){
  const ids=new Set();
  for(const c of CAPS){
   if(!c||typeof c.id!=="string"||!/^[a-z][a-z0-9_.]+$/.test(c.id)||ids.has(c.id)||
-    typeof c.version!=="string"||!/^\\d+\\.\\d+\\.\\d+$/.test(c.version)||
+    typeof c.version!=="string"||!/^\d+\.\d+\.\d+$/.test(c.version)||
     !["action","workflow"].includes(c.kind)||!["available","unavailable"].includes(c.state)||
     !Array.isArray(c.steps)||c.steps.length>8||!Array.isArray(c.platforms)||
     !c.parameters||c.parameters.type!=="object")
