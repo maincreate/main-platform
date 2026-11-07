@@ -112,3 +112,9 @@ dialog::backdrop{background:#131e32aa}.dialog-head{display:flex;justify-content:
 .status[data-state="attention"]{background:var(--tag);color:var(--text)}
 .topology-node[data-connected="true"]{border-color:var(--accent)}
 .topology-node[data-connected="true"] .topology-state{color:var(--accent)}
+
+/* Seven-stage operations map: source->controller bypasses tool gateway; builders own serial devices. */
+.topology-page .topology-map{min-width:1540px}
+.topology-page .topology-lanes{grid-template-columns:repeat(7,minmax(0,1fr))}
+#lane-devices .topology-node{overflow-wrap:anywhere}
+#lane-devices .topology-hint{font-size:11px}
