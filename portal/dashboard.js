@@ -77,7 +77,7 @@ function renderTopology(data){
   const gh=!!data.github?.identityConnected;
   $("topoGithub").textContent=gh?"GitHub account linked":"Not connected";
   $("topoWorkspace").textContent=data.workspace?.name||"TinkerTunnel";
-  const records=Array.isArray(data.runners?.items)?data.runners.items:[];
+  const records=Array.isArray(data.runners?.items)?data.runners.items.slice(0,8):[];
   const holder=$("topologyRunners");
   holder.replaceChildren();
   topoEdges=[
