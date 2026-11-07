@@ -117,6 +117,17 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const logout=await json(base,"/api/local/logout",{},headers);
    assert.equal(logout.status,200);
    assert.equal((await fetch(base+"/",{headers:{cookie},redirect:"manual"})).status,302);
+   // Changing credentials invalidates all prior sessions and old passwords.
+   const nextLogin=await json(base,"/api/local/login",{username:adminUsername,password});
+   assert.equal(nextLogin.status,200);
+   const changeCookie=nextLogin.headers.get("set-cookie").split(";")[0];
+   const changeHeaders={cookie:changeCookie,"x-tt-csrf":nextLogin.data.csrf};
+   assert.equal((await json(base,"/api/local/account/password",{currentPassword:"wrong",newPassword:"new-long-credential-987654"},changeHeaders)).status,401);
+   const changed=await json(base,"/api/local/account/password",{currentPassword:password,newPassword:"new-long-credential-987654"},changeHeaders);
+   assert.equal(changed.status,200);
+   assert.equal((await fetch(base+"/",{headers:{cookie:changeCookie},redirect:"manual"})).status,302);
+   assert.equal((await json(base,"/api/local/login",{username:adminUsername,password})).status,401);
+   assert.equal((await json(base,"/api/local/login",{username:adminUsername,password:"new-long-credential-987654"})).status,200);
  } finally {
    portal.kill("SIGTERM");gateway?.kill("SIGTERM");
    rmSync(dir,{recursive:true,force:true});
