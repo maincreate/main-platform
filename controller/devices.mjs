@@ -33,13 +33,13 @@ const lifecycle=(d,now=Date.now())=>{
  if(age>=7*DAY)return "hidden";
  return "offline";
 };
-const clean=d=>({
+const clean=(d,now=Date.now())=>({
  id:d.id,runnerId:d.runnerId,runnerName:d.runnerName,port:d.port,
  description:d.description,manufacturer:d.manufacturer,product:d.product,vid:d.vid,pid:d.pid,
  serialNumber:d.serialNumber||null,location:d.location||null,interface:d.interface||null,
  identityConfidence:d.identityConfidence,firstSeen:d.firstSeen,lastSeen:d.lastSeen,
- connected:d.connected,lifecycle:lifecycle(d),label:d.label||null,
- flashEligible:d.identityConfidence==="serial"&&lifecycle(d)==="connected"
+ connected:lifecycle(d,now)==="connected",lifecycle:lifecycle(d,now),label:d.label||null,
+ flashEligible:d.identityConfidence==="serial"&&lifecycle(d,now)==="connected"
 });
 export function reportDevices(runner,raw,now=Date.now()){
  if(!Array.isArray(raw)||raw.length>MAX_REPORTED)throw err(422,"Invalid device report");
@@ -89,10 +89,10 @@ export function listDevices(args={},now=Date.now()){
  if(!["visible","all","hidden","archived"].includes(mode))throw err(422,"Invalid inventory view");
  const records=state.records.map(d=>({...d,lifecycle:lifecycle(d,now)}))
  .filter(d=>(!args.runnerId||d.runnerId===args.runnerId)&&
- (mode==="all"||mode==="visible"?!["hidden","archived"].includes(d.lifecycle):
-   d.lifecycle===mode))
+ (mode==="all"|| (mode==="visible"?!["hidden","archived"].includes(d.lifecycle):
+   d.lifecycle===mode)))
  .sort((a,b)=>Date.parse(b.lastSeen)-Date.parse(a.lastSeen))
- .map(clean);
+ .map(d=>clean(d,now));
  const byState={connected:0,offline:0,hidden:0,archived:0};
  for(const d of state.records)byState[lifecycle(d,now)]++;
  return {devices:records,summary:{total:state.records.length,...byState},
