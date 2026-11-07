@@ -131,7 +131,7 @@ export async function localRoute(req) {
       failures.delete(ip);
       const id=rnd(),csrf=rnd();
       sessions.set(id,{csrf,expires:Date.now()+8*3600*1000});
-      return reply({authenticated:true,csrf},200,{"set-cookie":"ttsid="+id+"; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800"});
+      return reply({authenticated:true,csrf},200,{"set-cookie":"ttsid="+id+"; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800"+(req.headers.get("x-forwarded-proto")==="https"?"; Secure":"")});
     }
     if(path==="/api/local/session"&&method==="GET") {
       const s=session(req);return reply({authenticated:!!s,csrf:s?.csrf||null});
@@ -142,7 +142,7 @@ export async function localRoute(req) {
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
-        return reply({ok:true},200,{"set-cookie":"ttsid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});
+        return reply({ok:true},200,{"set-cookie":"ttsid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"+(req.headers.get("x-forwarded-proto")==="https"?"; Secure":"")});
       }
       if(path==="/api/local/config"&&method==="GET"){
         const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
