@@ -59,6 +59,7 @@ function manifest(id){return CAPS.find(c=>c.id===id);}
 function runnerBy(ctx,id){return (ctx.runners||[]).find(r=>r.id===id);}
 function publicJob(j){return {id:j.id,plan_id:j.planId,capability:j.capability,runner_id:j.runnerId,
  status:j.status,created_at:j.createdAt,approved_at:j.approvedAt||null,started_at:j.startedAt||null,
+ source:j.parameters?.repository?{repository:j.parameters.repository,revision:j.parameters.revision||null}:null,
  completed_at:j.completedAt||null,steps:j.steps,logs:j.logs||"",asset_ids:j.assetIds||[],
  error:j.error||null};}
 function publicAsset(a){return {id:a.id,name:a.name,mime:a.mime,size:a.size,received:a.received,
