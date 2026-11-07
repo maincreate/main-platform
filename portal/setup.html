@@ -49,6 +49,16 @@
         <label>Tunnel hostname (optional)<input id="tunnelHostname" placeholder="mcp.example.com" autocomplete="off"></label>
         <button type="submit">Save instance settings</button>
       </form>
+      <div class="steps" style="margin-top:24px">
+        <h3>Administrator security</h3>
+        <p>Update your login password without changing Coolify environment variables.</p>
+        <form id="passwordForm">
+          <label>Current password<input id="currentPassword" type="password" autocomplete="current-password" required></label>
+          <label>New password (12 characters minimum)<input id="changePassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <label>Confirm new password<input id="changePasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <button type="submit">Change password</button>
+        </form>
+      </div>
     </section>
     <section class="panel" data-view="github" hidden>
       <p class="eyebrow">02 · GITHUB</p><h2>Connect a GitHub App</h2>
