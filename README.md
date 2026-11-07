@@ -40,7 +40,7 @@ The dashboard shows actual connection status rather than pretending integrations
 - **Build machines:** enroll trusted Linux, macOS or Windows nodes when you're ready; existing foundation agents provide enrollment and heartbeat, **not job execution**.
 - **AI assistant:** remote OAuth authorization and ChatGPT connection are future work. A local read-only MCP gateway exists separately.
 
-The dashboard offers three visual palettes: **Graphite + Iris**, **Warm Paper**, and **Midnight**, with a choice saved per browser.
+The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Paper** available as alternatives. Each browser remembers its selection.
 
 ## GitHub connection
 
