@@ -65,7 +65,7 @@ function unseal(data) {
   return Buffer.concat([decipher.update(Buffer.from(data.ct,"base64")),decipher.final()]).toString("utf8");
 }
 function state() {
-  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel Local",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
+  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
   const s=JSON.parse(readFileSync(dataFile,"utf8"));
   if(s.schema!==1) throw new Error("Unsupported state schema");
   return s;
@@ -142,8 +142,20 @@ async function verifyGithub(s) {
 }
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
+  const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
+  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  if(path==="/"&&method==="GET"&&privateApp){
+    if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if((path==="/dashboard.js"||path==="/dashboard.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    const type=path.endsWith(".js")?"text/javascript":"text/css";
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":type+"; charset=utf-8","cache-control":"no-store"}});
+  }
   if(path==="/setup"&&method==="GET"){
-    return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}});
+    if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":"/","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
   if(path==="/setup.css"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.css",import.meta.url),"utf8"),{headers:{"content-type":"text/css; charset=utf-8","cache-control":"public, max-age=300"}});
@@ -209,6 +221,21 @@ export async function localRoute(req) {
         save(s);
         sessions.clear();
         return reply({ok:true,loginRequired:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
+      if(path==="/api/local/overview"&&method==="GET"){
+        const stored=state(),current=session(req);
+        return reply({
+          username:current.username,csrf:current.csrf,
+          workspace:{name:stored.config.name},
+          github:{
+            identityConnected:!!stored.github.oauthUser,
+            login:stored.github.oauthUser?.login||null,
+            organization:stored.github.selectedOrganization||null,
+            integrationVerified:!!stored.github.verifiedAt
+          },
+          runners:{count:stored.runners.length},
+          assistant:{connected:false}
+        });
       }
       if(path==="/api/local/config"&&method==="GET"){
         const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
