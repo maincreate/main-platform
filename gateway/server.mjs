@@ -24,6 +24,13 @@ const tools=[
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({plan_id:idField},["plan_id"])},
  {name:"tt_jobs",title:"Track or cancel jobs",description:"List, inspect, retrieve bounded logs or cancel an unclaimed job. Cannot cancel an already running process.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","get","logs","cancel"]},job_id:idField})},
+ {name:"tt_github_repository_request",title:"Request a new GitHub organization repository",
+  description:"Request creation of a new repository in the currently selected GitHub organization. Defaults to its configured private/public setting. Requires a separate approval by an authenticated TinkerTunnel administrator before GitHub is modified.",
+  annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false},
+  inputSchema:object({name:{type:"string",description:"Repository name, 1–100 characters"},
+    description:{type:"string",description:"Optional repository description"},
+    visibility:{type:"string",enum:["private","public"],description:"Optional override of organization default"},
+    organization:{type:"string",description:"Optional organization identity; must match connected organization"}},["name"])},
  {name:"tt_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in TinkerTunnel storage; no filesystem paths.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","begin","chunk","finish","get"]},job_id:idField,
    asset_id:idField,name:textField,size:{type:"integer"},mime:textField,offset:{type:"integer"},
@@ -53,6 +60,11 @@ async function legacy(name,args){
  throw new Error("Unknown tool");
 }
 async function call(name,args){
+ if(name==="tt_github_repository_request"){
+   return get("/api/internal/github/repository/request",{method:"POST",
+     headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},
+     body:JSON.stringify(args)});
+ }
  if(tools.some(t=>t.name===name)){
   return get("/api/internal/fabric",{method:"POST",
    headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},
