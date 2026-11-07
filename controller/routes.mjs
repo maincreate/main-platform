@@ -172,6 +172,14 @@ export async function localRoute(req) {
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
+  if(path==="/github"&&method==="GET"){
+    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    return new Response(readFileSync(new URL("../portal/github.html",import.meta.url),"utf8"),{headers:htmlHeaders});
+  }
+  if((path==="/github.js"||path==="/github.css")&&method==="GET"){
+    if(privateApp&&!session(req))return deny(401,"Sign in required");
+    return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
+  }
   if((path==="/dashboard.js"||path==="/dashboard.css")&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     const type=path.endsWith(".js")?"text/javascript":"text/css";
