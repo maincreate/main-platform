@@ -1,77 +1,61 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>TinkerTunnel • Dashboard</title>
-  <link rel="stylesheet" href="/dashboard.css">
-  <script src="/dashboard.js" defer></script>
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TinkerTunnel • Workspace overview</title>
+<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
+<script src="/dashboard.js" defer></script></head>
 <body data-theme="midnight">
 <header class="topbar">
-  <a class="brand" href="/" aria-label="TinkerTunnel dashboard"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
-  <nav class="primary-nav" aria-label="Main navigation"><a href="/" aria-current="page">Overview</a><a href="/topology">Topology</a><a href="/jobs">Jobs &amp; builders</a></nav>
-  <div class="account"><span class="signed-in">Signed in as <strong id="username">administrator</strong></span><button id="accountSettings" class="plain-button">Account</button><button id="signout" class="plain-button">Sign out</button></div>
+ <a class="brand" href="/"><span class="brand-icon">T<span>↗</span></span><span>TinkerTunnel</span></a>
+ <nav class="primary-nav" aria-label="Main navigation">
+  <a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a>
+  <a href="/jobs">Builders &amp; Jobs</a><a href="/devices">Devices</a>
+  <a href="/topology">Topology</a><a href="/settings">Settings</a>
+ </nav><div class="account"><span class="signed-in" id="username">administrator</span></div>
 </header>
-<main class="main">
-  <div class="intro">
-    <p class="eyebrow">YOUR WORKSPACE</p>
-    <h1>You're in. Build from here.</h1>
-    <p>Your account is ready. The connections below make TinkerTunnel useful, but nothing else is required to get started.</p>
+<main class="main operations-home">
+ <div class="home-heading">
+  <div><p class="eyebrow">WORKSPACE / OVERVIEW</p>
+  <h1>Workspace overview</h1><p>Builds, projects, connected hardware and activity — in one place.</p></div>
+  <button id="refresh" class="plain-button" type="button">Refresh status</button>
+ </div>
+ <p class="home-error" id="statusMessage" role="status" aria-live="polite"></p>
+ <section class="metric-grid" aria-label="Workspace totals">
+  <a class="metric-card" href="/projects"><span>Projects</span><strong id="projectCount">—</strong><small id="projectMeta">No inventory yet</small></a>
+  <a class="metric-card" href="/jobs"><span>Build machines</span><strong id="builderCount">—</strong><small id="builderMeta">Heartbeat status</small></a>
+  <a class="metric-card" href="/devices"><span>USB devices</span><strong id="deviceCount">—</strong><small id="deviceMeta">Currently connected</small></a>
+  <a class="metric-card" href="/jobs#history"><span>Build jobs</span><strong id="jobCount">—</strong><small id="jobMeta">Activity and approvals</small></a>
+ </section>
+ <div class="workspace-columns">
+  <section class="workspace-panel" aria-labelledby="recentBuildsTitle">
+   <div class="panel-heading"><div><p class="eyebrow">EXECUTION</p><h2 id="recentBuildsTitle">Recent builds and jobs</h2></div>
+    <a href="/jobs#history" class="quiet-link">View all</a></div>
+   <div id="recentJobs" class="activity-list"><p class="empty-state">Loading jobs…</p></div>
+  </section>
+  <section class="workspace-panel" aria-labelledby="projectsTitle">
+   <div class="panel-heading"><div><p class="eyebrow">SOURCE</p><h2 id="projectsTitle">Projects</h2></div>
+    <a href="/projects" class="quiet-link">View projects</a></div>
+   <div id="projectList" class="activity-list"><p class="empty-state">Loading project inventory…</p></div>
+  </section>
+  <section class="workspace-panel" aria-labelledby="buildersTitle">
+   <div class="panel-heading"><div><p class="eyebrow">EXECUTION HOSTS</p><h2 id="buildersTitle">Build machines</h2></div>
+    <a href="/jobs" class="quiet-link">Manage machines</a></div>
+   <div id="buildersList" class="activity-list"><p class="empty-state">Loading machines…</p></div>
+  </section>
+  <section class="workspace-panel" aria-labelledby="devicesTitle">
+   <div class="panel-heading"><div><p class="eyebrow">HARDWARE</p><h2 id="devicesTitle">Attached devices</h2></div>
+    <a href="/devices" class="quiet-link">Device inventory</a></div>
+   <div id="devicesList" class="activity-list"><p class="empty-state">Loading devices…</p></div>
+  </section>
+ </div>
+ <section class="workspace-panel muted-panel" aria-label="Workspace health and status">
+  <div class="panel-heading"><div><p class="eyebrow">CONNECTIONS</p><h2>Workspace services</h2></div>
+   <a href="/settings" class="quiet-link">Manage in Settings</a></div>
+  <div class="service-strip">
+   <span id="gitStatus">GitHub status loading…</span>
+   <span id="aiStatus">AI MCP: not connected</span>
+   <span id="executionStatus">Execution: disabled</span>
   </div>
-  <section aria-labelledby="connections-title">
-    <div class="section-head"><div><h2 id="connections-title">Connections</h2><p>See what's connected and configure the remaining services when you're ready.</p></div><span class="count" id="connection-count">0 of 3 connected</span></div>
-    <div class="cards">
-      <article class="connection-card priority" id="github-card">
-        <div class="card-top"><span class="number">01</span><span class="status" id="github-status">Not connected</span></div>
-        <div class="symbol" aria-hidden="true">⌘</div>
-        <h3>GitHub</h3>
-        <p id="github-description">Connect your GitHub account and choose an organization. An organization lets build machines serve several repositories.</p>
-        <p class="subtle" id="github-detail">Recommended next step. For a single repository, an organization isn't required.</p>
-        <a class="action" id="github-action" href="/github">Connect GitHub <span aria-hidden="true">→</span></a>
-      </article>
-      <article class="connection-card">
-        <div class="card-top"><span class="number">02</span><span class="status" id="runners-status">Not connected</span></div>
-        <div class="symbol" aria-hidden="true">▣</div>
-        <h3>Build machines</h3>
-        <p>Connect a Raspberry Pi, Mac, Windows or Linux machine to run approved builds on your own hardware.</p>
-        <p class="subtle" id="runner-detail">No build machines enrolled.</p>
-        <a href="/jobs" class="action action-secondary">Manage build machines</a>
-      </article>
-      <article class="connection-card">
-        <div class="card-top"><span class="number">03</span><span class="status" id="assistant-status">Not connected</span></div>
-        <div class="symbol" aria-hidden="true">✳</div>
-        <h3>AI assistant</h3>
-        <p>Connect an assistant through a secure tool gateway, so it can discover and plan work with you.</p>
-        <p class="subtle">Remote assistant authorization is not available in this release.</p>
-        <span class="not-ready">Coming in a later release</span>
-      </article>
-    </div>
-  </section>
-  <section class="topology-cta" aria-label="Workspace topology">
-    <div><p class="eyebrow">WORKSPACE MAP</p><h2>See how your workspace connects</h2>
-      <p>Explore the relationship between cloud services, your workspace, build machines and toolkits in a dedicated view.</p></div>
-    <a class="action" href="/topology">Open topology <span aria-hidden="true">→</span></a>
-  </section>
-  <section class="extras" aria-labelledby="appearance-title">
-    <div><h2 id="appearance-title">Appearance</h2><p>Pick a look for this browser. You can change it at any time.</p></div>
-    <div class="themes" role="group" aria-label="Color palette">
-      <button class="theme-choice" data-palette="graphite" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Graphite + Iris</span></button>
-      <button class="theme-choice" data-palette="paper" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Warm Paper</span></button>
-      <button class="theme-choice" data-palette="midnight" aria-pressed="true"><span class="swatches"><i></i><i></i><i></i></span><span>Midnight</span></button>
-    </div>
-  </section>
-  <footer>Self-hosted · Your workspace, your hardware</footer>
-</main>
-<dialog id="accountDialog" aria-labelledby="accountTitle">
-  <form id="passwordForm">
-    <div class="dialog-head"><h2 id="accountTitle">Change password</h2><button type="button" id="closeAccount" class="plain-button" aria-label="Close account settings">Close</button></div>
-    <p class="dialog-help">Your account is managed here, not through deployment settings.</p>
-    <label for="currentPassword">Current password</label><input id="currentPassword" type="password" autocomplete="current-password" required>
-    <label for="nextPassword">New password</label><input id="nextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-    <label for="confirmNextPassword">Confirm new password</label><input id="confirmNextPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-    <p id="accountError" role="status" aria-live="polite"></p>
-    <button type="submit" class="action">Save password</button>
-  </form>
-</dialog>
-</body>
-</html>
+ </section>
+ <footer>Self-hosted · Your source, hardware, and jobs stay under your control.</footer>
+</main></body></html>
