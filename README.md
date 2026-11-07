@@ -48,9 +48,11 @@ The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Pape
 
 After account creation, choose **Connect GitHub** on the dashboard. TinkerTunnel implements an OAuth device flow like HACS: start the connection, open `https://github.com/login/device`, enter the displayed code, approve access, and return to select an organization. TinkerTunnel encrypts the returned credential at rest. No personal access token or GitHub App private key should be pasted into the onboarding screen.
 
-A GitHub App or OAuth App **with device flow enabled** and a public client ID must first be configured by the TinkerTunnel distributor/operator through `TT_GITHUB_CLIENT_ID`. Until then, the portal clearly reports GitHub connection as unavailable. The client ID is an application identifier, not an administrator password.
+For a fresh installation, create a **dedicated GitHub App** for TinkerTunnel, separate from any GitHub App your hosting system uses to deploy the portal. In GitHub App settings, enable **Device Flow**. Keep permissions minimal (repository Metadata read-only is sufficient for initial identity and installation discovery); disable unneeded webhooks and do not enable user authorization during installation solely for this device flow. Install the App on the organization you want to connect.
 
-Selecting an organization does **not** install GitHub Apps, grant runner access, or create organization-level runners. Verified installation, permissions, runner group policy and multi-repository execution remain later milestones. Do not reuse a deployment-system GitHub App as the identity provider.
+After the administrator signs in, open `/github`. The page now accepts the GitHub App's **public Client ID** and saves it in TinkerTunnel's own configuration. This is not a password, client secret, personal token, or App ID. No hosting-provider environment variable is required. An operator may optionally set `TT_GITHUB_CLIENT_ID` to preconfigure a shared distribution; that takes precedence over the portal setting.
+
+Click **Sign in with GitHub**, approve GitHub's device authorization, and select an organization where this particular App is installed. GitHub App user tokens obtain eligible organizations from `GET /user/installations` (not `GET /user/orgs`). If the installation was added after authorization, click **Refresh organizations**. Selecting an organization records the preferred connection; it does **not** grant runner permissions, create runners, or authorize arbitrary repository builds. GitHub App user tokens may expire and require reauthorization until token refresh is implemented.
 
 ## Validation and boundaries
 
