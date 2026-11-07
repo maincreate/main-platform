@@ -105,6 +105,7 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}});
   }
   if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
+  if(path==="/setup.css"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.css",import.meta.url),"utf8"),{headers:{"content-type":"text/css; charset=utf-8","cache-control":"public, max-age=300"}});
   if(!path.startsWith("/api/local/")&&!path.startsWith("/api/agent/")&&!path.startsWith("/api/internal/")&&path!=="/api/v1/status")return null;
   if(!sameOrigin(req))return deny(403,"Origin rejected");
   try {
