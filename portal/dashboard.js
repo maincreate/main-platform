@@ -135,7 +135,7 @@ function selectRunner(runner,records){
   $("topologySummary").textContent=focused?
     (focused.name||"Machine")+" · "+(focused.os||"unknown")+"/"+(focused.arch||"unknown")+" · "+
       lastSeenDescription(focused.lastSeen)+". Build execution is not enabled.":
-    records.length+" enrolled machine(s); toolkits are not discovered yet.";
+    records.length+" displayed machine(s); toolkits are not discovered yet.";
   scheduleTopologyLines();
 }
 $("topologyReset").addEventListener("click",()=>{
