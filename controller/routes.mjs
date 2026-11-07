@@ -47,6 +47,7 @@ function session(req) {
   if(!s||s.expires<Date.now()){if(id)sessions.delete(id);return null;}
   return s;
 }
+export function hasLocalAdminSession(req) { return !!session(req); }
 function sameOrigin(req) {
   const origin=req.headers.get("origin");
   if(!origin)return true; // Non-browser clients require authentication and CSRF too.
