@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 try {
   const chosen=localStorage.getItem("tt-theme");
-  if(["graphite","paper","midnight"].includes(chosen))document.body.dataset.theme=chosen;
+  document.body.dataset.theme=["graphite","paper","midnight"].includes(chosen)?chosen:"midnight";
 } catch {}
 const notice=msg=>{$("notice").textContent=msg;};
 async function api(path,data){
