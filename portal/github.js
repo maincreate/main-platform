@@ -19,6 +19,9 @@ async function api(path,values){
 async function refresh(){
   const [overview,status]=await Promise.all([api("/api/local/overview"),api("/api/local/github/device/status")]);
   csrf=overview.csrf;
+  const ready=!!(overview.github?.identityConnected&&overview.github?.organization);
+  $("githubStepLabel").textContent=ready?"CONNECTIONS / GITHUB":"SETUP / STEP 2 OF 2";
+  $("githubSetupNotice").textContent=ready?"Your GitHub organization is connected. You can switch organizations or update authorization here.":"Connect your GitHub account and select an organization to complete TinkerTunnel setup.";
   if(status.connected){
     $("githubLogin").textContent=status.login;
     const select=$("org");select.replaceChildren();

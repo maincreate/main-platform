@@ -241,12 +241,17 @@ function applyApprovalPreference(tool,args,context){
   }
   return result;
 }
+function githubOnboardingReady(g){
+ return githubIdentityCurrent(g)&&typeof g.selectedOrganization==="string"&&g.selectedOrganization.length>0&&
+   Array.isArray(g.oauthOrganizations)&&g.oauthOrganizations.some(o=>o.login===g.selectedOrganization);
+}
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
   const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if(path==="/github"&&method==="GET"){
@@ -288,7 +293,7 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":type+"; charset=utf-8","cache-control":"no-store"}});
   }
   if(path==="/setup"&&method==="GET"){
-    if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":"/","cache-control":"no-store"}});
+    if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":githubOnboardingReady(state().github||{})?"/":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});

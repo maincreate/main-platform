@@ -59,16 +59,12 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(login.status,200);
    const cookie=login.headers.get("set-cookie").split(";")[0],csrf=login.data.csrf;
    const authedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
-   assert.equal(authedRoot.status,200);
-   const dashboard=await authedRoot.text();
-   assert.match(dashboard,/Workspace overview/);
-   assert.match(dashboard,/id="recentJobs"/);
-   assert.match(dashboard,/href="\/jobs"/);
-   assert.match(dashboard,/id="devicesList"/);
-   assert.match(dashboard,/id="buildersList"/);
-   assert.match(dashboard,/id="projectList"/);
-   assert.match(dashboard,/href="\/topology"/);
-   assert.doesNotMatch(dashboard,/id="topologyMap"/,"Overview must not render the wide topology");
+   assert.equal(authedRoot.status,302);
+   assert.equal(authedRoot.headers.get("location"),"/github");
+   const setupAfterAccount=await fetch(base+"/setup",{headers:{cookie},redirect:"manual"});
+   assert.equal(setupAfterAccount.status,302);
+   assert.equal(setupAfterAccount.headers.get("location"),"/github");
+
    const topologyPublic=await fetch(base+"/topology",{redirect:"manual"});
    assert.equal(topologyPublic.status,302);
    assert.equal(topologyPublic.headers.get("location"),"/setup");
@@ -232,6 +228,13 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const linked=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
    assert.equal(linked.github.identityConnected,true);
    assert.equal(linked.github.organization,"ExampleOrg");
+   // Once GitHub OAuth and an installed organization are selected, entry is permitted.
+   account.github.oauthOrganizations=[{login:"ExampleOrg"}];
+   writeFileSync(statePath,JSON.stringify(account,null,2),{mode:0o600});
+   // The fixture token represents a linked session; the route checks connection state without exchanging it.
+   const connectedRoot=await fetch(base+"/",{headers:{cookie},redirect:"manual"});
+   assert.equal(connectedRoot.status,200);
+   assert.match(await connectedRoot.text(),/id="recentJobs"/);
    assert.equal(linked.github.login,"example-user");
    assert.equal(linked.github.authorizationExpired,false);
    account.github.oauthExpiresAt=new Date(Date.now()-3600_000).toISOString();

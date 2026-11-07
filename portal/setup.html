@@ -13,7 +13,7 @@
       <div class="logo" aria-label="TinkerTunnel">T<span aria-hidden="true">↗</span></div>
       <p class="eyebrow">TINKERTUNNEL</p>
       <h1 id="welcome-title">Your workspace starts here.</h1>
-      <p class="lead">Create an account to get started. You can configure everything else from your dashboard.</p>
+      <p class="lead">First create your administrator account. Next, connect GitHub and choose an organization before entering your workspace.</p>
       <p class="privacy">Self-hosted · You control your workspace</p>
     </section>
     <section class="auth-card">
@@ -22,7 +22,7 @@
       <section id="firstRun" hidden>
         <p class="eyebrow">GET STARTED</p>
         <h2>Create your administrator account</h2>
-        <p class="helper">Choose your username and password. That's all for now.</p>
+        <p class="helper">Create your local administrator account. GitHub connection is the next required step.</p>
         <form id="firstRunForm">
           <label for="newUsername">Username</label>
           <input id="newUsername" type="text" name="username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9_.-]{3,40}" placeholder="Choose a username" required autofocus>
@@ -30,7 +30,7 @@
           <input id="newPassword" type="password" name="new-password" autocomplete="new-password" minlength="12" maxlength="128" required placeholder="At least 12 characters">
           <label for="confirmPassword">Confirm password</label>
           <input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required placeholder="Repeat your password">
-          <button type="submit">Create account <span aria-hidden="true">→</span></button>
+          <button type="submit">Create account and connect GitHub <span aria-hidden="true">→</span></button>
         </form>
       </section>
       <section id="login" hidden>
