@@ -61,3 +61,6 @@ dialog::backdrop{background:#131e32aa}.dialog-head{display:flex;justify-content:
 .topology-foot button{white-space:nowrap}
 @media(max-width:760px){.topology-head{align-items:flex-start}.topology-key{font-size:10px}.topology-map{min-width:1160px}.topology-scroll{border-radius:14px}.workspace-topology{margin-bottom:30px}}
 @media(prefers-reduced-motion:reduce){.topology-node{transition:none}}
+
+.topology-hint{font-size:11px;line-height:1.35;color:var(--muted)}
+.topology-overflow{font-size:11px;text-align:center;color:var(--muted);padding:6px}
