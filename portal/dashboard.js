@@ -1,78 +1,103 @@
 "use strict";
 const $=id=>document.getElementById(id);
-const allowed=["graphite","paper","midnight"];
-let csrf=null;
-function theme(id){
-  if(!allowed.includes(id))id="midnight";
-  document.body.dataset.theme=id;
-  document.querySelectorAll(".theme-choice").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.palette===id)));
-  try{localStorage.setItem("tt-theme",id);}catch{}
+try{const theme=localStorage.getItem("tt-theme");if(["midnight","graphite","paper"].includes(theme))document.body.dataset.theme=theme;}catch{}
+const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
+async function api(path){
+ const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+ if(response.status===401){location.replace("/setup");throw new Error("Sign in required");}
+ const value=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(value.error||"Unable to fetch "+path);
+ return value;
 }
-try{theme(localStorage.getItem("tt-theme")||"midnight");}catch{theme("midnight");}
-document.querySelectorAll(".theme-choice").forEach(b=>b.addEventListener("click",()=>theme(b.dataset.palette)));
+function statusText(node,text){$(node).textContent=text;}
+function relative(date){
+ if(!date)return "Never";
+ const ms=Date.now()-Date.parse(date);
+ if(!Number.isFinite(ms))return "Unknown";
+ if(ms<60000)return "Just now";
+ if(ms<3600000)return Math.floor(ms/60000)+"m ago";
+ if(ms<86400000)return Math.floor(ms/3600000)+"h ago";
+ return new Date(date).toLocaleDateString();
+}
+function row(parent,title,subtitle,detail){
+ const e=element("div",undefined,"list-row"),main=element("div"),name=element("strong",title),
+ meta=element("small",subtitle),side=element("span",detail||"","row-detail");
+ main.append(name,meta);e.append(main,side);parent.append(e);return e;
+}
+function empty(parent,heading,description,href,label){
+ parent.replaceChildren();
+ const box=element("div",undefined,"home-empty");
+ box.append(element("strong",heading),element("p",description));
+ if(href){const a=element("a",label,"quiet-link");a.href=href;box.append(a);}
+ parent.append(box);
+}
+function renderJobs(jobs){
+ const holder=$("recentJobs");holder.replaceChildren();
+ if(!jobs?.length)return empty(holder,"No jobs yet","Builds and other approved operations will appear here.","/jobs","Open Jobs & Builders");
+ for(const job of jobs.slice(0,5)){
+  const source=job.source?.repository?" · "+job.source.repository:"";
+  row(holder,job.capability,(job.created_at?relative(job.created_at):"")+" · "+job.runner_id.slice(0,10)+source,job.status.replaceAll("_"," "));
+ }
+}
+function renderProjects(projects){
+ const holder=$("projectList");holder.replaceChildren();
+ if(!projects?.repositories?.length){
+  return empty(holder,projects?.organization?"No projects discovered":"GitHub organization not connected",
+   projects?.organization?"Open Projects to synchronize your GitHub App repositories.":"Connect GitHub in Settings to view your repositories.",
+   projects?.organization?"/projects":"/settings","Open "+(projects?.organization?"Projects":"Settings"));
+ }
+ for(const project of projects.repositories.slice(0,5)){
+  row(holder,project.fullName,project.description||"Default branch: "+(project.defaultBranch||"unknown"),
+   project.builds+" build"+(project.builds===1?"":"s"));
+ }
+}
+function renderBuilders(overview){
+ const holder=$("buildersList");holder.replaceChildren();
+ const list=overview.runners?.items||[];
+ if(!list.length)return empty(holder,"No build machines enrolled","Enroll a trusted Linux, macOS or Windows host to begin recording capabilities and jobs.",
+  "/jobs","Manage build machines");
+ for(const runner of list.slice(0,5)){
+  const recent=Number.isFinite(Date.parse(runner.lastSeen))&&Date.now()-Date.parse(runner.lastSeen)<120000;
+  row(holder,runner.name,runner.os+" / "+runner.arch,recent?"Online":relative(runner.lastSeen));
+ }
+}
+function renderDevices(inventory){
+ const holder=$("devicesList");holder.replaceChildren();
+ const list=inventory?.devices||[];
+ if(!list.length)return empty(holder,"No devices reported","USB serial devices appear automatically when an enrolled builder has read-only discovery enabled.",
+  "/devices","Open device inventory");
+ for(const device of list.slice(0,6)){
+  row(holder,device.label||device.product||device.description||"USB serial device",
+   device.runnerName+" · "+device.port+" · "+device.vid.toString(16).padStart(4,"0")+":"+device.pid.toString(16).padStart(4,"0"),
+   device.lifecycle==="connected"?"Connected":"Last seen "+relative(device.lastSeen));
+ }
+}
 async function load(){
-  try{
-    const r=await fetch("/api/local/overview",{cache:"no-store",credentials:"same-origin"});
-    if(r.status===401){window.location.replace("/setup");return;}
-    if(!r.ok)throw Error("Workspace status unavailable");
-    const d=await r.json();
-    csrf=d.csrf;
-    $("username").textContent=d.username||"administrator";
-    const connected=!!d.github?.identityConnected;
-    const hasOrg=connected&&!!d.github?.organization;
-    const expired=!!d.github?.authorizationExpired;
-    const card=$("github-card"),status=$("github-status"),action=$("github-action");
-    const description=$("github-description"),detail=$("github-detail");
-    card.classList.toggle("priority",!hasOrg);
-    card.classList.toggle("is-connected",hasOrg);
-    action.classList.toggle("action-secondary",hasOrg);
-    status.dataset.state=hasOrg?"connected":expired?"attention":connected?"partial":"disconnected";
-    if(hasOrg){
-      status.textContent="Connected";
-      description.textContent="Connected to the "+d.github.organization+" organization.";
-      detail.textContent=(d.github.login?"Authorized as @"+d.github.login+". ":"")+"Build runner access is configured separately.";
-      action.textContent="Edit GitHub Connection";
-    }else if(expired){
-      status.textContent="Reconnect required";
-      description.textContent="The GitHub authorization expired. Reconnect to continue using your organization.";
-      detail.textContent=d.github.savedOrganization?"Previously selected: "+d.github.savedOrganization:"No active GitHub authorization";
-      action.textContent="Reconnect GitHub";
-    }else if(connected){
-      status.textContent="Account linked";
-      description.textContent="Signed in to GitHub"+(d.github.login?" as @"+d.github.login:"")+".";
-      detail.textContent="Choose an organization to share build machines between repositories.";
-      action.textContent="Choose organization";
-    }else{
-      status.textContent="Not connected";
-      description.textContent="Connect your GitHub account and choose an organization. An organization lets build machines serve several repositories.";
-      detail.textContent="Recommended next step. A single-repository setup doesn't require an organization.";
-      action.textContent="Connect GitHub →";
-    }
-    const nodes=Number(d.runners?.count||0);
-    $("runners-status").textContent=nodes?nodes+" enrolled":"Not connected";
-    $("runner-detail").textContent=nodes?nodes+" machine"+(nodes===1?"":"s")+" enrolled. Build execution is not enabled yet.":"No build machines enrolled.";
-    $("assistant-status").textContent="Not connected";
-    $("connection-count").textContent=Number(connected)+Number(nodes>0)+" of 3 connected";
-  }catch(e){$("connection-count").textContent="Connection status unavailable";}
+ $("refresh").disabled=true;
+ try{
+  const [overview,projects,devices]=await Promise.all([
+   api("/api/local/overview"),api("/api/local/projects"),api("/api/local/devices")]);
+  $("username").textContent=overview.username||"administrator";
+  statusText("projectCount",String(projects.repositories?.length||0));
+  statusText("projectMeta",projects.updatedAt?"Synced "+relative(projects.updatedAt):"Not synced yet");
+  statusText("builderCount",String(overview.runners?.count||0));
+  const online=(overview.runners?.items||[]).filter(r=>r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000).length;
+  statusText("builderMeta",online+" reporting recently");
+  statusText("deviceCount",String(devices.summary?.connected||0));
+  statusText("deviceMeta",String(devices.summary?.offline||0)+" offline · "+String(devices.summary?.hidden||0)+" hidden");
+  statusText("jobCount",String(overview.jobs?.count||0));
+  statusText("jobMeta",String(overview.jobs?.running||0)+" running · "+String(overview.jobs?.pending||0)+" approvals");
+  statusText("gitStatus",overview.github?.identityConnected&&overview.github?.organization?
+   "GitHub: "+overview.github.organization:overview.github?.authorizationExpired?"GitHub: reconnect required":"GitHub: not connected");
+  statusText("aiStatus","AI MCP: not connected (optional)");
+  statusText("executionStatus",overview.runners?.executionEnabled?"Controlled execution enabled":"Execution: disabled");
+  renderJobs(overview.jobs?.recent||[]);
+  renderProjects(projects);
+  renderBuilders(overview);
+  renderDevices(devices);
+  $("statusMessage").textContent="";
+ }catch(e){$("statusMessage").textContent=e.message;}
+ finally{$("refresh").disabled=false;}
 }
-$("accountSettings").addEventListener("click",()=>$("accountDialog").showModal());
-$("closeAccount").addEventListener("click",()=>$("accountDialog").close());
-$("passwordForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  $("accountError").textContent="";
-  const password=$("nextPassword").value;
-  if(password!==$("confirmNextPassword").value){$("accountError").textContent="Passwords do not match.";return;}
-  try{
-    const res=await fetch("/api/local/account/password",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-tt-csrf":csrf},body:JSON.stringify({currentPassword:$("currentPassword").value,newPassword:password})});
-    const d=await res.json();
-    if(!res.ok)throw Error(d.error||"Unable to change password");
-    window.location.replace("/setup");
-  }catch(err){$("accountError").textContent=err.message;}
-});
-$("signout").addEventListener("click",async()=>{
-  if(!csrf)return;
-  try{await fetch("/api/local/logout",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-tt-csrf":csrf},body:"{}"});}
-  finally{window.location.replace("/setup");}
-});
-
+$("refresh").addEventListener("click",load);
 load();
