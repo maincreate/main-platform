@@ -69,6 +69,24 @@ function renderBuilders(){
    }
   }else if(host.githubRunnerName)controls.textContent="Registered";
   else controls.textContent="—";
+  const remove=el("button","Remove builder","plain-button");
+  remove.type="button";
+  remove.addEventListener("click",async()=>{
+    const hasRunner=!!host.githubRunnerName;
+    const message="Remove "+host.name+" from TinkerTunnel?\\n\\n"+
+      (hasRunner?"A registered GitHub runner will be removed too, but only if it is offline and idle.\\n":"")+
+      "This revokes the host's TinkerTunnel credential. You must clean up old local enrollment on the machine before pairing again.\\n\\nType the exact hostname to confirm:";
+    const confirmName=prompt(message);
+    if(confirmName===null)return;
+    if(confirmName!==host.name){status("Hostname did not match. Nothing was removed.");return;}
+    remove.disabled=true;
+    try{
+      const result=await api("/api/local/builders/remove",{runnerId:host.id,confirmName});
+      await load();
+      status(result.name+" removed. GitHub: "+result.githubResult+". Before re-adding, run the local uninstall/cleanup procedure on the host, then reinstall and pair. Removing the controller record does not erase files on the Pi.");
+    }catch(e){status("Remove failed: "+e.message)}finally{remove.disabled=false}
+  });
+  controls.append(remove);
   tr.append(controls);tbody.append(tr);
  }
  table.append(tbody);holder.append(table);

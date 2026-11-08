@@ -64,6 +64,69 @@ export async function adminHostRoute(req,ctx){
     message:provisioning?'Host Service paired; GitHub runner installation and registration queued for '+runner.name+'. Builder not ready until GitHub confirms Online.':
       'Host Service paired; GitHub runner setup incomplete. Inspect the Builders error before retrying.'});
  }
+ if(path==='/api/local/builders/remove'&&method==='POST'){
+  const input=await body(req),id=input.runnerId,confirmedName=input.confirmName;
+  if(typeof id!=='string'||!/^[a-f0-9]{24}$/.test(id))return deny(422,'Select a valid builder');
+  const start=state(),host=start.runners.find(r=>r.id===id);
+  if(!host)return deny(404,'Builder was already removed. Refresh the list.');
+  if(confirmedName!==host.name)return deny(422,'Type the exact builder hostname to confirm removal');
+  if(limited('builder-remove:'+session(req).username,10))return deny(429,'Too many removal attempts');
+  const actions=(start.hostActions||[]).filter(a=>a.runnerId===id);
+  if(actions.some(a=>['queued','claimed'].includes(a.status)))return deny(409,'Runner setup is in progress. Wait for it to finish before removing this builder.');
+  const runnerName=host.githubRunnerName||null;
+  let githubResult='not_registered';
+  if(runnerName){
+   const gh=start.github||{},org=gh.selectedOrganization;
+   const latest=actions.filter(a=>a.organization).at(-1);
+   if(!githubIdentityCurrent(gh)||!org||latest?.organization!==org)
+    return deny(409,'Reconnect the original GitHub organization before removing its registered runner.');
+   const headers={authorization:'Bearer '+unseal(gh.oauthToken),
+    accept:'application/vnd.github+json','user-agent':'TinkerTunnel','x-github-api-version':'2022-11-28'};
+   const url='https://api.github.com/orgs/'+encodeURIComponent(org)+'/actions/runners';
+   let response;
+   try{response=await fetch(url+'?per_page=100',{headers,signal:AbortSignal.timeout(15000)})}
+   catch{return deny(502,'Could not check GitHub runner status. No builder was removed.')}
+   if(!response.ok)return deny(response.status===403?403:502,'Unable to verify GitHub organization runners; no builder was removed.');
+   const listing=await response.json();
+   if(!Array.isArray(listing.runners))return deny(502,'GitHub runner inventory was incomplete; no builder was removed.');
+   const found=listing.runners.filter(r=>r.name===runnerName);
+   if(found.length!==1){
+    // A single page may be incomplete. Do not silently ignore a runner that
+    // could still be registered in an organization with >100 runners.
+    if(found.length>1||Number(listing.total_count)>listing.runners.length)
+     return deny(409,'Runner could not be uniquely verified in GitHub. Review the organization runner inventory before removing.');
+    githubResult='not_found';
+   }else{
+    if(found[0].busy||found[0].status!=='offline')
+     return deny(409,'GitHub runner is online or busy. Drain and stop its service on the host before removing it.');
+    const current=state(),same=current.runners.find(r=>r.id===id);
+    if(!same||same.githubRunnerName!==runnerName)return deny(409,'Builder changed during removal. Refresh and retry.');
+    let deleted;
+    try{deleted=await fetch(url+'/'+found[0].id,{method:'DELETE',headers,signal:AbortSignal.timeout(15000)})}
+    catch{return deny(502,'GitHub runner removal could not be confirmed. No local record removed. Check GitHub before retrying.')}
+    if(deleted.status!==204&&deleted.status!==404)
+     return deny(deleted.status===403?403:502,'GitHub runner removal failed (HTTP '+deleted.status+'). Builder retained.');
+    githubResult=deleted.status===204?'removed':'already_removed';
+   }
+  }
+  const next=state(),entry=next.runners.find(r=>r.id===id);
+  if(!entry||entry.githubRunnerName!==runnerName)return deny(409,'Builder changed during removal. Refresh before retrying.');
+  if((next.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
+   return deny(409,'An installation action started during removal. Refresh and retry.');
+  next.runners=next.runners.filter(r=>r.id!==id);
+  // Revoke the individual enrollment token by dropping the sole stored digest.
+  // Retain non-secret history for diagnosis, never keep an issued GitHub token.
+  next.hostActions=(next.hostActions||[]).map(a=>a.runnerId===id?
+   {...a,secret:undefined,removedHostAt:new Date().toISOString()}:a);
+  next.builderRemovalAudit=[...(next.builderRemovalAudit||[]).slice(-49),{
+   id,name:host.name,githubRunnerName:runnerName,githubResult,
+   removedAt:new Date().toISOString(),actor:session(req).username
+  }];
+  save(next);
+  return reply({removed:true,name:host.name,githubResult,
+   localCleanupRequired:true,
+   message:'Builder removed from TinkerTunnel and its host token revoked. Clean up the old local enrollment and runner installation before pairing again.'});
+ }
  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/provision'&&method==='POST'){
   const input=await body(req);
