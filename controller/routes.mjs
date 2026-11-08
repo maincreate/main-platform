@@ -105,6 +105,15 @@ function newSession(req,username) {
   sessions.set(id,{username,csrf,expires:Date.now()+8*3600*1000});
   return reply({authenticated:true,username,csrf},200,{"set-cookie":sessionCookie(req,id)});
 }
+export function refreshProjectMonitoring(){
+  const stored=state(),gh=stored.github||{};
+  if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)return;
+  try{
+    const inventory=listProjects(gh.selectedOrganization);
+    requestRequirementRefresh({organization:gh.selectedOrganization,
+      accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
+  }catch(e){console.error("Project monitoring refresh unavailable: "+String(e.message||"unknown").slice(0,120));}
+}
 export function initializeFirstRun() {
   key(); // Provision durable encryption before accepting credentials; fail on unwritable storage.
   state(); // Validate persisted account configuration at startup.
