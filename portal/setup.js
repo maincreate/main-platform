@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 try {
   const chosen=localStorage.getItem("maincreate-theme");
-  document.body.dataset.theme=["graphite","paper","midnight"].includes(chosen)?chosen:"midnight";
+  document.body.dataset.theme=["cool-mist","graphite","paper","midnight"].includes(chosen)?chosen:"cool-mist";
 } catch {}
 const notice=msg=>{$("notice").textContent=msg;};
 async function api(path,data){

@@ -1,6 +1,7 @@
 :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light;--bg:#f5f6fa;--surface:#fff;--text:#19223a;--muted:#637083;--line:#dfe3ec;--accent:#6058ee;--focus:#4740ce}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);line-height:1.5}
+body[data-theme="cool-mist"]{color-scheme:light;--bg:#f4f6f7;--surface:#fcfdfe;--text:#20292d;--muted:#53636b;--line:#d9e2e6;--accent:#2d6279;--focus:#224e61}
 body[data-theme="paper"]{--bg:#faf7f1;--surface:#fffdf8;--text:#36332d;--muted:#746c62;--line:#e8dfd2;--accent:#ad593f;--focus:#89462f}
 body[data-theme="midnight"]{color-scheme:dark;--bg:#0d1526;--surface:#172339;--text:#f2f6ff;--muted:#b0bfd4;--line:#30425e;--accent:#24c9bd;--focus:#15a99e}
 .auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(300px,1fr) minmax(340px,480px);gap:clamp(28px,8vw,110px);align-items:center;width:min(1080px,calc(100% - 48px));margin:0 auto;padding:70px 0}

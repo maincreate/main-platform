@@ -1,15 +1,15 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null;
-const themes=["graphite","paper","midnight"];
-function theme(id){
- if(!themes.includes(id))id="midnight";
+const themes=["cool-mist","graphite","paper","midnight"];
+function theme(id, save = false){
+ if(!themes.includes(id))id="cool-mist";
  document.body.dataset.theme=id;
  document.querySelectorAll(".theme-choice").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.palette===id)));
- try{localStorage.setItem("maincreate-theme",id);}catch{}
+ if(save)try{localStorage.setItem("maincreate-theme",id);}catch{}
 }
-try{theme(localStorage.getItem("maincreate-theme")||"midnight");}catch{theme("midnight");}
-document.querySelectorAll(".theme-choice").forEach(button=>button.addEventListener("click",()=>theme(button.dataset.palette)));
+try{theme(localStorage.getItem("maincreate-theme")||"cool-mist");}catch{theme("cool-mist");}
+document.querySelectorAll(".theme-choice").forEach(button=>button.addEventListener("click",()=>theme(button.dataset.palette, true)));
 async function api(path,payload){
  const opts={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){

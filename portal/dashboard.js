@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-try{const theme=localStorage.getItem("maincreate-theme");if(["midnight","graphite","paper"].includes(theme))document.body.dataset.theme=theme;}catch{}
+try{const theme=localStorage.getItem("maincreate-theme");if(["cool-mist","midnight","graphite","paper"].includes(theme))document.body.dataset.theme=theme;}catch{}
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 async function api(path){
  const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});

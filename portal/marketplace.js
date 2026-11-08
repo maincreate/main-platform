@@ -1,5 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
+try{const theme=localStorage.getItem("maincreate-theme");if(["cool-mist","graphite","paper","midnight"].includes(theme))document.body.dataset.theme=theme;}catch{}
 let csrf=null,builders=[],releases=[],plans=[],selection=new Set(),current=null;
 let placement="selected";
 const esc=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el;};

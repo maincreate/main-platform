@@ -18,7 +18,7 @@ const panels=["loading","unavailable","disconnected","authorizing","connected"];
 function show(panel){panels.forEach(id=>$(id).hidden=id!==panel);}
 function notice(text){$("notice").textContent=text||"";}
 function applyTheme(){
-  try{const t=localStorage.getItem("maincreate-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
+  try{const t=localStorage.getItem("maincreate-theme");if(["cool-mist","graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 }
 async function api(path,values){
   const opts={cache:"no-store",credentials:"same-origin"};

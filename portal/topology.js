@@ -3,8 +3,8 @@ const $=id=>document.getElementById(id);
 let csrf=null;
 try {
   const preference=localStorage.getItem("maincreate-theme");
-  document.body.dataset.theme=["graphite","paper","midnight"].includes(preference)?preference:"midnight";
-}catch{document.body.dataset.theme="midnight";}
+  document.body.dataset.theme=["cool-mist","graphite","paper","midnight"].includes(preference)?preference:"cool-mist";
+}catch{document.body.dataset.theme="cool-mist";}
 async function load(){
   try {
     const response=await fetch("/api/local/overview",{cache:"no-store",credentials:"same-origin"});
