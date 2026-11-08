@@ -3,6 +3,8 @@ package main
 
 import (
  "bytes"
+ "crypto/sha256"
+ "encoding/hex"
  "encoding/json"
  "errors"
  "fmt"
@@ -19,7 +21,7 @@ import (
  "time"
 )
 
-const version="0.4.0"
+const version="0.5.0"
 var dataDir=getenv("TT_HOST_DATA_DIR","/var/lib/tinkertunnel")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -34,6 +36,8 @@ type action struct {
  Labels []string `json:"labels"`
  RegistrationToken string `json:"registration_token"`
  ExpiresAt string `json:"expires_at"`
+ TargetVersion string `json:"target_version"`
+ SHA256 string `json:"sha256"`
 }
 func getenv(k,f string)string{if s:=os.Getenv(k);s!=""{return s};return f}
 func validController(s string)bool{return strings.HasPrefix(s,"https://")&&!strings.ContainsAny(strings.TrimPrefix(s,"https://"),"/?#@ ")&&len(s)<300}
@@ -99,15 +103,20 @@ func run()error{
   if time.Since(lastHeartbeat)>30*time.Second{
    if time.Since(lastInventory)>2*time.Minute{
     e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"packages":packages()},nil);lastInventory=time.Now()
-   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID},nil)}
+   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version},nil)}
    if e!=nil{log.Printf("heartbeat: %v",e)};lastHeartbeat=time.Now()
   }
   var out struct{Action *action `json:"action"`}
   if e=post(c.Controller,"/api/agent/actions/claim",c.Token,map[string]string{"id":c.ID},&out);e!=nil{log.Printf("action polling: %v",e);continue}
   if out.Action==nil{continue}
-  a:=out.Action;e=execute(a);message:="completed"
+  a:=out.Action
+  if a.Type=="host.upgrade"{e=stageUpgrade(c,*a)}else{e=execute(a)}
+  message:="completed"
   if e!=nil{message=e.Error();log.Printf("action %s failed: %s",a.ID,message)}
-  if e2:=report(c,a.ID,e==nil,message);e2!=nil{log.Printf("report action: %v",e2)}
+  if e2:=report(c,a.ID,e==nil,message);e2!=nil{log.Printf("report action: %v",e2)}else if e==nil&&a.Type=="host.upgrade"{
+   if err:=runCmd("","","systemd-run","--unit=tinkertunnel-host-upgrade","--on-active=5s",
+    "/usr/local/bin/tinkertunnel-host","apply-upgrade");err!=nil{log.Printf("schedule upgrade: %v",err)}
+  }
  }}
 }
 func safeOrg(s string)bool{
@@ -137,6 +146,63 @@ func execute(a *action)error{
   return errors.New("unsupported action")
  }
 }
+// Upgrade is a constrained host action: only the enrolled controller's binary,
+// pinned by SHA-256 in the queued instruction. No arbitrary URL or shell command.
+func stageUpgrade(c config,a action)error{
+ if a.RunnerName!=hostname()||a.RegistrationToken!=""||a.TargetVersion!=version&&a.TargetVersion!=""&&a.TargetVersion<=version{
+  return errors.New("invalid host upgrade instruction")
+ }
+ // The instruction names the expected release; the remote binary is served by
+ // the same HTTPS controller the host already trusts for enrollment.
+ if len(a.TargetVersion)<3||len(a.TargetVersion)>40||len(a.SHA256)!=64{return errors.New("invalid upgrade metadata")}
+ expires,e:=time.Parse(time.RFC3339,a.ExpiresAt);if e!=nil||time.Now().After(expires){return errors.New("upgrade instruction expired")}
+ if os.Geteuid()!=0{return errors.New("upgrade requires root")}
+ if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return errors.New("unsupported upgrade platform")}
+ expected,e:=hex.DecodeString(a.SHA256);if e!=nil||len(expected)!=32{return errors.New("invalid expected checksum")}
+ url:=c.Controller+"/downloads/tinkertunnel-host-linux-arm64"
+ req,e:=http.NewRequest(http.MethodGet,url,nil);if e!=nil{return e}
+ res,e:=httpClient.Do(req);if e!=nil{return e};defer res.Body.Close()
+ if res.StatusCode!=200{return fmt.Errorf("upgrade download HTTP %d",res.StatusCode)}
+ binary,e:=io.ReadAll(io.LimitReader(res.Body,32*1024*1024+1));if e!=nil{return e}
+ if len(binary)<1024||len(binary)>32*1024*1024||!bytes.Equal(binary[:4],[]byte{0x7f,'E','L','F'}){return errors.New("invalid upgrade binary")}
+ sum:=sha256.Sum256(binary);if !bytes.Equal(sum[:],expected){return errors.New("upgrade digest mismatch")}
+ if e=os.MkdirAll(dataDir,0700);e!=nil{return e}
+ staged:=filepath.Join(dataDir,"upgrade-pending")
+ if e=os.WriteFile(staged+".tmp",binary,0700);e!=nil{return e}
+ if e=os.Rename(staged+".tmp",staged);e!=nil{return e}
+ if e=os.WriteFile(filepath.Join(dataDir,"upgrade-target"),[]byte(a.TargetVersion),0600);e!=nil{return e}
+ return nil
+}
+// This command is executed by systemd independently after the controller ACK.
+// It retains the previous executable for automatic rollback on restart failure.
+func applyUpgrade()error{
+ if os.Geteuid()!=0{return errors.New("upgrade requires root")}
+ staged:=filepath.Join(dataDir,"upgrade-pending")
+ target,e:=os.ReadFile(filepath.Join(dataDir,"upgrade-target"));if e!=nil{return e}
+ if !strings.Contains(string(target),"."){return errors.New("invalid staged target")}
+ oldPath:="/usr/local/bin/tinkertunnel-host"
+ backup:=filepath.Join(dataDir,"host-previous")
+ old,e:=os.ReadFile(oldPath);if e!=nil{return e}
+ if e=os.WriteFile(backup,old,0700);e!=nil{return e}
+ next,e:=os.ReadFile(staged);if e!=nil{return e}
+ swap:=oldPath+".next"
+ if e=os.WriteFile(swap,next,0700);e!=nil{return e}
+ if e=os.Rename(swap,oldPath);e!=nil{return e}
+ if e=runCmd("","","systemctl","restart","tinkertunnel-host.service");e!=nil{
+  _=os.WriteFile(swap,old,0700);_=os.Rename(swap,oldPath)
+  _=runCmd("","","systemctl","restart","tinkertunnel-host.service")
+  return e
+ }
+ time.Sleep(4*time.Second)
+ if e=runCmd("","","systemctl","is-active","--quiet","tinkertunnel-host.service");e!=nil{
+  _=os.WriteFile(swap,old,0700);_=os.Rename(swap,oldPath)
+  _=runCmd("","","systemctl","restart","tinkertunnel-host.service")
+  return errors.New("new host service failed health check; rolled back")
+ }
+ _=os.Remove(staged);_=os.Remove(filepath.Join(dataDir,"upgrade-target"))
+ return nil
+}
+
 // Remove only explicitly TinkerTunnel-managed paths; never uninstall SSH or Avahi.
 // Cleanup of this running daemon is scheduled after its report has reached the controller.
 func stopManagedRunner()error{
@@ -167,6 +233,6 @@ rm -f /run/tinkertunnel-finalize.sh
 }
 func main(){
  command:="";if len(os.Args)>1{command=os.Args[1]}
- var err error;switch command{case "join":err=join();case "serve":err=run();case "version":fmt.Println(version);default:err=errors.New("usage: tinkertunnel-host serve|join|version")}
+ var err error;switch command{case "join":err=join();case "serve":err=run();case "version":fmt.Println(version);case "apply-upgrade":err=applyUpgrade();default:err=errors.New("usage: tinkertunnel-host serve|join|version|apply-upgrade")}
  if err!=nil{log.Fatal(err)}
 }
