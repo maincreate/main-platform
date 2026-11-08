@@ -692,6 +692,10 @@ export async function localRoute(req) {
           repositoriesScanned:repos.length,partial:errors.length>0,
           message:errors.length?"Some workflow histories could not be read; check GitHub App Actions read permissions.":null});
       }
+      if(path==="/api/local/ux-flows"&&method==="GET"){
+        const manifest=JSON.parse(readFileSync(new URL("../registry/ux-flows.json",import.meta.url),"utf8"));
+        return reply({schema:manifest.schema,version:manifest.version,flows:manifest.flows});
+      }
       if(path==="/api/local/microcontrollers"&&method==="GET")return reply(microcontrollerCatalog());
       if(path==="/api/local/devices"&&method==="GET"){
         try{
