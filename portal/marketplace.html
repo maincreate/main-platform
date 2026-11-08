@@ -5,6 +5,12 @@
 <section class="inventory-panel"><div class="panel-heading"><div><h2>Toolchain families</h2><p>Versioned releases and platform compatibility profiles.</p></div></div>
 <div class="inventory-toolbar"><input id="marketplaceSearch" type="search" placeholder="Search toolchains or versions" aria-label="Search marketplace"></div>
 <div id="marketplaceFamilies" class="tt-marketplace-grid"></div></section>
+<section class="inventory-panel" aria-labelledby="microcontrollerCatalogTitle">
+ <div class="panel-heading"><div><h2 id="microcontrollerCatalogTitle">Microcontroller compatibility library</h2>
+ <p>Browse MCU families and candidate SDK versions. Catalog references are not validated installations or flashing approvals.</p></div></div>
+ <div class="inventory-toolbar"><input id="mcuSearch" type="search" placeholder="Search chips or SDKs" aria-label="Search microcontroller catalog"></div>
+ <div id="mcuCatalog" class="tt-marketplace-grid"><p>Loading microcontroller references…</p></div>
+</section>
 <section id="marketplaceDetail" class="inventory-panel" hidden><div class="panel-heading">
 <div><h2 id="marketplaceFamilyTitle"></h2><p>Choose a specific release.</p></div>
 <button id="marketplaceClose" class="plain-button" type="button">Close</button></div>
