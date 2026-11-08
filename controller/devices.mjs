@@ -39,7 +39,7 @@ const clean=(d,now=Date.now())=>({
  serialNumber:d.serialNumber||null,location:d.location||null,interface:d.interface||null,
  identityConfidence:d.identityConfidence,firstSeen:d.firstSeen,lastSeen:d.lastSeen,
  connected:lifecycle(d,now)==="connected",lifecycle:lifecycle(d,now),label:d.label||null,
- flashEligible:d.identityConfidence==="serial"&&lifecycle(d,now)==="connected"
+ flashEligible:false,chipVerified:false
 });
 export function reportDevices(runner,raw,now=Date.now()){
  if(!Array.isArray(raw)||raw.length>MAX_REPORTED)throw err(422,"Invalid device report");
@@ -97,7 +97,7 @@ export function listDevices(args={},now=Date.now()){
  for(const d of state.records)byState[lifecycle(d,now)]++;
  return {devices:records,summary:{total:state.records.length,...byState},
   policy:{hideAfterDays:7,archiveAfterDays:30,autoRestore:true,
-   flashRequiresStableSerial:true}};
+   flashRequiresStableSerial:true,flashRequiresVerifiedChip:true,flashingEnabled:false}};
 }
 export function findDevice(id){return load().records.find(d=>d.id===id)||null;}
 export function renameDevice(id,label){
