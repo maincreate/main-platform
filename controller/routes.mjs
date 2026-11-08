@@ -871,7 +871,7 @@ export async function localRoute(req) {
           input.labels.some(l=>typeof l!=="string"||!/^[a-zA-Z0-9_-]{1,40}$/.test(l)))
           return deny(422,"Provide a runner ID and up to 15 valid labels");
         const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
-        if(!managed||!/^tt-[A-Za-z0-9._-]+$/.test(input.runnerName||""))
+        if(!managed||typeof input.runnerName!=="string"||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}$/.test(input.runnerName))
           return deny(403,"Only enrolled TinkerTunnel-managed runner labels can be edited");
         // Match the claimed managed runner to the GitHub runner ID before mutating any labels.
         const remote=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId,{
@@ -881,8 +881,8 @@ export async function localRoute(req) {
         if(!remote.ok)return deny(502,"Unable to verify GitHub runner identity");
         const identity=await remote.json();
         if(identity.name!==input.runnerName)return deny(403,"GitHub runner ID does not match managed host");
-        const labels=[...new Set(input.labels)].filter(l=>l.startsWith("tt-"));
-        if(labels.length!==input.labels.length)return deny(422,"Custom labels must start with tt-");
+        const labels=[...new Set(input.labels)];
+        if(labels.length!==input.labels.length)return deny(422,"Duplicate labels are not allowed");
         const current=state().runners.find(r=>r.githubRunnerName===input.runnerName);
         for(const required of current.labels||[])if(!labels.includes(required))labels.push(required);
         const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId+"/labels",{
