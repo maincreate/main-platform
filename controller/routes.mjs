@@ -700,6 +700,27 @@ export async function localRoute(req) {
         try{return reply({device:renameDevice(b.device_id,b.label)});}
         catch(e){return deny(e.status||422,e.message);}
       }
+      if(path==="/api/local/activity"&&method==="GET"){
+        const range=new URL(req.url).searchParams.get("range")||"7d";
+        if(!["24h","7d","30d"].includes(range))return deny(422,"Unsupported activity range");
+        // This is the currently retained local job ledger, not GitHub Actions history.
+        const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
+        const events=jobs.flatMap(job=>{
+          const timestamp=job.started_at||job.created_at;
+          const time=Date.parse(timestamp||"");
+          if(!Number.isFinite(time))return [];
+          const category=/\.build$|build/i.test(job.capability||"")?"build":"job";
+          return [{id:job.id,type:category,source:"local",title:job.capability||"Job",
+            builderId:job.runner_id||null,status:job.status||"unknown",
+            time:new Date(time).toISOString(),url:"/jobs?job="+encodeURIComponent(job.id)}];
+        });
+        const now=Date.now(),span={"24h":86400000,"7d":604800000,"30d":2592000000}[range];
+        return reply({range,generatedAt:new Date(now).toISOString(),retainedJobLimit:50,
+          coverage:{localJobs:true,githubActions:false,deployments:false,flashes:false,
+            note:"Local jobs only. GitHub Actions, deployments and device flashes are not yet recorded in this timeline."},
+          events:events.filter(e=>Date.parse(e.time)>=now-span&&Date.parse(e.time)<=now)
+            .sort((a,b)=>a.time.localeCompare(b.time))});
+      }
       if(path==="/api/local/overview"&&method==="GET"){
         const stored=state(),current=session(req);
         return reply({
