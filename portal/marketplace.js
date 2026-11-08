@@ -1,60 +1,98 @@
 "use strict";
 const $=id=>document.getElementById(id);
-const category=$("marketplaceCategory"),rows=$("marketplaceRows"),tiles=$("marketplaceTiles");
-const search=$("marketplaceSearch"),os=$("marketplaceOs"),notice=$("marketplaceNotice");
-let catalog=[],view="tiles";
-const approvedLogos={
- "esp-idf":"https://github.com/espressif.png?size=96",
- "lvgl":"https://github.com/lvgl.png?size=96",
- "swift":"https://github.com/swiftlang.png?size=96"
-};
-try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
-function text(parent,tag,value,cls){const el=document.createElement(tag);if(value!==undefined)el.textContent=String(value);if(cls)el.className=cls;parent.append(el);return el;}
-function matching(){
- const query=search.value.trim().toLowerCase(),platform=os.value;
- return catalog.filter(x=>(!category.value||x.category===category.value)&&
-  (!query||[x.name,x.id,x.description,x.category].join(" ").toLowerCase().includes(query))&&
-  (!platform||x.targets?.some(t=>t.os===platform)));
+let csrf=null,builders=[],releases=[],plans=[],selection=new Set(),current=null;
+let placement="selected";
+const esc=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el;};
+async function api(path,data){
+ const headers={};if(data!==undefined){headers["content-type"]="application/json";headers["x-tt-csrf"]=csrf;}
+ const r=await fetch(path,{credentials:"same-origin",cache:"no-store",method:data===undefined?"GET":"POST",
+  headers,body:data===undefined?undefined:JSON.stringify(data)});
+ const json=await r.json().catch(()=>({}));if(!r.ok)throw Error(json.error||"HTTP "+r.status);return json;
+}
+function compatible(b,r){return !!b.managedHost&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch);}
+function familyGroups(){
+ const q=$("marketplaceSearch").value.toLowerCase().trim();
+ return [...new Set(releases.filter(r=>!q||[r.name,r.family,r.category,r.version].join(" ").toLowerCase().includes(q)).map(r=>r.family))];
 }
 function render(){
- tiles.replaceChildren();rows.replaceChildren();
- $("marketplaceTable").hidden=view!=="list";tiles.hidden=view!=="tiles";
- $("tileView").setAttribute("aria-pressed",String(view==="tiles"));
- $("listView").setAttribute("aria-pressed",String(view==="list"));
- for(const item of matching()){
-  const targets=(item.targets||[]).filter(t=>!os.value||t.os===os.value);
-  const tile=text(tiles,"article",undefined,"tt-marketplace-tile");
-  const top=text(tile,"div",undefined,"tt-marketplace-tile-head");
-  const icon=text(top,"div",item.icon||item.name.slice(0,2),"tt-marketplace-logo");
-  if(approvedLogos[item.id]){
-   icon.textContent="";
-   const img=document.createElement("img");img.src=approvedLogos[item.id];
-   img.alt="";img.loading="lazy";img.referrerPolicy="no-referrer";
-   img.addEventListener("error",()=>{icon.textContent=item.icon||item.name.slice(0,2);img.remove();},{once:true});
-   icon.append(img);
-  }
-  const labels=text(top,"div");text(labels,"h3",item.name);text(labels,"small","v"+item.version);
-  text(tile,"p",item.description||"");
-  text(tile,"span",item.category,"tt-marketplace-category");
-  text(tile,"div",targets.map(t=>t.os+"/"+t.arch).join(" · "),"tt-marketplace-targets");
-  const tr=text(rows,"tr");text(tr,"td",item.name);text(tr,"td",item.version);
-  text(tr,"td",item.category);text(tr,"td",targets.map(t=>t.os+"/"+t.arch).join(", "));
-  text(tr,"td",[...new Set(targets.map(t=>t.readiness||"unverified"))].join(", "));
+ const list=$("marketplaceFamilies");list.replaceChildren();
+ for(const family of familyGroups()){
+  const versions=releases.filter(x=>x.family===family);
+  const box=esc("article",undefined,"tt-marketplace-tile");
+  const title=esc("h3",versions[0].name);box.append(title,esc("p",versions[0].category));
+  box.append(esc("small",versions.length+" selectable release"+(versions.length===1?"":"s")));
+  const choose=esc("button","View versions","plain-button");
+  choose.type="button";choose.addEventListener("click",()=>openFamily(family));box.append(choose);list.append(box);
+ }
+ if(!list.children.length)list.textContent="No matching marketplace families.";
+}
+function openFamily(family){
+ current=null;const versions=releases.filter(x=>x.family===family);
+ $("marketplaceFamilyTitle").textContent=versions[0]?.name||family;
+ const list=$("marketplaceVersions");list.replaceChildren();
+ for(const release of versions){
+  const row=esc("div",undefined,"tt-marketplace-version");
+  const button=esc("button",release.version+" · "+release.targets.map(t=>t.os+"/"+t.arch).join(", "),"plain-button");
+  button.type="button";button.addEventListener("click",()=>openRelease(release));row.append(button);list.append(row);
+ }
+ $("marketplaceDetail").hidden=false;$("marketplacePlan").hidden=true;
+}
+function openRelease(release){
+ current=release;selection=new Set();placement="selected";
+ $("marketplaceReleaseTitle").textContent=release.name+" "+release.version;
+ $("placementSelected").checked=true;$("placementAll").checked=false;
+ $("marketplacePlan").hidden=false;renderTargets();
+}
+function renderTargets(){
+ const list=$("marketplaceTargets");list.replaceChildren();
+ for(const builder of builders){
+  const match=compatible(builder,current),row=esc("label",undefined,"tt-marketplace-target-row");
+  const check=document.createElement("input");check.type="checkbox";check.disabled=!match||placement==="all-compatible";
+  check.checked=placement==="all-compatible"?match:selection.has(builder.id);
+  check.addEventListener("change",()=>{if(check.checked)selection.add(builder.id);else selection.delete(builder.id);renderTargets();});
+  row.append(check);
+  const meta=esc("span");meta.append(esc("strong",builder.assignment?.displayName||builder.name));
+  meta.append(esc("small",(builder.assignment?.location||"Location not set")+" · "+
+    (builder.assignment?.assignedTo||"Unassigned")+" · "+builder.os+"/"+builder.arch+
+    (match?"":" · Incompatible or unmanaged")));
+  row.append(meta);list.append(row);
+ }
+ const count=placement==="all-compatible"?builders.filter(b=>compatible(b,current)).length:selection.size;
+ $("marketplaceTargetCount").textContent=count+" builder"+(count===1?"":"s")+" targeted";
+ $("marketplaceSubmit").disabled=!count;
+}
+function renderPlans(){
+ const box=$("marketplacePlans");box.replaceChildren();
+ if(!plans.length){box.textContent="No installation plans yet.";return;}
+ for(const plan of plans.slice(0,10)){
+  const row=esc("div",undefined,"tt-marketplace-plan-row");
+  row.append(esc("strong",plan.family+"@"+plan.version));
+  row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · Planned; not installed"));
+  box.append(row);
  }
 }
 async function load(){
  try{
-  const response=await fetch("/api/v1/catalog",{cache:"no-store"});
-  if(!response.ok)throw Error("Catalog request failed");
-  const data=await response.json();catalog=data.frameworks||[];
-  category.replaceChildren();const all=document.createElement("option");all.value="";all.textContent="All categories";category.append(all);
-  for(const value of [...new Set(catalog.map(x=>x.category))].sort()){
-   const option=document.createElement("option");option.value=value;option.textContent=value;category.append(option);
-  }
-  notice.textContent="";render();
- }catch(e){notice.textContent=e.message;tiles.replaceChildren();rows.replaceChildren();}
+  const [overview,catalog,history]=await Promise.all([
+   api("/api/local/overview"),api("/api/local/marketplace/releases"),api("/api/local/marketplace/plans")]);
+  csrf=overview.csrf;builders=overview.runners.items||[];releases=catalog.releases||[];plans=history.plans||[];
+  render();renderPlans();
+ }catch(e){$("marketplaceNotice").textContent=e.message;}
 }
-for(const control of [search,os,category])control.addEventListener(control===search?"input":"change",render);
-$("tileView").addEventListener("click",()=>{view="tiles";render();});
-$("listView").addEventListener("click",()=>{view="list";render();});
+$("marketplaceSearch").addEventListener("input",render);
+for(const [id,value] of [["placementSelected","selected"],["placementAll","all-compatible"]])
+ $(id).addEventListener("change",()=>{placement=value;renderTargets();});
+$("marketplaceClose").addEventListener("click",()=>{$("marketplaceDetail").hidden=true;});
+$("marketplaceSubmit").addEventListener("click",async()=>{
+ if(!current)return;
+ const button=$("marketplaceSubmit");button.disabled=true;
+ try{
+  const input={family:current.family,version:current.version,placement};
+  if(placement==="selected")input.builder_ids=[...selection];
+  const result=await api("/api/local/marketplace/plan",input);
+  $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved for "+result.plan.targets.length+
+   " builder(s). No software installed: validated recipes and Host Service update capabilities are still required.";
+  plans.unshift(result.plan);renderPlans();
+ }catch(e){$("marketplaceNotice").textContent=e.message;}finally{renderTargets();}
+});
 load();

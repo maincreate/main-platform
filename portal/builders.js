@@ -20,6 +20,16 @@ function el(tag,value,cls){const n=document.createElement(tag);if(value!==undefi
 function status(message){$("notification").textContent=message||"";}
 function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
+function editBuilderAssignment(host){
+ const current=host.assignment||{};
+ const name=prompt("Display name",current.displayName||host.name);if(name===null)return;
+ const location=prompt("Location (site / room / desk)",current.location||"");if(location===null)return;
+ const assignedTo=prompt("Assigned engineer or team",current.assignedTo||"");if(assignedTo===null)return;
+ const accessGroup=prompt("Access group (informational; not authorization)",current.accessGroup||"");if(accessGroup===null)return;
+ api("/api/local/builders/assignment",{builderId:host.id,assignment:{displayName:name,location,assignedTo,accessGroup}})
+  .then(()=>{status("Builder metadata saved. Access-group metadata is not an access-control policy.");return load();})
+  .catch(e=>status("Unable to save builder metadata: "+e.message));
+}
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
 function builderStage(host){
  if(host.decommission?.phase==="failed")return "removal-failed";
@@ -124,7 +134,10 @@ function renderBuilders(){
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
  for(const host of shown){
   const tr=el("tr");
-  tr.append(el("td",host.name),el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")),
+  tr.append(el("td",(host.assignment?.displayName||host.name)+
+   (host.assignment?.location?" · "+host.assignment.location:"")+
+   (host.assignment?.assignedTo?" · "+host.assignment.assignedTo:"")),
+   el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")),
    el("td",currentState(host)==="online"?"Online":"Offline"));
   const tools=el("td"),packages=host.packages||[];
   if(packages.length){
@@ -158,6 +171,7 @@ function renderBuilders(){
   trigger.setAttribute("title","Builder actions");
   const panel=el("div",undefined,"tt-builder-menu-panel");
   panel.setAttribute("role","menu");
+  panel.append(menuAction("Edit details / location",()=>editBuilderAssignment(host)));
   if(stage==="setup-incomplete"){
    panel.append(menuAction("Retry GitHub registration",()=>requestRunnerSetup(host),
      currentState(host)!=="online"||!host.managedHost));

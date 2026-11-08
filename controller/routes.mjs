@@ -8,6 +8,7 @@ import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.m
 import {listProjects,syncProjects} from "./projects.mjs";
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
+import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
@@ -286,7 +287,7 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal"+path+".html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
-  if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css","/builder-actions.css"].includes(path)&&method==="GET"){
+  if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css","/builder-actions.css","/marketplace-planning.css"].includes(path)&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{
       "content-type":(path.endsWith(".css")?"text/css":"text/javascript")+"; charset=utf-8","cache-control":"no-store"}});
@@ -367,6 +368,28 @@ export async function localRoute(req) {
       if(rejected)return rejected;
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
+      if(path==="/api/local/marketplace/releases"&&method==="GET")
+        return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
+      if(path==="/api/local/marketplace/plans"&&method==="GET")
+        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse()});
+      if(path==="/api/local/marketplace/plan"&&method==="POST"){
+        try{
+          const input=await body(req),s=state();
+          const plan=makeInstallationPlan(input,s.runners,session(req).username);
+          s.marketplacePlans=[...(s.marketplacePlans||[]).slice(-99),plan];save(s);
+          return reply({plan},201);
+        }catch(e){return deny(e.status||422,e.message)}
+      }
+      if(path==="/api/local/builders/assignment"&&method==="POST"){
+        try{
+          const input=await body(req);
+          if(typeof input.builderId!=="string")return deny(422,"Builder ID required");
+          const metadata=validateAssignment(input.assignment),s=state();
+          const host=s.runners.find(r=>r.id===input.builderId);
+          if(!host)return deny(404,"Builder not found");
+          host.assignment=metadata;save(s);return reply({builderId:host.id,assignment:metadata});
+        }catch(e){return deny(e.status||422,e.message)}
+      }
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
@@ -696,6 +719,7 @@ export async function localRoute(req) {
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
               labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
+              assignment:r.assignment||{displayName:"",location:"",assignedTo:"",accessGroup:""},
               decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null}:null
             })),
             truncated:stored.runners.length>24,
