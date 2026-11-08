@@ -44,6 +44,12 @@ The dashboard shows actual connection status rather than pretending integrations
 
 The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Paper** available as alternatives. Each browser remembers its selection.
 
+## Optional OpenAI private MCP tunnel
+
+Main{Create} has an opt-in `openai-tunnel` Compose profile using the official, version-pinned OpenAI `tunnel-client` image. It makes outbound HTTPS connections to OpenAI while keeping the Main{Create} MCP gateway on the private Compose network. Local file secrets hold the OpenAI runtime API key and the gateway bearer header; neither is stored by the portal or published to a public HTTP endpoint. An OpenAI Platform tunnel ID, runtime key and ChatGPT plugin connection are still required from the operator. The portal does not claim a tunnel is connected until externally verified.
+
+See [OpenAI Secure MCP Tunnel runbook](docs/openai-secure-mcp-tunnel.md). Claude tunnel support is intentionally deferred.
+
 ## Capability Fabric v0.2
 
 The gateway exposes **six stable MCP tools**: `maincreate_discover`, `maincreate_inspect`, `maincreate_plan`, `maincreate_execute`, `maincreate_jobs`, and `maincreate_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
