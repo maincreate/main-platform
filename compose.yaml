@@ -75,6 +75,12 @@ services:
     cpus: 0.5
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
+    healthcheck:
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:3001/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
   tunnel:
     profiles: ["tunnel"]
@@ -89,6 +95,35 @@ services:
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
+
+  # OpenAI Secure MCP Tunnel: the only external connection is outbound HTTPS to OpenAI.
+  # Never publish port 3001 or any tunnel-client health/admin port.
+  # This is a separate tunnel identity from other MCP/Agentic deployments.
+  openai-tunnel:
+    profiles: ["openai-tunnel"]
+    image: ghcr.io/openai/tunnel-client:v0.0.19
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      CONTROL_PLANE_TUNNEL_ID: ${MAIN_OPENAI_TUNNEL_ID:-}
+      CONTROL_PLANE_API_KEY: file:/run/secrets/openai_runtime_api_key
+      MCP_SERVER_URL: http://gateway:3001/mcp
+      MCP_EXTRA_HEADERS: "Authorization: file:/run/secrets/main_mcp_auth_header"
+      MCP_DISCOVERY_EXTRA_HEADERS: "Authorization: file:/run/secrets/main_mcp_auth_header"
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      HEALTH_LISTEN_ADDR: 127.0.0.1:8080
+    secrets:
+      - openai_runtime_api_key
+      - main_mcp_auth_header
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.25
 
   runner:
     profiles: ["runner"]
@@ -114,3 +149,11 @@ services:
 volumes:
   main_data:
   main_runner:
+
+# Secrets are intentionally supplied as local, untracked files. The OpenAI API key
+# and the MCP bearer header must never be committed or pasted into the web UI.
+secrets:
+  openai_runtime_api_key:
+    file: ${MAIN_OPENAI_API_KEY_FILE:-./secrets/openai-runtime-api-key}
+  main_mcp_auth_header:
+    file: ${MAIN_MCP_AUTH_HEADER_FILE:-./secrets/main-mcp-auth-header}
