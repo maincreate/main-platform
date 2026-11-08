@@ -4,6 +4,23 @@ import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
 import {queueRunnerProvisioning,actionStatus} from './runner_provisioning.mjs';
 
 const builderFresh = r => !!(r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000);
+// Active work must have a live action lease. Persisted phases alone are not evidence.
+export function removalActivity(host,actions=[],now=Date.now()){
+ const d=host?.decommission;
+ if(!d)return null;
+ if(d.phase==='failed')return {stalled:false,active:false,reason:d.error||'Removal failed'};
+ const relevant=actions.filter(a=>a.runnerId===host.id&&
+  ['github-runner.stop','host.cleanup'].includes(a.type)).at(-1);
+ const active=!!relevant&&['queued','claimed'].includes(relevant.status)&&
+  Number.isFinite(Date.parse(relevant.expiresAt))&&Date.parse(relevant.expiresAt)>now;
+ // Unregistration is controller-side work after stop completes, not another host action.
+ const recentControllerStep=['unregistering','unregistered','controller'].includes(d.phase)&&
+  relevant?.status==='completed'&&Number.isFinite(Date.parse(relevant.completedAt))&&
+  now-Date.parse(relevant.completedAt)<30000;
+ return {active:active||recentControllerStep,stalled:!active&&!recentControllerStep,
+  actionStatus:relevant?.status||null,expiresAt:relevant?.expiresAt||null,
+  reason:active||recentControllerStep?null:'No active removal action; previous step may have stopped'};
+}
 function failedInitialSetup(host,actions){
  if(host.githubRunnerName)return false;
  const items=actions.filter(a=>a.runnerId===host.id);
@@ -212,6 +229,22 @@ export async function adminHostRoute(req,ctx){
    }
   }
   return reply({runnerId:host.id,name:host.name,ready,checkedAt:new Date().toISOString(),checks});
+ }
+ if(path==='/api/local/builders/removal/reconcile'&&method==='POST'){
+  const input=await body(req),s=state(),host=s.runners.find(r=>r.id===input.runnerId);
+  if(!host)return deny(404,'Builder not found.');
+  if(!host.decommission)return reply({status:'not_removing'});
+  const activity=removalActivity(host,s.hostActions||[]);
+  if(!activity.stalled)return reply({status:'active',activity});
+  for(const action of s.hostActions||[]){
+   if(action.runnerId===host.id&&['github-runner.stop','host.cleanup'].includes(action.type)&&
+      ['queued','claimed'].includes(action.status)&&Date.parse(action.expiresAt)<=Date.now()){
+    action.status='expired';action.completedAt=new Date().toISOString();delete action.secret;
+   }
+  }
+  host.decommission.phase='failed';
+  host.decommission.error='Removal stopped: no active action. Inspect the host and GitHub state before retrying.';
+  save(s);return reply({status:'stalled',activity:removalActivity(host,s.hostActions||[])});
  }
  if(path==='/api/local/builders/remove'&&method==='POST'){
   const input=await body(req),id=input.runnerId;
