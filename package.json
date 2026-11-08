@@ -9,6 +9,8 @@
   },
   "scripts": {
     "start": "node portal/server.mjs",
-    "test": "node --test portal/*.test.cjs controller/*.test.mjs"
+    "test": "node --test portal/*.test.cjs controller/*.test.mjs",
+    "docs:generate": "node scripts/ux-docs.mjs --write",
+    "docs:check": "node scripts/ux-docs.mjs --check"
   }
 }
