@@ -17,7 +17,14 @@ async function api(path,body,signal){
  return data;
 }
 function el(tag,value,cls){const n=document.createElement(tag);if(value!==undefined)n.textContent=String(value);if(cls)n.className=cls;return n;}
-function status(message){$("notification").textContent=message||"";}
+let notificationTimer;
+function status(message){
+ const banner=$("notification");
+ clearTimeout(notificationTimer);
+ banner.textContent=message||"";
+ banner.hidden=!message;
+ if(message)notificationTimer=setTimeout(()=>status(""),10000);
+}
 function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
 
@@ -115,7 +122,6 @@ async function validateBuilder(host){
   for(const item of result.checks||[])lines.push(item.label+": "+item.status+(item.detail?" — "+item.detail:""));
   status(lines.join(" | "));
   await load();
-  if(result.ready)status("");
  }catch(e){status("Validation failed: "+e.message)}
 }
 
@@ -128,6 +134,34 @@ function dismissDialogOnBackdrop(dialog){
   if(event.clientX<rect.left||event.clientX>rect.right||
      event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();
  });
+}
+const historyDialog=$("provisioningHistoryDialog");
+let historyRequest;
+dismissDialogOnBackdrop(historyDialog);
+historyDialog.addEventListener("close",()=>historyRequest?.abort());
+async function openProvisioningHistory(host){
+ historyRequest?.abort();
+ const request=new AbortController();
+ historyRequest=request;
+ const holder=$("provisioningHistory");
+ $("provisioningHistoryTitle").textContent="Provisioning history · "+host.name;
+ holder.textContent="Loading provisioning history…";
+ historyDialog.showModal();
+ try{
+  const {actions}=await api("/api/local/builders/actions?runnerId="+encodeURIComponent(host.id),undefined,request.signal);
+  if(request.signal.aborted)return;
+  const jobs=(actions||[]).filter(action=>action.type==="github-runner.provision").reverse();
+  if(!jobs.length){holder.textContent="No provisioning attempts recorded for this host.";return;}
+  const list=el("ol");
+  for(const job of jobs){
+   const when=job.completedAt||job.createdAt;
+   const timestamp=when?new Date(when).toLocaleString()+" · ":"";
+   list.append(el("li",timestamp+job.status+(job.message?" · "+job.message:"")));
+  }
+  holder.replaceChildren(list);
+ }catch(e){
+  if(!request.signal.aborted)holder.textContent="Unable to load provisioning history: "+e.message;
+ }
 }
 dismissDialogOnBackdrop(removeDialog);
 removeDialog.addEventListener("close",()=>{
@@ -426,19 +460,29 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
  finally{syncRemoveConfirmation()}
 });
 
+function builderHealth(host,signals){
+ const provision=hostActions.findLast(a=>a.runnerId===host.id&&a.type==="github-runner.provision");
+ if(signals.host.level==="bad"||host.decommission?.phase==="failed"||host.upgrade?.phase==="failed"||
+    (!host.githubRunnerName&&["failed","expired"].includes(provision?.status)))return "Failed";
+ if(host.decommission||["queued","installing"].includes(host.upgrade?.phase)||
+    signals.software.level!=="good"||signals.github.level!=="good")return "Degraded";
+ return "Online";
+}
 function renderBuilders(){
  const holder=$("runners-list");holder.replaceChildren();
  const search=$("builderSearch").value.toLowerCase().trim(),filter=$("builderStatus").value;
- const shown=builders.filter(host=>(filter==="all"||filter===currentState(host))&&
+ const shown=builders.map(host=>{
+  const signals=builderSignals(host);
+  return {host,signals,health:builderHealth(host,signals)};
+ }).filter(({host,health})=>(filter==="all"||filter===health.toLowerCase())&&
   (!search||[host.name,host.os,host.arch,...(host.packages||[]).map(p=>p.name)].join(" ").toLowerCase().includes(search)));
  if(!shown.length){holder.append(el("p","No builders match this filter."));return}
  const table=el("table",undefined,"inventory-table"),head=el("tr");
  for(const label of ["Hostname","Platform","Build Host","Main{Create} Software","GitHub Registration","Toolchains","Status","Actions"])head.append(el("th",label));
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
- for(const host of shown){
+ for(const {host,signals,health} of shown){
   const tr=el("tr");
   tr.append(el("td",host.name),el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")));
-  const signals=builderSignals(host);
   for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","Main{Create} Software",signals.software],["github","GitHub Runner Registration",signals.github]]){
    const cell=el("td");cell.append(statusSignal(kind,label,signal));tr.append(cell);
   }
@@ -449,22 +493,7 @@ function renderBuilders(){
    details.append(summary,ul);tools.append(details);
   }else tools.textContent="Not yet reported";
   tr.append(tools);
-  const action=recentAction(host),state=action?.status,runnerCell=el("td");
-  if(host.decommission)runnerCell.textContent=removalStatus(host);
-  else if(host.upgrade&&["queued","installing","failed"].includes(host.upgrade.phase))
-   runnerCell.textContent="Host upgrade "+host.upgrade.phase+
-    (host.upgrade.error?" · "+host.upgrade.error:"");
-  else if(host.githubRunnerName){
-   const known=githubRunners.find(r=>r.name===host.githubRunnerName);
-   const runnerOnline=String(known?.status||"").toLowerCase()==="online";
-   runnerCell.textContent=(runnerOnline&&currentState(host)==="online"?"Ready":"Registered · not verified online")+
-    " · "+host.githubRunnerName+(known?" · "+known.status:" · verify in GitHub");
-  }else if(state==="queued")runnerCell.textContent="Runner setup queued · not ready";
-  else if(state==="claimed")runnerCell.textContent="Runner installation / registration in progress · not ready";
-  else if(state==="failed"||state==="expired")runnerCell.textContent="Runner setup "+state+" · not ready"+(action.message?" · "+action.message:"");
-  else if(host.managedHost)runnerCell.textContent="Host paired · runner not installed · not ready";
-  else runnerCell.textContent="Not controller-managed";
-  tr.append(runnerCell);
+  tr.append(el("td",health));
   const controls=el("td");
   controls.replaceChildren();
   controls.classList.add("maincreate-builder-action-cell");
@@ -509,6 +538,7 @@ function renderBuilders(){
     panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
    }
   }
+  panel.append(menuAction("Provisioning history",()=>openProvisioningHistory(host)));
   menu.append(trigger,panel);controls.append(menu);
   tr.append(controls);tbody.append(tr);
  }
@@ -564,11 +594,7 @@ async function load(){
  builders=overview.runners?.items||[];
  try{
   const history=await api("/api/local/builders/actions");hostActions=history.actions||[];
-  const list=$("hostActions");list.replaceChildren();
-  for(const job of hostActions.slice(-10).reverse())
-   list.append(el("p",job.runnerName+" · "+job.status+(job.message?" · "+job.message:"")));
-  if(!list.childNodes.length)list.textContent="No provisioning actions yet.";
- }catch(e){$("hostActions").textContent=e.message}
+ }catch{hostActions=[]}
  try{
   const listing=await api("/api/local/builders/github-runners");
   githubRunners=listing.runners||[];renderGithub();
