@@ -272,6 +272,11 @@ function progressMode(enabled){
  $("cancelRemoveBuilder").textContent=enabled?"Close":"Cancel";
 }
 function renderRemovalProgress(result){
+ if(result.stalled&&result.phase!=="failed"){
+  const current=result.stages?.find(s=>s.status==="active");
+  if(current)result={...result,stages:result.stages.map(s=>s.id===current.id?
+   {...s,status:"failed",detail:"No active removal action was found. The workflow is stalled."}:s)};
+ }
  const list=$("removeBuilderStages");list.replaceChildren();
  for(const id of ["stopping","unregistering","cleaning","controller"]){
   const stage=result.stages?.find(x=>x.id===id)||{status:"pending"};
@@ -372,7 +377,18 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
   }
   await load();
   startRemovalPoll();
- }catch(e){$("removeBuilderFeedback").textContent=e.message;}
+ }catch(e){
+  $("removeBuilderFeedback").textContent=e.message;
+  // A controller-side error may occur after removal was recorded. Show its
+  // persisted timeline rather than leaving users at an obsolete confirmation.
+  try{
+   const persisted=await api("/api/local/builders/remove/status?id="+encodeURIComponent(host.id));
+   if(persisted.phase||persisted.removed){
+    progressMode(true);renderRemovalProgress(persisted);
+    if(!persisted.removed&&persisted.phase!=="failed"&&!persisted.stalled)startRemovalPoll();
+   }
+  }catch{}
+ }
  finally{syncRemoveConfirmation()}
 });
 
