@@ -83,7 +83,15 @@ function renderBuilders(){
     try{
       const result=await api("/api/local/builders/remove",{runnerId:host.id,confirmName});
       await load();
-      status(result.name+" removed. GitHub: "+result.githubResult+". Before re-adding, run the local uninstall/cleanup procedure on the host, then reinstall and pair. Removing the controller record does not erase files on the Pi.");
+      const command='curl -fsSLo /tmp/tinkertunnel-uninstall.sh '+location.origin+
+        '/uninstall.sh && sudo bash /tmp/tinkertunnel-uninstall.sh --yes --purge-state --purge-unregistered-runner'+
+        (result.githubResult==="removed"||result.githubResult==="already_removed"?' --github-removed="$(hostname)"':'');
+      const output=$("builderRemovalInstructions");
+      output.hidden=false;output.replaceChildren();
+      output.append(el("strong",result.name+" removed from TinkerTunnel · GitHub: "+result.githubResult));
+      output.append(el("p","Run this on the removed machine to clear its old local identity and runner files, then reinstall and pair again. Confirm GitHub removal before any local registered-runner cleanup."));
+      const pre=el("pre"),code=el("code",command);pre.append(code);output.append(pre);
+      status("Builder removed. Cleanup on the former builder is still required before re-adding.");
     }catch(e){status("Remove failed: "+e.message)}finally{remove.disabled=false}
   });
   controls.append(remove);
