@@ -103,61 +103,127 @@ async function load(){
   if(!list.childNodes.length)list.textContent="No controller provisioning actions yet.";
  }catch(e){$("hostActions").textContent=e.message}
 }
-// Only architectures recognized by runner/agent.mjs are offered.
-// These are source-based Node.js instructions, not native installers.
+// The Host Service currently supports these six Node.js 22+ 64-bit platforms.
+// These commands install no OS daemon and require no inbound connection.
 const builderPlatforms=Object.freeze({
  linux:{
-  name:"Linux",shell:"a terminal (Bash or compatible shell)",
-  details:{arm64:"64-bit ARM Linux (e.g., Raspberry Pi OS 64-bit); use an ARM64 build of Node.js.",x64:"64-bit Intel/AMD Linux; use an x64 build of Node.js."},
-  prerequisites:"Install Git and Node.js 22+ for the selected CPU architecture. The OS must be 64-bit; 32-bit ARM is not supported.",
+  shell:"a terminal (Bash or compatible shell)",
+  details:{arm64:"64-bit ARM Linux (including Raspberry Pi OS 64-bit).",x64:"64-bit Intel/AMD Linux."},
+  prerequisites:"Install Git and Node.js 22+ for this CPU. 32-bit ARM is not supported.",
   cd:"cd tinkertunnel",pair:"node runner/service.mjs pair",run:"node runner/service.mjs run"
  },
  macos:{
-  name:"macOS",shell:"Terminal (zsh)",
-  details:{arm64:"Apple silicon Macs (M1 or later); use native ARM64 Node.js.",x64:"Intel Macs; use an x64 build of Node.js."},
-  prerequisites:"Install Git (Xcode Command Line Tools is one option) and Node.js 22+ for your Mac architecture.",
+  shell:"Terminal (zsh)",
+  details:{arm64:"Apple silicon Mac (M1 or later).",x64:"Intel Mac."},
+  prerequisites:"Install Git (Xcode Command Line Tools is one option) and Node.js 22+ for this architecture.",
   cd:"cd tinkertunnel",pair:"node runner/service.mjs pair",run:"node runner/service.mjs run"
  },
  windows:{
-  name:"Windows",shell:"PowerShell",
-  details:{arm64:"Windows on ARM64; use ARM64 Node.js, not an emulated x64 process.",x64:"64-bit Intel/AMD Windows; use an x64 build of Node.js."},
-  prerequisites:"Install Git for Windows and Node.js 22+ for the selected architecture. Open PowerShell and verify both commands are available in PATH.",
+  shell:"PowerShell",
+  details:{arm64:"Windows on ARM64; use an ARM64 Node.js runtime.",x64:"64-bit Intel/AMD Windows."},
+  prerequisites:"Install Git for Windows and Node.js 22+ for your CPU architecture. Restart PowerShell so both are on PATH.",
   cd:"Set-Location .\\tinkertunnel",pair:"node .\\runner\\service.mjs pair",run:"node .\\runner\\service.mjs run"
  }
 });
 function platformCommands(os,arch){
- const p=builderPlatforms[os];
- if(!p||!Object.hasOwn(p.details,arch))throw Error("Unsupported builder platform");
- const verify= os==="windows"? 'node -p "process.platform + \'/\' + process.arch"':'node -p "process.platform + \'/\' + process.arch"';
- const expect={linux:"linux",macos:"darwin",windows:"win32"}[os]+"/"+arch;
+ const platform=builderPlatforms[os];
+ if(!platform||!Object.hasOwn(platform.details,arch))throw Error("Unsupported builder platform");
+ const expected={linux:"linux",macos:"darwin",windows:"win32"}[os]+"/"+arch;
  return {prepare:[
   "node --version",
   "git --version",
-  verify,
-  "# Expected platform: "+expect,
+  'node -p "process.platform + \'/\' + process.arch"',
+  "# Verify the result above equals "+expected+" before proceeding",
   "git clone https://github.com/TinkerTunnel/tinkertunnel.git",
-  p.cd,p.pair
- ].join("\n"),run:p.run,platform:p};
+  platform.cd,
+  platform.pair
+ ].join("\n"),run:platform.run,platform};
 }
 function updateBuilderInstructions(){
  const os=$("builderOS").value,arch=$("builderArch").value;
- const options=platformCommands(os,arch);
- $("platformDetails").textContent=options.platform.details[arch];
- $("platformPrerequisites").textContent=options.platform.prerequisites;
- $("platformTerminal").textContent=options.platform.shell;
- $("installCommand").textContent=options.prepare;
- $("runCommand").textContent=options.run;
+ const selected=platformCommands(os,arch);
+ $("platformDetails").textContent=selected.platform.details[arch];
+ $("platformPrerequisites").textContent=selected.platform.prerequisites;
+ $("platformTerminal").textContent=selected.platform.shell;
+ $("installCommand").textContent=selected.prepare;
+ $("runCommand").textContent=selected.run;
  $("dialogCopyStatus").textContent="";
 }
-$("builderOS").addEventListener("change",updateBuilderInstructions);
-$("builderArch").addEventListener("change",updateBuilderInstructions);
+function wizardStep(step){
+ for(const [id,index] of [["builderStepOne",1],["builderStepTwo",2],["builderStepThree",3]]){
+  $(id).hidden=index!==step;
+ }
+ for(const [id,index] of [["stepOneMarker",1],["stepTwoMarker",2],["stepThreeMarker",3]]){
+  $(id).classList.toggle("active",index===step);
+ }
+}
+let selectedPendingHost=null;
+async function loadPairing(id){
+ if(!/^[a-f0-9]{32}$/.test(id)){
+  $("hostPairStatus").textContent="Enter the 32-character pairing ID printed on your build machine.";
+  $("hostPairDetails").hidden=true;selectedPendingHost=null;return;
+ }
+ $("hostPairStatus").textContent="Looking up the host announcement...";
+ $("hostPairDetails").hidden=true;selectedPendingHost=null;
+ try{
+  const response=await api("/api/local/builders/pending");
+  const candidate=(response.hosts||[]).find(x=>x.id===id&&x.status==="pending");
+  if(!candidate)throw Error("Host not found. Run the pair command on the machine and use its latest pairing URL.");
+  selectedPendingHost=candidate;
+  $("pairHostName").textContent=candidate.name;
+  $("pairHostPlatform").textContent=candidate.os+" / "+candidate.arch;
+  $("pairHostFingerprint").textContent=candidate.fingerprint;
+  $("confirmHostPair").checked=false;$("approveHostPair").disabled=true;
+  $("hostPairDetails").hidden=false;
+  $("hostPairStatus").textContent="Compare this fingerprint to the build machine's terminal output.";
+ }catch(e){$("hostPairStatus").textContent=e.message;}
+}
 function openDialog(){
  $("controllerAddress").textContent=location.origin;
  updateBuilderInstructions();
+ $("hostPairId").value="";
+ $("confirmHostPair").checked=false;
+ $("hostPairDetails").hidden=true;
+ $("hostPairStatus").textContent="";
+ $("dialogCopyStatus").textContent="";
+ selectedPendingHost=null;
+ const query=new URLSearchParams(location.search);
+ const pairingId=(query.get("pair")||"").toLowerCase();
+ if(query.get("add")==="1"&&/^[a-f0-9]{32}$/.test(pairingId)){
+  wizardStep(2);$("hostPairId").value=pairingId;
+  loadPairing(pairingId);
+ }else wizardStep(1);
  $("addBuilderDialog").showModal();
 }
+$("builderOS").addEventListener("change",updateBuilderInstructions);
+$("builderArch").addEventListener("change",updateBuilderInstructions);
+$("builderNext").addEventListener("click",()=>wizardStep(2));
+$("builderBack").addEventListener("click",()=>wizardStep(1));
 $("addBuilder").addEventListener("click",openDialog);
-$("cancelBuilder").addEventListener("click",()=>$("addBuilderDialog").close());
+$("cancelBuilder").addEventListener("click",()=> $("addBuilderDialog").close());
+$("builderDone").addEventListener("click",()=>{
+ $("addBuilderDialog").close();load().catch(e=>status(e.message));
+});
+$("lookupHostPair").addEventListener("click",()=>loadPairing($("hostPairId").value.trim().toLowerCase()));
+$("hostPairId").addEventListener("input",()=>{
+ selectedPendingHost=null;$("hostPairDetails").hidden=true;$("confirmHostPair").checked=false;
+ $("approveHostPair").disabled=true;
+});
+$("confirmHostPair").addEventListener("change",()=>{
+ $("approveHostPair").disabled=!$("confirmHostPair").checked||!selectedPendingHost;
+});
+$("approveHostPair").addEventListener("click",async()=>{
+ const host=selectedPendingHost;
+ if(!host||!$("confirmHostPair").checked)return;
+ $("approveHostPair").disabled=true;
+ $("hostPairStatus").textContent="Approving verified host...";
+ try{
+  await api("/api/local/builders/approve",
+   {id:host.id,fingerprint:host.fingerprint,confirmed:true});
+  $("hostPairStatus").textContent="Approved. The host will complete enrollment.";
+  wizardStep(3);
+ }catch(e){$("hostPairStatus").textContent=e.message; $("approveHostPair").disabled=false;}
+});
 $("refresh").addEventListener("click",()=>load().catch(e=>status(e.message)));
 $("builderSearch").addEventListener("input",renderBuilders);
 $("builderStatus").addEventListener("change",renderBuilders);
