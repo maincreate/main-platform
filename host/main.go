@@ -153,7 +153,7 @@ func cleanupManagedHost()error{
  // The delayed one-shot is independent of this service; it stops and removes
  // the Host Service only after the completed action has been acknowledged.
  script:="/run/tinkertunnel-finalize.sh"
- contents:`#!/bin/sh
+ contents:=`#!/bin/sh
 set -eu
 systemctl disable --now tinkertunnel-host.service
 rm -f /etc/systemd/system/tinkertunnel-host.service /usr/local/bin/tinkertunnel-host /etc/sudoers.d/90-tinkertunnel-pair
