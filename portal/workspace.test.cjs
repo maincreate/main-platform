@@ -37,6 +37,9 @@ test("workspace serves current builder, marketplace, and job experiences",async(
   const overview=readFileSync(resolve(__dirname,"dashboard.html"),"utf8");
   const dashboardScript=await page("/dashboard.js");
   assert.ok(dashboardScript.includes("loadActivity"));
+  assert.ok(dashboardScript.includes("getBoundingClientRect().width"),"Activity chart must measure its container width");
+  assert.ok(dashboardScript.includes("ResizeObserver"),"Activity chart must respond to panel resize");
+  assert.ok(!dashboardScript.includes("width=960,height=230"),"Activity chart must not use a fixed 960px plot");
   for(const id of ["activityChart","activityDetails","recentJobs"])
    assert.ok(overview.includes('id="'+id+'"'),"Overview missing "+id);
   const activityStyle=await page("/activity.css");
