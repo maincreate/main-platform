@@ -181,3 +181,29 @@ test('Successful validation clears stale removal and retains recovery audit',asy
   assert.equal(h.state().builderRecoveryAudit.length,1);
  }finally{globalThis.fetch=old;}
 });
+
+test('Remote upgrade requires a managed, reachable, protocol-capable host',async()=>{
+ const h=harness({online:true,registered:true});
+ assert.equal((await h.call('/api/local/builders/upgrade',{runnerId:ID})).status,422);
+ const s=h.state();s.runners[0].managedHost={host:'192.168.100.200'};
+ s.runners[0].hostVersion='0.4.0';h.setState(s);
+ const legacy=await h.call('/api/local/builders/upgrade',{runnerId:ID});
+ assert.equal(legacy.status,409);
+ assert.match(legacy.data.error,/once/i);
+ assert.equal(h.state().hostActions.length,0);
+ const fresh=h.state();fresh.runners[0].hostVersion='0.5.0';h.setState(fresh);
+ assert.equal((await h.call('/api/local/builders/upgrade',{runnerId:ID})).status,409);
+});
+test('Successful staged upgrade acknowledgement requires a new heartbeat for completion',async()=>{
+ const h=harness({online:true,registered:true,actions:[{
+  id:'upgrade-job',type:'host.upgrade',runnerId:ID,runnerName:'builder-linux-arm64-01',
+  status:'claimed',targetVersion:'0.6.0',sha256:'a'.repeat(64),
+  expiresAt:new Date(Date.now()+60000).toISOString()
+ }]});
+ const s=h.state();s.runners[0].upgrade={phase:'queued',targetVersion:'0.6.0',actionId:'upgrade-job'};
+ h.setState(s);
+ const result=await h.call('/api/agent/actions/complete',{id:ID,action_id:'upgrade-job',success:true,message:'staged'},true);
+ assert.equal(result.status,200);
+ assert.equal(h.state().runners[0].upgrade.phase,'installing');
+ assert.equal(h.state().hostActions[0].status,'completed');
+});
