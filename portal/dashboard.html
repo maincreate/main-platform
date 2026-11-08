@@ -2,7 +2,7 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TinkerTunnel • Workspace overview</title>
-<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
+<link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/activity.css">
 <script src="/dashboard.js" defer></script></head>
 <body data-theme="midnight">
 <aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/" aria-current="page">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span><span id="workspaceOrg">GitHub organization</span> / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
@@ -19,6 +19,25 @@
   <a class="metric-card" href="/builders"><span>Build machines</span><strong id="builderCount">—</strong><small id="builderMeta">Heartbeat status</small></a>
   <a class="metric-card" href="/devices"><span>USB devices</span><strong id="deviceCount">—</strong><small id="deviceMeta">Currently connected</small></a>
   <a class="metric-card" href="/jobs#history"><span>Build jobs</span><strong id="jobCount">—</strong><small id="jobMeta">Activity and approvals</small></a>
+ </section>
+ <section class="workspace-panel tt-activity" aria-labelledby="activityTitle">
+  <div class="panel-heading tt-activity-heading">
+   <div><p class="eyebrow">ACTIVITY / TIMELINE</p><h2 id="activityTitle">Build and job activity</h2>
+    <p class="tt-activity-subtitle">Recorded operations over time. Select a bar to inspect its jobs and builders.</p></div>
+   <div class="tt-activity-ranges" role="group" aria-label="Activity time range">
+    <button type="button" data-activity-range="24h">24 hours</button>
+    <button type="button" data-activity-range="7d" aria-pressed="true">7 days</button>
+    <button type="button" data-activity-range="30d">30 days</button>
+   </div>
+  </div>
+  <div id="activityLegend" class="tt-activity-legend" aria-label="Chart categories">
+   <span class="tt-legend-build">Builds</span><span class="tt-legend-job">Jobs</span>
+  </div>
+  <div id="activityChart" class="tt-activity-chart" role="group" aria-label="Operations over time">
+   <p class="empty-state">Loading recorded activity…</p>
+  </div>
+  <p id="activityCoverage" class="tt-activity-coverage" role="status"></p>
+  <div id="activityDetails" class="tt-activity-details" aria-live="polite"></div>
  </section>
  <div class="workspace-columns">
   <section class="workspace-panel" aria-labelledby="recentBuildsTitle">
