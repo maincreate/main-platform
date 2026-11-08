@@ -2,7 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {hostDistributionRoute,adminHostRoute,agentHostRoute} from "./host_routes.mjs";
+import {hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
@@ -730,7 +730,7 @@ export async function localRoute(req) {
                error:null
               },
               assignment:r.assignment||{displayName:"",location:"",assignedTo:"",accessGroup:""},
-              decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null}:null
+              decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null,...removalActivity(r,stored.hostActions||[])}:null
             })),
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
