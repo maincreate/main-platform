@@ -12,7 +12,7 @@ test('Versioned registry returns releases and recognized host compatibility',()=
  assert.equal(classifyBuilder(unmanaged,esp).compatible,false);
  const arduino=releases().find(x=>x.id==='arduino-cli@1.5.1');
  assert.equal(arduino.installable,true);
- assert.equal(arduino.targets[0].sha256,'1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62');
+ assert.equal(arduino.targets[0].url,undefined);assert.equal(arduino.targets[0].sha256,undefined);
  assert(releases().some(x=>x.id==='esp-idf@6.1'&&x.reviewOnly===true));
  assert.equal(releases().some(x=>x.id==='esp-idf@6.4'),false);
 });
@@ -21,6 +21,11 @@ test('Selected builders is explicit, durable and does not install',()=>{
  assert.equal(plan.targets.length,1);assert.equal(plan.targets[0].location,'Orlando / desk');
  assert.equal(plan.execution,'not_started');assert.equal(plan.status,'planned');
  assert.equal(plan.targets[0].status,'awaiting_validated_installer');
+ assert.equal(plan.job_ids,undefined);
+});
+test('validated Arduino planning is side-effect free until a separate request',()=>{
+ const plan=makeInstallationPlan({family:'arduino-cli',version:'1.5.1',placement:'selected',builder_ids:['a']},hosts,'tester');
+ assert.equal(plan.installable,true);assert.equal(plan.execution,'not_started');assert.equal(plan.job_ids,undefined);
 });
 test('All-compatible includes only managed and matching platform variants',()=>{
  const plan=makeInstallationPlan({family:'swift',version:'6.1.2',placement:'all-compatible'},hosts,'tester');

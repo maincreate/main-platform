@@ -113,9 +113,14 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
   const input={family:current.family,version:current.version,placement};
   if(placement==="selected")input.builder_ids=[...selection];
   const result=await api("/api/local/marketplace/plan",input);
-  $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved for "+result.plan.targets.length+
-   " builder(s). No software installed: validated recipes and Host Service update capabilities are still required.";
+  $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved. No installation job requested.";
+  $("marketplaceRequest").hidden=!result.plan.installable;
   plans.unshift(result.plan);renderPlans();
  }catch(e){$("marketplaceNotice").textContent=e.message;}finally{renderTargets();}
+});
+$("marketplaceRequest").addEventListener("click",async()=>{
+ const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;button.disabled=true;
+ try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
+ catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
 load();

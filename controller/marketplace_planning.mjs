@@ -3,7 +3,7 @@
 const releaseList=Object.freeze([
  {family:'esp-idf',name:'ESP-IDF',version:'5.5.6',category:'Embedded SDK',installable:false,targets:[{os:'linux',arch:'arm64',readiness:'pilot'},{os:'linux',arch:'x64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'},{os:'macos',arch:'arm64',readiness:'review'}]},
  {family:'esp-idf',name:'ESP-IDF',version:'6.1',category:'Embedded SDK',installable:false,reviewOnly:true,targets:[{os:'linux',arch:'arm64',readiness:'review'},{os:'linux',arch:'x64',readiness:'review'}]},
- {family:'arduino-cli',name:'Arduino CLI',version:'1.5.1',category:'Embedded SDK',installable:true,source:'https://github.com/arduino/arduino-cli/releases/tag/v1.5.1',targets:[{os:'linux',arch:'arm64',readiness:'validated',url:'https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz',sha256:'1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62'},{os:'linux',arch:'x64',readiness:'validated',url:'https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz',sha256:'28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b'}]},
+ {family:'arduino-cli',name:'Arduino CLI',version:'1.5.1',category:'Embedded SDK',installable:true,source:'https://github.com/arduino/arduino-cli/releases/tag/v1.5.1',targets:[{os:'linux',arch:'arm64',readiness:'validated'},{os:'linux',arch:'x64',readiness:'validated'}]},
  {family:'lvgl',name:'LVGL',version:'9.x',category:'UI Framework',targets:[{os:'linux',arch:'arm64',readiness:'review'},{os:'macos',arch:'arm64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'}]},
  {family:'swift',name:'Swift Toolchain',version:'6.1.2',category:'Application SDK',targets:[{os:'macos',arch:'arm64',readiness:'pilot'},{os:'linux',arch:'x64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'}]}
 ]);
@@ -39,7 +39,7 @@ export function makeInstallationPlan(input,builders,actor){
    assignedTo:host.assignment?.assignedTo||'',readiness:match.readiness,
    status:'awaiting_validated_installer'};
  });
-  return {id:crypto.randomUUID(),family:release.family,version:release.version,
+  return {id:crypto.randomUUID(),family:release.family,version:release.version,installable:release.installable===true,
   placement:input.placement,targets:recorded,createdBy:actor,createdAt:new Date().toISOString(),
   status:'planned',execution:'not_started',
   reason:release.installable?'Validated recipe selected; execution still requires an explicit approved fabric job and runner opt-in. No host changes made.':'Review-only catalog entry; no installer is enabled for this release. No host changes made.'};

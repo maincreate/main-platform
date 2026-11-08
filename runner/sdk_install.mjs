@@ -1,8 +1,8 @@
 import {createHash} from 'node:crypto';
-import {createWriteStream,existsSync,mkdirSync,readFileSync,renameSync,rmSync,statSync,symlinkSync} from 'node:fs';
+import {existsSync,mkdirSync,renameSync,rmSync,chmodSync,statSync} from 'node:fs';
 import {promises as fs} from 'node:fs';
-import {join,basename,dirname,resolve,relative} from 'node:path';
-import {homedir,platform,arch} from 'node:os';
+import {join,dirname,resolve} from 'node:path';
+import {homedir,arch} from 'node:os';
 import {spawn} from 'node:child_process';
 
 export const ARDUINO_CLI_RELEASE={
@@ -24,10 +24,26 @@ export function validateArchiveEntry(name){
   const p=resolve('/stage',name);
   return !name.startsWith('/')&&!name.includes('\\')&&!name.split('/').includes('..')&&p.startsWith('/stage/');
 }
-async function download(url){
-  const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(10*60*1000)});
-  if(!response.ok)throw new Error('SDK download HTTP '+response.status);
-  return Buffer.from(await response.arrayBuffer());
+export function isExactArduinoVersion(output){
+  return typeof output==='string'&&/arduino-cli(?: version)?\s+1\.5\.1(?:\s|$)/i.test(output);
+}
+export async function download(url){
+  const allowed=new Set(['github.com','objects.githubusercontent.com','release-assets.githubusercontent.com']);
+  let current=new URL(url);const started=Date.now();
+  for(let redirects=0;redirects<=3;redirects++){
+    if(current.protocol!=='https:'||!allowed.has(current.hostname))throw new Error('SDK download URL is not an approved HTTPS GitHub asset');
+    const response=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(120000)});
+    if(response.status>=300&&response.status<400){
+      const location=response.headers.get('location');if(!location)throw new Error('SDK redirect has no location');
+      current=new URL(location,current);if(Date.now()-started>10*60*1000)throw new Error('SDK download timed out');continue;
+    }
+    if(!response.ok)throw new Error('SDK download HTTP '+response.status);
+    const length=Number(response.headers.get('content-length')||0);if(length>256*1024*1024)throw new Error('SDK archive too large');
+    const reader=response.body?.getReader();if(!reader)throw new Error('SDK download has no body');const chunks=[];let total=0;
+    for(;;){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>256*1024*1024)throw new Error('SDK archive too large');chunks.push(Buffer.from(value));}
+    return Buffer.concat(chunks,total);
+  }
+  throw new Error('Too many SDK download redirects');
 }
 function tarList(archive){
   return new Promise((resolvePromise,reject)=>{
@@ -42,7 +58,7 @@ async function untarGzip(archive,stage){
   // The release archive is handled by the fixed system tar utility with no shell,
   // no user-controlled arguments, and a validated staging directory.
   return new Promise((resolvePromise,reject)=>{
-    const child=spawn('tar',['-xzf','-','-C',stage],{shell:false,stdio:['pipe','ignore','pipe']});
+    const child=spawn('tar',['-xzf','-','-C',stage,'--no-same-owner','--no-same-permissions','--no-overwrite-dir'],{shell:false,stdio:['pipe','ignore','pipe']});
     let error='';child.stderr.on('data',x=>error+=String(x));child.on('error',reject);
     child.on('close',code=>code===0?resolvePromise(names):reject(new Error('SDK archive extraction failed: '+error.slice(-500))));
     child.stdin.end(archive);
@@ -52,8 +68,11 @@ async function verifyBinary(binary){
   return new Promise((resolvePromise,reject)=>{
     const child=spawn(binary,['version'],{shell:false,stdio:['ignore','pipe','pipe']});let out='';
     child.stdout.on('data',x=>out+=String(x));child.stderr.on('data',x=>out+=String(x));child.on('error',reject);
-    child.on('close',code=>code===0&&out.includes('arduino-cli')?resolvePromise(out.trim().slice(0,500)):reject(new Error('Installed Arduino CLI failed version verification')));
+    child.on('close',code=>code===0&&isExactArduinoVersion(out)?resolvePromise(out.trim().slice(0,500)):reject(new Error('Installed Arduino CLI is not exact version 1.5.1')));
   });
+}
+export function installedArduinoCli(root=sdkRoot(),os='linux',architecture=arch()){
+  return join(root,'arduino-cli','1.5.1',targetKey(os,architecture).replace('/','-'),'arduino-cli');
 }
 export async function installArduinoCli({os='linux',architecture=arch(),root=sdkRoot(),downloadFn=download}={}){
   if(os!=='linux'||!['arm64','x64'].includes(architecture))throw new Error('Arduino CLI supports Linux ARM64 and Linux x64 only');
@@ -67,7 +86,7 @@ export async function installArduinoCli({os='linux',architecture=arch(),root=sdk
     const binary=names.find(x=>x==='arduino-cli');if(!binary)throw new Error('SDK archive has no expected arduino-cli binary');
     const stagedBinary=join(stage,binary);const version=await verifyBinary(stagedBinary);
     if(existsSync(backup))rmSync(backup,{recursive:true,force:true});if(existsSync(parent))renameSync(parent,backup);
-    renameSync(stage,parent);try{await verifyBinary(join(parent,'arduino-cli'));}catch(e){if(existsSync(parent))rmSync(parent,{recursive:true,force:true});if(existsSync(backup))renameSync(backup,parent);throw e;}
+    renameSync(stage,parent);chmodSync(join(parent,'arduino-cli'),0o755);try{await verifyBinary(join(parent,'arduino-cli'));}catch(e){if(existsSync(parent))rmSync(parent,{recursive:true,force:true});if(existsSync(backup))renameSync(backup,parent);throw e;}
     if(existsSync(backup))rmSync(backup,{recursive:true,force:true});
     return {status:'installed',family:'arduino-cli',version:'1.5.1',target:targetKey(os,architecture),path:parent,sha256:digest,verification:version};
   }catch(e){if(existsSync(stage))rmSync(stage,{recursive:true,force:true});throw e;}

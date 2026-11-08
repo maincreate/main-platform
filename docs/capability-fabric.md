@@ -35,6 +35,8 @@ Implemented adapters:
 
 The existing ESP-IDF 5.5.6 catalog remains review/catalog-only, and ESP-IDF 6.1 is review-only. No ESP-IDF installer is enabled by this MVP. `firmware.esp_idf.flash` and `deployment.release` remain unavailable.
 
+Marketplace **Save installation plan** is side-effect-free. A separate **Request installation** action validates the saved plan and creates one approval-pending fabric job per supported builder; it does not approve, claim, or install jobs. Repeated requests are rejected while a builder has an active or completed job, and partial builder failures remain visible per target.
+
 Example planning request:
 
 ```json

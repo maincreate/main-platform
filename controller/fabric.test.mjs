@@ -55,6 +55,12 @@ test("execution requires signed-in portal approval before runner can claim",()=>
  assert.equal(done.status,"completed");
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.logs,"Snapshot done");
 });
+test("Arduino install requests create one approval-pending job per builder and do not claim",()=>{
+ const plans=[runner,other].map(r=>invoke("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:r.id,parameters:{}}));
+ const jobs=plans.map(p=>invoke("maincreate_execute",{plan_id:p.plan_id}).job);
+ assert.deepEqual(jobs.map(j=>j.status),["awaiting_approval","awaiting_approval"]);
+ assert.equal(claimJob(runner).job,null);assert.equal(claimJob(other).job,null);
+});
 test("composed workflow is one approval with pinned ordered actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
   parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});
