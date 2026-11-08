@@ -17,3 +17,15 @@
 .tt-builder-menu-action:disabled{opacity:.5;cursor:not-allowed}
 .tt-builder-menu-action:last-child:not(:first-child){border-top:1px solid var(--line)}
 .tt-builder-menu-disabled{display:block;color:var(--muted);font-size:13px;padding:12px}
+
+/* Independent operational health indicators, with accessible icon/tooltips and status text. */
+.tt-builder-signal{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:12px;line-height:1.5}
+.tt-builder-signal-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid currentColor;border-radius:8px;flex:none}
+.tt-signal-good{color:#279c69}
+.tt-signal-warn{color:#d18a25}
+.tt-signal-bad{color:#d25a5a}
+.tt-signal-unknown{color:var(--muted)}
+.tt-builder-signal-text{color:var(--text)}
+.tt-builder-signal:hover .tt-builder-signal-icon{background:var(--soft)}
+.inventory-table td{vertical-align:middle}
+@media(max-width:1050px){.inventory-table{min-width:1050px}.inventory-panel{overflow-x:auto}}
