@@ -93,7 +93,7 @@ rm -f -- "$HOST_BIN" "$PAIR_RULE"
 status OK "Host executable and pairing sudo rule removed."
 if "$PURGE_FILES"; then
   if "$REGISTERED_LOCAL"; then
-    if [[ -x "$RUNNER_DIR/svc.sh" ]]; then
+    if [[ -e "$RUNNER_DIR/.service" && -x "$RUNNER_DIR/svc.sh" ]]; then
       (cd "$RUNNER_DIR" && ./svc.sh stop) || true
       (cd "$RUNNER_DIR" && ./svc.sh uninstall)
       status OK "Previously registered runner service uninstalled."
