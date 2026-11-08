@@ -5,11 +5,11 @@
  <p class="eyebrow">FLEET / BUILD MACHINES</p>
  <div class="setting-row"><div><h1>Builders</h1><p>Manage your distributed build fleet and its GitHub Actions runners.</p></div><button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
  <p id="notification" class="home-error" role="status" aria-live="polite"></p>
- <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Connected hosts and installed packages.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Host Service health and GitHub runner readiness are separate. A builder is ready only when its runner is confirmed Online.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
   <div class="inventory-toolbar"><input id="builderSearch" type="search" placeholder="Search builders or tools" aria-label="Search builders"><select id="builderStatus" aria-label="Filter builders"><option value="all">All builders</option><option value="online">Online</option><option value="offline">Offline</option></select></div>
   <div id="runners-list" aria-live="polite"></div></section>
  <section class="inventory-panel"><div class="panel-heading"><div><h2>GitHub Actions runners</h2><p>Registered runners from the selected organization.</p></div></div><div id="githubRunners" aria-live="polite"></div></section>
- <section class="inventory-panel"><div class="panel-heading"><div><h2>Host provisioning activity</h2><p>Controller-issued runner registration actions.</p></div></div><div id="hostActions"></div></section>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>Host provisioning activity</h2><p>Runner installation and registration actions, including failures.</p></div></div><div id="hostActions"></div></section>
 
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle" aria-describedby="builderIntro">
  <div class="tt-builder-content">
@@ -32,7 +32,7 @@
     <div id="instructions-linux-arm64" role="tabpanel" aria-labelledby="platform-linux-arm64">
      <p><strong>Available for testing · Raspberry Pi OS Lite 64-bit.</strong> In Raspberry Pi Imager, set a hostname, local username/password, and enable SSH with password authentication. Boot and SSH into the Pi.</p>
      <div class="tt-command-block"><pre class="tt-service-command"><code id="installCommand"></code></pre><button type="button" id="copyInstallCommand" class="plain-button">Copy</button></div>
-     <p class="tt-builder-footnote">One-time installer: Linux ARM64 only. It installs the persistent Host Service; GitHub registration happens after pairing.</p>
+     <p class="tt-builder-footnote">One-time installer: Linux ARM64 only. A successful install verifies the Host Service—not the GitHub runner. Pair the host, complete runner setup, and confirm Online status.</p>
     </div>
     <div id="instructions-linux-x64" role="tabpanel" aria-labelledby="platform-linux-x64" hidden><p><strong>Coming soon.</strong> A native Linux x64 installer and controller-managed runner provisioning are planned for VMs and x86 mini PCs. The ARM64 installer will not work here.</p></div>
     <div id="instructions-macos-arm64" role="tabpanel" aria-labelledby="platform-macos-arm64" hidden><p><strong>Coming soon.</strong> Apple Silicon Mac host service, launchd support and Xcode-aware builder registration are planned. No native installer is released for this platform.</p></div>

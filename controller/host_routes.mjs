@@ -7,6 +7,7 @@ export function hostDistributionRoute(req){
  const path=new URL(req.url).pathname,method=req.method;
  if(method!=='GET')return null;
  if(path==='/install.sh')return new Response(readFileSync(new URL('../scripts/install-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
+ if(path==='/uninstall.sh')return new Response(readFileSync(new URL('../scripts/uninstall-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
  if(path==='/downloads/tinkertunnel-host-linux-arm64')return new Response(readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url)),{headers:{'content-type':'application/octet-stream','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
  if(path==='/downloads/tinkertunnel-host-linux-arm64.sha256'){
   const data=readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url));
@@ -60,8 +61,8 @@ export async function adminHostRoute(req,ctx){
   return reply({runner:{id:runner.id,name:runner.name,os:runner.os,arch:runner.arch,
     managedHost:savedRunner?.managedHost,githubRunnerName:savedRunner?.githubRunnerName||null},
     provisioning,provisioningError,
-    message:provisioning?'Paired. Controller queued GitHub Actions registration using hostname '+runner.name+'.':
-      'Host paired. GitHub runner provisioning needs attention.'});
+    message:provisioning?'Host Service paired; GitHub runner installation and registration queued for '+runner.name+'. Builder not ready until GitHub confirms Online.':
+      'Host Service paired; GitHub runner setup incomplete. Inspect the Builders error before retrying.'});
  }
  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/provision'&&method==='POST'){
