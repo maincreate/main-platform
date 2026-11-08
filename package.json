@@ -10,8 +10,5 @@
   "scripts": {
     "start": "node portal/server.mjs",
     "test": "node --test portal/*.test.cjs controller/*.test.mjs"
-  },
-  "dependencies": {
-    "ssh2": "1.17.0"
   }
 }

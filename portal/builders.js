@@ -83,55 +83,13 @@ async function load(){
  }catch(e){$("githubRunners").textContent=e.message;}
 }
 function openDialog(){
- fingerprint=null;operation=null;
- $("addBuilderForm").reset();$("builderTrust").hidden=true;
- $("probeBuilder").hidden=false;$("enrollBuilder").hidden=true;
- $("builderProgress").textContent="";
+ $("controllerAddress").textContent=location.origin;
  $("addBuilderDialog").showModal();
 }
 $("addBuilder").addEventListener("click",openDialog);
-$("cancelBuilder").addEventListener("click",()=>{if(!operation)$("addBuilderDialog").close();});
+$("cancelBuilder").addEventListener("click",()=>$("addBuilderDialog").close());
 $("refresh").addEventListener("click",()=>load().catch(e=>status(e.message)));
 $("builderSearch").addEventListener("input",renderBuilders);
 $("builderStatus").addEventListener("change",renderBuilders);
-$("addBuilderForm").addEventListener("submit",async e=>{
- e.preventDefault();const button=$("probeBuilder");button.disabled=true;
- $("builderProgress").textContent="Checking SSH host identity…";
- try{
-  if(!csrf)await load();
-  const r=await api("/api/local/builders/ssh/probe",{
-   address:$("hostAddress").value.trim(),username:$("hostUsername").value.trim()
-  });
-  fingerprint=r.fingerprint;$("hostFingerprint").textContent=fingerprint;
-  $("builderTrust").hidden=false;$("enrollBuilder").hidden=false;button.hidden=true;
-  $("builderProgress").textContent="Verify this fingerprint on your machine before continuing.";
- }catch(err){$("builderProgress").textContent=err.message;}
- finally{button.disabled=false;}
-});
-$("enrollBuilder").addEventListener("click",async()=>{
- const button=$("enrollBuilder");button.disabled=true;
- $("builderProgress").textContent="Starting managed enrollment…";
- try{
-  const response=await api("/api/local/builders/ssh/enroll",{
-   address:$("hostAddress").value.trim(),username:$("hostUsername").value.trim(),
-   password:$("hostPassword").value,fingerprint,controllerUrl:location.origin
-  });
-  $("hostPassword").value="";
-  operation=response.operationId;
-  $("cancelBuilder").disabled=true;
-  for(let i=0;i<240;i++){
-   await new Promise(r=>setTimeout(r,1500));
-   const state=await api("/api/local/builders/ssh/status?id="+encodeURIComponent(operation));
-   $("builderProgress").textContent=state.stage||"Enrolling…";
-   if(state.state==="failed")throw Error(state.error||"Enrollment failed");
-   if(state.state==="complete"){
-    $("addBuilderDialog").close();status("Managed builder enrolled successfully.");
-    await load();return;
-   }
-  }
-  throw Error("Enrollment is continuing; check Builders again for its result.");
- }catch(e){$("builderProgress").textContent=e.message;button.disabled=false;}
- finally{$("cancelBuilder").disabled=false;}
-});
 if(new URLSearchParams(location.search).get("add")==="1")openDialog();
 load().catch(e=>status(e.message));

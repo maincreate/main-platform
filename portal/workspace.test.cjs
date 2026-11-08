@@ -23,9 +23,9 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     const builders = await page("/builders");
     assert.match(builders, /id="runners-list"/);
     assert.match(builders, /id="addBuilderDialog"/);
-    assert.match(builders, /id="hostAddress"/);
-    assert.match(builders, /id="hostUsername"/);
-    assert.match(builders, /id="hostPassword"/);
+    assert.match(builders, /node runner\/service.mjs pair/);
+
+
     assert.doesNotMatch(builders, /Generate pairing token/);
     assert.match(builders, /GitHub Actions runners/);
     const jobs = await page("/jobs");

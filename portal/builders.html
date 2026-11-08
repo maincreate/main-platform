@@ -19,25 +19,18 @@
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle">
   <form id="addBuilderForm">
    <h2 id="addBuilderTitle">Add a build machine</h2>
-   <p>Enter the machine's SSH address and administrator credentials. TinkerTunnel manages runner enrollment and service setup.</p>
-   <label for="hostAddress">Host URL or IP address</label>
-   <input id="hostAddress" name="address" placeholder="192.168.22.41 or ssh://builder.local" required autocomplete="off">
-   <label for="hostUsername">Username</label>
-   <input id="hostUsername" name="username" placeholder="administrator" required autocomplete="username">
-   <label for="hostPassword">Password</label>
-   <input id="hostPassword" name="password" type="password" autocomplete="off" required>
-   <div id="builderTrust" hidden>
-    <h3>Verify host identity</h3>
-    <p>Confirm that this SSH fingerprint matches the machine you are adding before sending its password.</p>
-    <code id="hostFingerprint"></code>
-   </div>
-   <p id="builderProgress" role="status" aria-live="polite"></p>
-   <div class="tt-toolbar-actions">
-    <button type="button" id="cancelBuilder" class="plain-button">Cancel</button>
-    <button id="probeBuilder" type="submit" class="action tt-cta">Connect</button>
-    <button id="enrollBuilder" type="button" class="action tt-cta" hidden>Trust host and enroll</button>
-   </div>
-   <p class="tt-builder-footnote">Initial managed provisioning supports Linux ARM64/x64 with SSH, sudo, and Node.js 22+. GitHub App runner permissions are required. Credentials are used only during enrollment and are not saved.</p>
+   <p>Install the lightweight Host Service on the machine to connect outbound to this controller.</p>
+   <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
+   <p>Install Node.js 22+ and obtain the TinkerTunnel repository on your machine.</p>
+   <p>From a terminal in the repository directory, run:</p>
+   <pre class="tt-service-command"><code>node runner/service.mjs pair</code></pre>
+   <p>The Host Service asks for controller URL, local TinkerTunnel username and password, then exchanges them for per-host credentials. It doesn't store your password.</p>
+   <p>Start the host connection:</p>
+   <pre class="tt-service-command"><code>node runner/service.mjs run</code></pre>
+   <p>The service connects outbound without requiring SSH or an inbound port.</p>
+   <p class="tt-builder-footnote">Pairing supports Linux, Windows and macOS with Node.js 22+. Native installers and automatic GitHub Actions runner registration are not yet available through this service.</p>
+   <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">Open project</a>
+   <button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
   </form>
  </dialog>
 </main></body></html>
