@@ -60,8 +60,8 @@ export async function adminHostRoute(req,ctx){
   return reply({runner:{id:runner.id,name:runner.name,os:runner.os,arch:runner.arch,
     managedHost:savedRunner?.managedHost,githubRunnerName:savedRunner?.githubRunnerName||null},
     provisioning,provisioningError,
-    message:provisioning?'Paired. Controller queued GitHub Actions registration using hostname '+runner.name+'.':
-      'Host paired. GitHub runner provisioning needs attention.'});
+    message:provisioning?'Host Service paired; GitHub runner installation and registration queued for '+runner.name+'. Builder not ready until GitHub confirms Online.':
+      'Host Service paired; GitHub runner setup incomplete. Inspect the Builders error before retrying.'});
  }
  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/provision'&&method==='POST'){
