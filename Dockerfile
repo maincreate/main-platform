@@ -1,6 +1,6 @@
 # Root entrypoint for Coolify Dockerfile deployments. This is intentionally only
 # the private administration portal; the MCP gateway is a separate service.
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS host-build
+FROM golang:1.23-alpine AS host-build
 WORKDIR /src
 COPY host/ /src/host/
 RUN cd /src/host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/tinkertunnel-host-linux-arm64 .
