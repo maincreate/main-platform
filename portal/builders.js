@@ -1,48 +1,137 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null,allBuilders=[];
+let csrf=null,builders=[],githubRunners=[],fingerprint=null,operation=null;
 try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,body){
  const request={credentials:"same-origin",cache:"no-store"};
  if(body!==undefined){request.method="POST";request.headers={"content-type":"application/json","x-tt-csrf":csrf};request.body=JSON.stringify(body);}
  const response=await fetch(path,request);
  if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
- const value=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(value.error||"Builder request failed");
- return value;
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(data.error||"Request failed");
+ return data;
 }
-function el(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
-async function load(){
- const overview=await api("/api/local/overview");csrf=overview.csrf;
- $("username").textContent=overview.username||"administrator";
- const list=$("runners-list");list.replaceChildren();
- allBuilders=overview.runners?.items||[];
- renderBuilders();
-}
+function el(tag,value,cls){const n=document.createElement(tag);if(value!==undefined)n.textContent=String(value);if(cls)n.className=cls;return n;}
+function status(text){$("notification").textContent=text||"";}
+function currentState(item){return item.lastSeen&&Date.now()-Date.parse(item.lastSeen)<120000?"online":"offline";}
 function renderBuilders(){
- const list=$("runners-list");list.replaceChildren();
- const search=$("builderSearch").value.toLowerCase().trim(),status=$("builderStatus").value;
- const runners=allBuilders.filter(r=>(!search||[r.name,r.os,r.arch].join(" ").toLowerCase().includes(search))&&
-  (status==="all"||(status==="online"&&r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000)||
-   (status==="offline"&&(!r.lastSeen||Date.now()-Date.parse(r.lastSeen)>=120000))));
- if(!runners.length){list.append(el("p","No build hosts enrolled. Use Add Builder to generate an enrollment token."));return;}
- const table=el("table");table.className="inventory-table";
- const thead=el("thead"),header=el("tr");
- for(const h of ["Builder","Operating system","Architecture","Last seen"]){const th=el("th",h);header.append(th);}
- thead.append(header);table.append(thead);
- const tbody=el("tbody");
- for(const runner of runners){const row=el("tr");for(const v of [runner.name,runner.os,runner.arch,runner.lastSeen?new Date(runner.lastSeen).toLocaleString():"Never"]){row.append(el("td",v||"—"));}tbody.append(row);}
- table.append(tbody);list.append(table);
+ const holder=$("runners-list");holder.replaceChildren();
+ const search=$("builderSearch").value.toLowerCase().trim(),state=$("builderStatus").value;
+ const shown=builders.filter(r=>(state==="all"||state===currentState(r))&&
+  (!search||[r.name,r.os,r.arch,...(r.packages||[]).map(p=>p.name)].join(" ").toLowerCase().includes(search)));
+ if(!shown.length)return;
+ const table=el("table",undefined,"inventory-table"),head=el("tr");
+ for(const name of ["Machine","Platform","Connection","Toolchains and packages","Labels"])head.append(el("th",name));
+ const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
+ for(const r of shown){
+  const tr=el("tr");tr.append(el("td",r.name),el("td",(r.os||"unknown")+" / "+(r.arch||"unknown")),
+   el("td",currentState(r)==="online"?"Online":"Offline"));
+  const tools=el("td");
+  const packages=r.packages||[];
+  if(packages.length){
+   const details=el("details"),summary=el("summary",packages.length+" detected");
+   details.append(summary);
+   const ul=el("ul");
+   for(const p of packages)ul.append(el("li",p.name+" · "+p.version));
+   details.append(ul);tools.append(details);
+  }else tools.textContent="Not reported";
+  tr.append(tools,el("td",(r.labels||[]).join(", ")||"—"));tbody.append(tr);
+ }
+ table.append(tbody);holder.append(table);
 }
+function renderGithub(){
+ const holder=$("githubRunners");holder.replaceChildren();
+ if(!githubRunners.length)return;
+ const table=el("table",undefined,"inventory-table"),head=el("tr");
+ for(const name of ["Runner","Platform","Status","Labels","Manage"])head.append(el("th",name));
+ const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
+ for(const r of githubRunners){
+  const tr=el("tr");tr.append(el("td",r.name),el("td",r.os||"—"),
+   el("td",r.status+(r.busy?" · Busy":"")));
+  const labels=(r.labels||[]).map(l=>l.name);
+  tr.append(el("td",labels.join(", ")));
+  const controls=el("td");
+  const managed=builders.some(b=>b.githubRunnerName===r.name);
+  if(managed){
+   const button=el("button","Edit labels","plain-button");
+   button.type="button";
+   button.addEventListener("click",async()=>{
+    const current=r.labels.filter(l=>l.type==="custom").map(l=>l.name).join(", ");
+    const answer=prompt("Comma-separated tt- labels for "+r.name,current);
+    if(answer===null)return;
+    const labels=answer.split(",").map(x=>x.trim()).filter(Boolean);
+    button.disabled=true;
+    try{await api("/api/local/builders/github-runners/labels",{runnerId:r.id,runnerName:r.name,labels});
+     await load();
+    }catch(e){status(e.message);}finally{button.disabled=false;}
+   });
+   controls.append(button);
+  }
+  tr.append(controls);tbody.append(tr);
+ }
+ table.append(tbody);holder.append(table);
+}
+async function load(){
+ const overview=await api("/api/local/overview");
+ csrf=overview.csrf;
+ $("username").textContent=overview.username||"administrator";
+ builders=overview.runners?.items||[];
+ renderBuilders();
+ try{
+  const listing=await api("/api/local/builders/github-runners");
+  githubRunners=listing.runners||[];renderGithub();
+ }catch(e){$("githubRunners").textContent=e.message;}
+}
+function openDialog(){
+ fingerprint=null;operation=null;
+ $("addBuilderForm").reset();$("builderTrust").hidden=true;
+ $("probeBuilder").hidden=false;$("enrollBuilder").hidden=true;
+ $("builderProgress").textContent="";
+ $("addBuilderDialog").showModal();
+}
+$("addBuilder").addEventListener("click",openDialog);
+$("cancelBuilder").addEventListener("click",()=>{if(!operation)$("addBuilderDialog").close();});
+$("refresh").addEventListener("click",()=>load().catch(e=>status(e.message)));
 $("builderSearch").addEventListener("input",renderBuilders);
 $("builderStatus").addEventListener("change",renderBuilders);
-$("refresh").addEventListener("click",()=>load().catch(e=>$("notification").textContent=e.message));
-$("invite").addEventListener("click",async()=>{
- const button=$("invite");button.disabled=true;
- try{if(!csrf)await load();const invite=await api("/api/local/runners/invite",{});
-  $("enrollCommand").textContent="TT_CONTROLLER_URL='"+location.origin+"' TT_ENROLLMENT_TOKEN='"+invite.token+"' node runner/agent.mjs enroll";
-  $("enrollment").hidden=false;
-  $("notification").textContent="Pairing token generated. It is shown once and expires in 10 minutes.";
- }catch(e){$("notification").textContent=e.message;}finally{button.disabled=false;}
+$("addBuilderForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=$("probeBuilder");button.disabled=true;
+ $("builderProgress").textContent="Checking SSH host identity…";
+ try{
+  if(!csrf)await load();
+  const r=await api("/api/local/builders/ssh/probe",{
+   address:$("hostAddress").value.trim(),username:$("hostUsername").value.trim()
+  });
+  fingerprint=r.fingerprint;$("hostFingerprint").textContent=fingerprint;
+  $("builderTrust").hidden=false;$("enrollBuilder").hidden=false;button.hidden=true;
+  $("builderProgress").textContent="Verify this fingerprint on your machine before continuing.";
+ }catch(err){$("builderProgress").textContent=err.message;}
+ finally{button.disabled=false;}
 });
-load().catch(e=>$("notification").textContent=e.message);
+$("enrollBuilder").addEventListener("click",async()=>{
+ const button=$("enrollBuilder");button.disabled=true;
+ $("builderProgress").textContent="Starting managed enrollment…";
+ try{
+  const response=await api("/api/local/builders/ssh/enroll",{
+   address:$("hostAddress").value.trim(),username:$("hostUsername").value.trim(),
+   password:$("hostPassword").value,fingerprint,controllerUrl:location.origin
+  });
+  $("hostPassword").value="";
+  operation=response.operationId;
+  $("cancelBuilder").disabled=true;
+  for(let i=0;i<240;i++){
+   await new Promise(r=>setTimeout(r,1500));
+   const state=await api("/api/local/builders/ssh/status?id="+encodeURIComponent(operation));
+   $("builderProgress").textContent=state.stage||"Enrolling…";
+   if(state.state==="failed")throw Error(state.error||"Enrollment failed");
+   if(state.state==="complete"){
+    $("addBuilderDialog").close();status("Managed builder enrolled successfully.");
+    await load();return;
+   }
+  }
+  throw Error("Enrollment is continuing; check Builders again for its result.");
+ }catch(e){$("builderProgress").textContent=e.message;button.disabled=false;}
+ finally{$("cancelBuilder").disabled=false;}
+});
+if(new URLSearchParams(location.search).get("add")==="1")openDialog();
+load().catch(e=>status(e.message));

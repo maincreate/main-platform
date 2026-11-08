@@ -164,3 +164,19 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-topology-flow-wrap .topology-node.empty{border-style:dashed}
 .tt-topology-flow-wrap .topology-node.hub{border-color:var(--accent)}
 @media(max-width:1100px){.tt-topology-flow{grid-template-columns:repeat(5,205px)}.tt-topology-ai-flow{grid-template-columns:repeat(4,205px)}}
+
+/* Builder adoption: one modal for host address and credentials. */
+.tt-builder-dialog{max-width:560px;width:calc(100% - 28px);border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:16px;padding:24px}
+.tt-builder-dialog::backdrop{background:rgba(0,0,0,.73)}
+.tt-builder-dialog form{display:grid;gap:11px}
+.tt-builder-dialog h2{margin:0}
+.tt-builder-dialog h3{font-size:15px;margin:0}
+.tt-builder-dialog p{color:var(--muted);font-size:13px;line-height:1.6}
+.tt-builder-dialog label{font-size:12px;font-weight:700}
+.tt-builder-dialog input{font:inherit;width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px}
+.tt-builder-dialog .tt-toolbar-actions{justify-content:flex-end}
+.tt-builder-dialog .tt-cta{margin:0;border:0;box-shadow:none}
+.tt-builder-dialog #hostFingerprint{font-size:12px;display:block;overflow-wrap:anywhere;background:var(--bg);padding:9px;border:1px solid var(--line);border-radius:8px}
+.tt-builder-dialog #builderProgress{min-height:20px;color:var(--accent)}
+.tt-builder-dialog .tt-builder-footnote{font-size:11px}
+.inventory-table details ul{padding-left:16px;margin:8px 0;font-size:12px}
