@@ -614,18 +614,27 @@ async function pollSetupProgress(serial){
   if(!host){setupFailure("enrollment","The controller no longer has this builder enrollment.");return;}
   const recent=await api("/api/local/builders/actions");
   if(serial!==setupPollSerial||!dialog.open)return;
-  const action=(recent.actions||[]).filter(a=>a.runnerId===setupHostId&&a.type!=="host.upgrade").at(-1);
+  const action=(recent.actions||[]).filter(a=>a.runnerId===setupHostId&&a.type==="github-runner.provision").at(-1);
   const live=host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000;
+  const timedOut=Date.now()-setupStartedAt>10*60*1000;
   if(action?.status==="failed"||action?.status==="expired"){
    setupFailure(action.status==="expired"?"installation":"installation",
     action.message||"The GitHub runner provisioning action "+action.status+".");return;
   }
-  if(!host.managedHost){renderSetupTimeline(setupTimeline("enrollment"),"Waiting for Host Service enrollment…");return;}
+  if(!host.managedHost){
+   if(timedOut)setupFailure("enrollment","The controller did not confirm enrollment within ten minutes.");
+   else renderSetupTimeline(setupTimeline("enrollment"),"Waiting for Host Service enrollment…");
+   return;
+  }
   if(!action&&!host.githubRunnerName){
    setupFailure("registration","Host enrolled, but runner registration was not queued. Review the GitHub connection and retry registration.");return;
   }
   if(!host.githubRunnerName){
-   const stage=action?.status==="claimed"?"installation":"installation";
+   if(timedOut){
+    setupFailure(action?.status==="claimed"?"installation":"registration",
+     "Setup did not complete within ten minutes. Check the latest host action and GitHub settings before retrying.");return;
+   }
+   const stage="installation";
    renderSetupTimeline(setupTimeline(stage),action?.status==="claimed"?
     "Installing and registering runner on "+host.name+"…":"Runner setup queued · waiting for builder to claim the action…");
    return;
@@ -641,8 +650,10 @@ async function pollSetupProgress(serial){
   if(serial!==setupPollSerial||!dialog.open)return;
   const github=runners.find(r=>r.name===host.githubRunnerName);
   if(!github){
+   if(timedOut){setupFailure("registration","The runner did not appear in GitHub within ten minutes.");return;}
    renderSetupTimeline(setupTimeline("registration"),"Waiting for GitHub runner inventory to confirm registration…");
   }else if(github.status!=="online"||!live){
+   if(timedOut){setupFailure("online","The runner was registered but did not become online with a fresh heartbeat.");return;}
    renderSetupTimeline(setupTimeline("online"),"Runner registered · waiting for online status and Host Service heartbeat…");
   }else{
    renderSetupTimeline(["connection","enrollment","installation","registration","online"].map(id=>({id,status:"completed"})),
@@ -653,7 +664,7 @@ async function pollSetupProgress(serial){
    dialog.close();status(host.name+" · Builder setup completed and GitHub runner is online.");
    return;
   }
-  if(Date.now()-setupStartedAt>10*60*1000){
+  if(timedOut){
    const active=github?"online":host.githubRunnerName?"registration":"installation";
    setupFailure(active,"Setup verification timed out. Inspect the host and GitHub status, then retry the failed step.");
   }
@@ -877,6 +888,9 @@ $("pairHost").addEventListener("click",async()=>{
  if(pairing||step!==3||!fingerprint||verifiedHost!==host||!$("confirmFingerprint").checked)return;
  if(!username||!password){pairStatus("Your local Linux credentials are required.");return;}
  pairing=true;const button=$("pairHost");button.disabled=true;
+ setupHostId=null;setupName=host;setupStartedAt=Date.now();
+ setupProgressMode(true);
+ renderSetupTimeline(setupTimeline("connection"),"Connecting to "+host+" and verifying SSH identity…");
  $("backBuilder").disabled=true;$("cancelBuilder").disabled=true;$("closeBuilder").disabled=true;
  pairStatus("Pairing "+host+" over SSH and requesting runner registration…");
  try{
