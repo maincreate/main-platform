@@ -22,7 +22,8 @@ test("USB inventory returns stable hardware identity, builder and serial port",(
  assert.equal(device.port,"/dev/ttyACM0");
  assert.equal(device.identityConfidence,"serial");
  assert.equal(device.lifecycle,"connected");
- assert.equal(device.flashEligible,true);
+ assert.equal(device.flashEligible,false);
+ assert.equal(device.chipVerified,false);
  assert.equal(renameDevice(device.id,"Waymarker Dial").label,"Waymarker Dial");
 });
 test("disconnection immediately shows offline without erasing history",()=>{
