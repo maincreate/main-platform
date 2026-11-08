@@ -59,7 +59,7 @@ export function inferRequirementsFromWorkflows(files){
 export function versionSatisfied(actual,constraint){
  if(!constraint)return true;
  if(typeof actual!=="string")return false;
- const match=/\b(\d+(?:\.\d+){0,2})\b/.exec(actual);if(!match)return false;
+ const match=/(?:^|[^0-9])v?(\d+(?:\.\d+){0,2})(?!\d)/i.exec(actual);if(!match)return false;
  const v=match[1].split(".").map(Number);
  const target=constraint.replace(/^>=\s*/,"").replace(/\.x$/,"").split(".").map(Number);
  if(constraint.startsWith(">=")){
