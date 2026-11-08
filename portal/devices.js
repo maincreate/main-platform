@@ -18,6 +18,31 @@ function node(tag,value,cls){
 }
 function hex(n){return typeof n==="number"?n.toString(16).padStart(4,"0").toUpperCase():"—";}
 function date(s){return s?new Date(s).toLocaleString():"Never";}
+function showCompatibility(device){
+ const panel=$("deviceCompatibilityPanel"),holder=$("deviceCompatibilityContent"),info=device.compatibility;
+ panel.hidden=false;holder.replaceChildren();
+ $("deviceCompatibilityHint").textContent=(device.label||device.product||device.description)+" · "+
+  hex(device.vid)+":"+hex(device.pid)+" · "+device.port;
+ if(!info?.candidates?.length){
+  holder.append(node("p","Unrecognized USB serial interface. No chip or SDK association can be asserted from its USB descriptor."));
+ }else for(const candidate of info.candidates){
+  const group=node("section",undefined,"tt-device-compatibility");
+  group.append(node("h3",candidate.familyName));
+  group.append(node("p",candidate.evidence+" · Candidate family only; chip unverified."));
+  group.append(node("small","Potential chips: "+candidate.candidateChips.join(", ")));
+  const sdk=node("div",undefined,"tt-device-sdk-list");
+  for(const tool of candidate.sdk){
+   const item=node("div",undefined,"tt-device-sdk");
+   item.append(node("strong",tool.id),node("span",tool.versions.length?tool.versions.join(", "):"Versions under review"),
+    node("small",tool.status));
+   sdk.append(item);
+  }
+  group.append(sdk,node("p","Required before flashing: "+candidate.verification));
+  holder.append(group);
+ }
+ panel.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+$("closeDeviceCompatibility").addEventListener("click",()=>$("deviceCompatibilityPanel").hidden=true);
 function render(data){
  inventory=data.devices||[];
  const select=$("deviceHost"),selected=select.value;select.replaceChildren();
@@ -49,6 +74,13 @@ function renderInventory(data){
    d.identityConfidence==="location"?"USB location":"Port identity only");
   identity.append(label,node("small",d.serialNumber||d.location||"No hardware serial"));
   tr.append(identity);
+  const match=node("td");
+  const candidates=d.compatibility?.candidates||[];
+  const detail=node("button",candidates.length?
+   candidates[0].familyName+" · SDK options":"Identify chip","plain-button");
+  detail.type="button";detail.addEventListener("click",()=>showCompatibility(d));
+  match.append(detail,node("small",candidates.length?"USB hint · chip not verified":"No family match"));
+  tr.append(match);
   tr.append(node("td",date(d.lastSeen)));
   const statusTd=node("td"),status=node("span",d.lifecycle==="connected"?"Connected":d.lifecycle,"inventory-badge");
   status.dataset.state=d.lifecycle;statusTd.append(status);tr.append(statusTd);
