@@ -115,11 +115,43 @@ async function validateBuilder(host){
   for(const item of result.checks||[])lines.push(item.label+": "+item.status+(item.detail?" — "+item.detail:""));
   status(lines.join(" | "));
   await load();
+  if(result.ready)status("");
  }catch(e){status("Validation failed: "+e.message)}
 }
 
 
 const removeDialog=$("removeBuilderDialog");
+function dismissDialogOnBackdrop(dialog){
+ dialog.addEventListener("click",event=>{
+  if(event.target!==dialog)return;
+  const rect=dialog.getBoundingClientRect();
+  if(event.clientX<rect.left||event.clientX>rect.right||
+     event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();
+ });
+}
+dismissDialogOnBackdrop(removeDialog);
+removeDialog.addEventListener("close",()=>{
+ $("removeBuilderPassword").value="";
+ removeTarget=null;removeMode=null;
+});
+const upgradeDialog=$("upgradeBuilderDialog");
+dismissDialogOnBackdrop(upgradeDialog);
+$("closeUpgradeDialog").addEventListener("click",()=>upgradeDialog.close());
+$("doneUpgradeDialog").addEventListener("click",()=>upgradeDialog.close());
+$("copyUpgradeCommand").addEventListener("click",async()=>{
+ try{
+  await navigator.clipboard.writeText($("upgradeBuilderCommand").textContent.trim());
+  $("upgradeBuilderFeedback").textContent="Upgrade command copied.";
+ }catch{
+  $("upgradeBuilderFeedback").textContent="Clipboard unavailable. Select and copy the command.";
+ }
+});
+function openUpgradeDialog(host){
+ $("upgradeBuilderDescription").textContent=host.name+" · Installed: "+
+  (host.software?.version||"unverified")+" · Available: "+(host.software?.expectedVersion||"current");
+ $("upgradeBuilderFeedback").textContent="";
+ upgradeDialog.showModal();
+}
 let removeTarget=null;
 let removeMode=null;
 function openRemoveDialog(host,mode){
@@ -225,19 +257,24 @@ function renderBuilders(){
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote"),false));
   }else if(stage==="healthy"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Remove runner",()=>openRemoveDialog(host,"managed")));
   }else if(stage==="unreachable"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else if(stage==="removal-stalled"){
    panel.append(menuAction("Reconcile stalled removal",()=>reconcileRemoval(host)));
+   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
   }else if(stage==="removal-failed"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
    panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","tt-builder-menu-disabled"));
+   if(stage==="removing")panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
   }
   menu.append(trigger,panel);controls.append(menu);
   tr.append(controls);tbody.append(tr);
