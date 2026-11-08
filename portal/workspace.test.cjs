@@ -34,7 +34,9 @@ test("workspace serves current builder, marketplace, and job experiences",async(
   assert.ok(marketplace.includes("Marketplace"));
   const devices=await page("/devices");
   assert.ok(devices.includes("Devices"));
-  const overview=await page("/");
+  const overview=readFileSync(resolve(__dirname,"dashboard.html"),"utf8");
+  const dashboardScript=await page("/dashboard.js");
+  assert.ok(dashboardScript.includes("loadActivity"));
   for(const id of ["activityChart","activityDetails","recentJobs"])
    assert.ok(overview.includes('id="'+id+'"'),"Overview missing "+id);
   const activityStyle=await page("/activity.css");
