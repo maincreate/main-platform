@@ -20,38 +20,58 @@
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle">
   <div class="tt-builder-content">
    <h2 id="addBuilderTitle">Add a build machine</h2>
-   <p>Connect a Linux, macOS, or Windows machine using the outbound TinkerTunnel Host Service. No inbound SSH or open ports on the host.</p>
-   <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
-   <h3>1. Select machine platform</h3>
-   <div class="tt-platform-grid">
-    <label for="builderOS">Operating system
-     <select id="builderOS"><option value="linux">Linux</option><option value="macos">macOS</option><option value="windows">Windows</option></select>
-    </label>
-    <label for="builderArch">CPU architecture
-     <select id="builderArch"><option value="arm64">ARM64 (64-bit ARM)</option><option value="x64">x64 (Intel / AMD)</option></select>
-    </label>
-   </div>
-   <p id="platformDetails" class="tt-platform-description" aria-live="polite"></p>
-   <h3>2. Prepare the build machine</h3>
-   <p id="platformPrerequisites"></p>
-   <p><a href="https://nodejs.org/en/download" target="_blank" rel="noopener noreferrer">Node.js downloads</a> · <a href="https://git-scm.com/install/" target="_blank" rel="noopener noreferrer">Git installation</a></p>
-   <p>Run these commands in <strong id="platformTerminal">the build machine's terminal</strong>:</p>
-   <div class="tt-command-block">
-    <pre class="tt-service-command"><code id="installCommand">git clone https://github.com/TinkerTunnel/tinkertunnel.git
-cd tinkertunnel
-node runner/service.mjs pair</code></pre>
-    <button type="button" id="copyInstallCommand" class="plain-button">Copy commands</button>
-   </div>
-   <h3>3. Pair locally</h3>
-   <p>The Host Service asks for this controller URL and your TinkerTunnel administrator username and password <strong>in the machine's terminal</strong>. It obtains a one-time enrollment credential and saves only the new machine credential.</p>
-   <h3>4. Start outbound connection</h3>
-   <div class="tt-command-block">
-    <pre class="tt-service-command"><code id="runCommand">node runner/service.mjs run</code></pre>
-    <button type="button" id="copyRunCommand" class="plain-button">Copy command</button>
-   </div>
-   <p class="tt-builder-footnote">Platform selection changes the commands and prerequisites; it does not install tools remotely. Current MVP: the Host Service runs in the terminal, not yet as a permanently installed OS service. GitHub Actions runner installation is separate and not automated yet. The controller must be reachable over trusted HTTPS from the build machine.</p>
+   <p>Connect a machine without opening SSH or an inbound port. Install the Host Service, open its pairing URL, then compare fingerprints and approve.</p>
+   <div class="tt-step-indicator" aria-label="Onboarding progress"><span id="stepOneMarker">1. Install</span><span id="stepTwoMarker">2. Authenticate &amp; verify</span><span id="stepThreeMarker">3. Connect</span></div>
+   <section id="builderStepOne" class="tt-builder-step" aria-label="Install the Host Service">
+    <h3>1. Install on the build machine</h3>
+    <div class="tt-platform-grid">
+     <label for="builderOS">Operating system
+      <select id="builderOS"><option value="linux">Linux</option><option value="macos">macOS</option><option value="windows">Windows</option></select>
+     </label>
+     <label for="builderArch">CPU architecture
+      <select id="builderArch"><option value="arm64">ARM64 (64-bit ARM)</option><option value="x64">x64 (Intel / AMD)</option></select>
+     </label>
+    </div>
+    <p id="platformDetails" class="tt-platform-description" aria-live="polite"></p>
+    <p id="platformPrerequisites"></p>
+    <p><a href="https://nodejs.org/en/download" target="_blank" rel="noopener noreferrer">Get Node.js</a> · <a href="https://git-scm.com/install/" target="_blank" rel="noopener noreferrer">Get Git</a></p>
+    <p>On the build machine, open <strong id="platformTerminal">a terminal</strong> and run:</p>
+    <div class="tt-command-block"><pre class="tt-service-command"><code id="installCommand"></code></pre>
+     <button type="button" id="copyInstallCommand" class="plain-button">Copy commands</button>
+    </div>
+    <p>The final command prompts you for your controller URL, then prints a <strong>pairing URL and SHA-256 fingerprint</strong>. Leave the terminal open while pairing.</p>
+    <div class="tt-toolbar-actions"><button type="button" id="builderNext" class="action tt-cta">Continue to pairing</button></div>
+   </section>
+   <section id="builderStepTwo" class="tt-builder-step" aria-label="Authenticate and verify fingerprint" hidden>
+    <h3>2. Authenticate and verify the host</h3>
+    <p>Open the pairing URL printed on your build machine, or enter its 32-character pairing ID below. This portal uses your existing authenticated TinkerTunnel administrator session. No Linux or SSH credentials are needed.</p>
+    <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
+    <label for="hostPairId">Pairing ID from build machine</label>
+    <input type="text" id="hostPairId" maxlength="32" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="32-character pairing ID">
+    <button type="button" class="plain-button" id="lookupHostPair">Find announced host</button>
+    <div id="hostPairDetails" class="tt-host-pair-details" hidden>
+     <p><strong>Host:</strong> <span id="pairHostName"></span></p>
+     <p><strong>OS / architecture:</strong> <span id="pairHostPlatform"></span></p>
+     <p><strong>Identity fingerprint:</strong></p>
+     <pre id="pairHostFingerprint" class="tt-fingerprint"></pre>
+     <label class="tt-fingerprint-confirm"><input id="confirmHostPair" type="checkbox"> I compared this fingerprint with the one printed on the build machine and they match exactly.</label>
+     <button type="button" id="approveHostPair" class="action tt-cta" disabled>Approve this host</button>
+    </div>
+    <p id="hostPairStatus" role="status" aria-live="polite"></p>
+    <div class="tt-toolbar-actions"><button type="button" id="builderBack" class="plain-button">Back</button></div>
+   </section>
+   <section id="builderStepThree" class="tt-builder-step" aria-label="Start the outbound connection" hidden>
+    <h3>3. Start the outbound connection</h3>
+    <p>Approval was sent to the controller. The Host Service should finish enrollment in the build machine's terminal. When it reports success, run this command from the repository directory:</p>
+    <div class="tt-command-block"><pre class="tt-service-command"><code id="runCommand"></code></pre>
+     <button type="button" id="copyRunCommand" class="plain-button">Copy command</button></div>
+    <p>After the first heartbeat, the machine will appear in Builders. This MVP requires a running terminal; a permanent native OS service and automatic GitHub Actions registration are not yet available.</p>
+    <div class="tt-toolbar-actions"><button type="button" id="builderDone" class="action tt-cta">Done</button></div>
+   </section>
    <p id="dialogCopyStatus" role="status" aria-live="polite" class="tt-builder-copy-status"></p>
-   <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">View source</a><button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
+   <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">View source</a>
+   <button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
+   <p class="tt-builder-footnote">Currently manual URL pairing only. LAN/mDNS discovery will be added later. Host identity is verified with Ed25519 signatures; this is not an SSH host key. The controller must be reachable over trusted HTTPS from the build machine.</p>
   </div>
  </dialog>
 </main></body></html>
