@@ -82,10 +82,29 @@ export async function enrollHost({address,username,password,approvedFingerprint,
    throw fail(502,"Unexpected home path on host");
   const base=home+"/.tinkertunnel";
   progress("Inspecting build host");
-  await execute(conn,"command -v bash; command -v curl; command -v tar; command -v sha256sum; command -v sudo; command -v node");
-  const major=Number(await execute(conn,"node -p 'process.versions.node.split(\".\")[0]'"));
-  if(!Number.isInteger(major)||major<22)throw fail(422,"Node.js 22 or newer is required on the host");
+  await execute(conn,"command -v bash; command -v curl; command -v tar; command -v sha256sum; command -v sudo");
   await execute(conn,"mkdir -p "+shell(base)+" && chmod 700 "+shell(base));
+  let nodeBin=await execute(conn,"command -v node").catch(()=>"");
+  const major=nodeBin?Number(await execute(conn,"node -p 'process.versions.node.split(\".\")[0]'").catch(()=>"0")):0;
+  if(major<22){
+   progress("Installing verified Node.js runtime");
+   const releases=await fetch("https://nodejs.org/dist/index.json",{signal:AbortSignal.timeout(14000)});
+   if(!releases.ok)throw fail(502,"Could not retrieve Node.js releases");
+   const all=await releases.json();
+   const release=all.find(v=>/^v22\\.\\d+\\.\\d+$/.test(v.version)&&v.files?.includes("linux-"+arch));
+   if(!release)throw fail(502,"No supported Node.js 22 release for Linux "+arch);
+   const filename="node-"+release.version+"-linux-"+arch+".tar.xz";
+   const install=[
+    "set -euo pipefail","cd "+shell(base),
+    "curl -fLsS --retry 2 "+shell("https://nodejs.org/dist/"+release.version+"/SHASUMS256.txt")+" -o node-checksums",
+    "curl -fLsS --retry 2 "+shell("https://nodejs.org/dist/"+release.version+"/"+filename)+" -o "+shell(filename),
+    "grep -F "+shell("  "+filename)+" node-checksums | sha256sum -c -",
+    "tar -xJf "+shell(filename),
+    "rm -f node-checksums "+shell(filename)
+   ].join("\\n")+"\\n";
+   await execute(conn,"bash -se",install,160000);
+   nodeBin=base+"/"+filename.replace(/\\.tar\\.xz$/,"")+"/bin/node";
+  }
   progress("Downloading verified GitHub Actions runner");
   const asset=await officialRelease(arch),runnerDir=base+"/actions-runner";
   const installation=[
@@ -117,9 +136,8 @@ export async function enrollHost({address,username,password,approvedFingerprint,
   await copy(conn,fileURLToPath(new URL("../runner/agent.mjs",import.meta.url)),base+"/agent.mjs");
   await copy(conn,fileURLToPath(new URL("../runner/scan_devices.py",import.meta.url)),base+"/scan_devices.py");
   const invite=await getInvite();
-  const enrollment=await execute(conn,"bash -se","TT_CONTROLLER_URL="+shell(url.origin)+" TT_ENROLLMENT_TOKEN="+shell(invite)+" node "+shell(base+"/agent.mjs")+" enroll\n",30000);
+  const enrollment=await execute(conn,"bash -se","TT_CONTROLLER_URL="+shell(url.origin)+" TT_ENROLLMENT_TOKEN="+shell(invite)+" "+shell(nodeBin)+" "+shell(base+"/agent.mjs")+" enroll\n",30000);
   const agentId=/\(([a-f0-9]{24})\)/.exec(enrollment)?.[1]||null;
-  const nodeBin=await execute(conn,"command -v node");
   const service="tinkertunnel-"+name.slice(3).toLowerCase()+".service";
   const unit=["[Unit]","Description=TinkerTunnel managed companion","After=network-online.target",
    "[Service]","Type=simple","User="+username,"WorkingDirectory="+base,
