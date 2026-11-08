@@ -44,27 +44,30 @@ function renderBuilders(){
   const action=recentAction(host),state=action?.status,runnerCell=el("td");
   if(host.githubRunnerName){
    const known=githubRunners.find(r=>r.name===host.githubRunnerName);
-   runnerCell.textContent=host.githubRunnerName+(known?" · "+known.status:" · configured, verify in GitHub");
-  }else if(state==="queued"||state==="claimed")runnerCell.textContent="Registering "+host.name+" · "+state;
-  else if(state==="failed"||state==="expired")runnerCell.textContent="Registration "+state+(action.message?" · "+action.message:"");
-  else if(host.managedHost)runnerCell.textContent="Paired · not registered";
+   const runnerOnline=String(known?.status||"").toLowerCase()==="online";
+   runnerCell.textContent=(runnerOnline&&currentState(host)==="online"?"Ready":"Registered · not verified online")+
+    " · "+host.githubRunnerName+(known?" · "+known.status:" · verify in GitHub");
+  }else if(state==="queued")runnerCell.textContent="Runner setup queued · not ready";
+  else if(state==="claimed")runnerCell.textContent="Runner installation / registration in progress · not ready";
+  else if(state==="failed"||state==="expired")runnerCell.textContent="Runner setup "+state+" · not ready"+(action.message?" · "+action.message:"");
+  else if(host.managedHost)runnerCell.textContent="Host paired · runner not installed · not ready";
   else runnerCell.textContent="Not controller-managed";
   tr.append(runnerCell);
   const controls=el("td");
   if(host.managedHost&&!host.githubRunnerName){
-   if(state==="queued"||state==="claimed")controls.textContent="Controller provisioning";
+   if(state==="queued"||state==="claimed")controls.textContent="Setup in progress";
    else{
-    const button=el("button",state==="failed"||state==="expired"?"Retry registration":"Register GitHub runner","plain-button");
+    const button=el("button",state==="failed"||state==="expired"?"Retry runner setup":"Install & register runner","plain-button");
     button.type="button";button.disabled=currentState(host)!=="online";
     button.addEventListener("click",async()=>{
-     button.disabled=true;status("Requesting GitHub runner registration for "+host.name);
+     button.disabled=true;status("Requesting GitHub runner setup for "+host.name);
      try{const result=await api("/api/local/builders/provision",{runnerId:host.id});
-      status(result.action.existing?"Registration already in progress for "+host.name:"Controller queued GitHub runner "+result.action.runnerName);
+      status(result.action.existing?"Runner setup already in progress for "+host.name:"Controller queued GitHub runner setup for "+result.action.runnerName);
       await load();
      }catch(e){status(e.message)}finally{button.disabled=false}
     });controls.append(button);
    }
-  }else if(host.githubRunnerName)controls.textContent="Managed";
+  }else if(host.githubRunnerName)controls.textContent="Registered";
   else controls.textContent="—";
   tr.append(controls);tbody.append(tr);
  }
@@ -322,8 +325,8 @@ $("pairHost").addEventListener("click",async()=>{
   const result=await api("/api/local/builders/pair",{host,username,password,fingerprint,confirmFingerprint:true});
   $("hostPassword").value="";
   dialog.close();await load();
-  status(result.provisioning?result.runner.name+" paired. GitHub Actions registration queued under its hostname.":
-   result.runner.name+" paired. GitHub registration needs attention: "+(result.provisioningError||"retry from Builders when online."));
+  status(result.provisioning?result.runner.name+" Host Service paired; GitHub runner installation and registration queued. Not ready until Online.":
+   result.runner.name+" Host Service paired; GitHub runner setup needs attention: "+(result.provisioningError||"retry from Builders when online."));
  }catch(e){pairStatus(e.message)}
  finally{pairing=false;button.disabled=!$("confirmFingerprint").checked;
   $("backBuilder").disabled=false;$("cancelBuilder").disabled=false;$("closeBuilder").disabled=false;
