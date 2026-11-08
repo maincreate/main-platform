@@ -4,6 +4,22 @@ import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
 import {queueRunnerProvisioning,actionStatus} from './runner_provisioning.mjs';
 
 const builderFresh = r => !!(r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000);
+function actionLeaseActive(action,now=Date.now()){
+ return ['queued','claimed'].includes(action.status)&&
+  Number.isFinite(Date.parse(action.expiresAt))&&Date.parse(action.expiresAt)>now;
+}
+function expireStaleHostActions(s,id,now=Date.now()){
+ let changed=false;
+ for(const action of s.hostActions||[]){
+  if(action.runnerId!==id||!['queued','claimed'].includes(action.status))continue;
+  if(actionLeaseActive(action,now))continue;
+  action.status='expired';action.completedAt=new Date(now).toISOString();
+  action.message='Action expired without completion acknowledgement';
+  delete action.secret;changed=true;
+ }
+ return changed;
+}
+
 // Active work must have a live action lease. Persisted phases alone are not evidence.
 export function removalActivity(host,actions=[],now=Date.now()){
  const d=host?.decommission;
@@ -11,8 +27,7 @@ export function removalActivity(host,actions=[],now=Date.now()){
  if(d.phase==='failed')return {stalled:false,active:false,reason:d.error||'Removal failed'};
  const relevant=actions.filter(a=>a.runnerId===host.id&&
   ['github-runner.stop','host.cleanup'].includes(a.type)).at(-1);
- const active=!!relevant&&['queued','claimed'].includes(relevant.status)&&
-  Number.isFinite(Date.parse(relevant.expiresAt))&&Date.parse(relevant.expiresAt)>now;
+ const active=!!relevant&&actionLeaseActive(relevant,now);
  // Unregistration is controller-side work after stop completes, not another host action.
  const recentControllerStep=['unregistering','unregistered','controller'].includes(d.phase)&&
   relevant?.status==='completed'&&Number.isFinite(Date.parse(relevant.completedAt))&&
@@ -80,7 +95,8 @@ function finishBuilderRemoval(id,ctx,localResult){
 function queueDecommissionAction(id,type,ctx){
  const s=ctx.state(),host=s.runners.find(r=>r.id===id);
  if(!host?.decommission)throw Error('Decommissioning record missing.');
- if((s.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
+ if(expireStaleHostActions(s,id))ctx.save(s);
+ if((s.hostActions||[]).some(a=>a.runnerId===id&&actionLeaseActive(a)))
   throw Error('Another host action is still active.');
  const action={id:ctx.rnd(),runnerId:id,type,runnerName:host.name,
   expiresAt:new Date(Date.now()+5*60*1000).toISOString(),status:'queued',
@@ -238,7 +254,7 @@ export async function adminHostRoute(req,ctx){
   if(!activity.stalled)return reply({status:'active',activity});
   for(const action of s.hostActions||[]){
    if(action.runnerId===host.id&&['github-runner.stop','host.cleanup'].includes(action.type)&&
-      ['queued','claimed'].includes(action.status)&&(!Number.isFinite(Date.parse(action.expiresAt))||Date.parse(action.expiresAt)<=Date.now())){
+      ['queued','claimed'].includes(action.status)&&!actionLeaseActive(action)){
     action.status='expired';action.completedAt=new Date().toISOString();delete action.secret;
    }
   }
@@ -261,7 +277,8 @@ export async function adminHostRoute(req,ctx){
   if(mode==='remote'&&builderFresh(host)&&!failedInitialSetup(host,initial.hostActions||[])&&
      host.decommission?.phase!=='failed')
    return deny(409,'Healthy connected builders require managed removal. Force removal is for failed setup, unsuccessful cleanup or unreachable hosts.');
-  if((initial.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
+  if(expireStaleHostActions(initial,id))save(initial);
+  if((initial.hostActions||[]).some(a=>a.runnerId===id&&actionLeaseActive(a)))
    return deny(409,'A host operation is in progress. Wait for it to finish.');
   if(mode==='managed'&&!builderFresh(host))return deny(409,'Host is unreachable. Choose unreachable removal.');
   const s=state(),entry=s.runners.find(r=>r.id===id);
@@ -308,7 +325,8 @@ export async function agentHostRoute(req,ctx){
  s.hostActions=s.hostActions||[];
  if(path.endsWith('/claim')){
   runner.lastSeen=new Date().toISOString();
-  const action=s.hostActions.find(a=>a.runnerId===runner.id&&a.status==='queued');
+  if(expireStaleHostActions(s,runner.id))save(s);
+  const action=s.hostActions.find(a=>a.runnerId===runner.id&&a.status==='queued'&&actionLeaseActive(a));
   if(!action){save(s);return reply({action:null})}
   if(Date.now()>=Date.parse(action.expiresAt)){action.status='expired';delete action.secret;save(s);return reply({action:null})}
   const secret=action.secret?unseal(action.secret):null;
