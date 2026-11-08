@@ -17,3 +17,14 @@ func TestNames(t *testing.T){
 func TestUnsupportedActions(t *testing.T){
  if err:=execute(&action{Type:"arbitrary.shell"});err==nil {t.Fatal("arbitrary action accepted")}
 }
+
+func TestDecommissionActionsRejectInvalid(t *testing.T){
+ cases:=[]action{
+  {Type:"github-runner.stop",RunnerName:"different-host",ExpiresAt:"2099-01-01T00:00:00Z"},
+  {Type:"host.cleanup",RunnerName:hostname(),RegistrationToken:"must-not-be-supplied",ExpiresAt:"2099-01-01T00:00:00Z"},
+  {Type:"host.cleanup",RunnerName:hostname(),ExpiresAt:"2000-01-01T00:00:00Z"},
+ }
+ for _,a:=range cases{
+  if e:=execute(&a);e==nil{t.Fatalf("accepted invalid decommission action: %s",a.Type)}
+ }
+}

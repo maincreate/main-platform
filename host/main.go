@@ -117,11 +117,53 @@ func safeName(s string)bool{
  if len(s)<1||len(s)>60{return false};for _,c:=range s{if c!='-'&&c!='_'&&c!='.'&&(c<'0'||c>'9')&&(c<'A'||c>'Z')&&(c<'a'||c>'z'){return false}};return true
 }
 func execute(a *action)error{
- if a.Type!="github-runner.provision"{return errors.New("unsupported action")}
- expires,e:=time.Parse(time.RFC3339,a.ExpiresAt);if e!=nil||time.Now().After(expires){return errors.New("registration instruction expired")}
- if !safeOrg(a.Organization)||!safeName(a.RunnerName)||len(a.RegistrationToken)<15{return errors.New("invalid runner registration instruction")}
- for _,l:=range a.Labels{if !safeName(l){return errors.New("invalid label")}}
- return provisionRunner(*a)
+ expires,e:=time.Parse(time.RFC3339,a.ExpiresAt)
+ if e!=nil||time.Now().After(expires){return errors.New("host instruction expired")}
+ switch a.Type{
+ case "github-runner.provision":
+  if !safeOrg(a.Organization)||!safeName(a.RunnerName)||len(a.RegistrationToken)<15{
+   return errors.New("invalid runner registration instruction")
+  }
+  for _,l:=range a.Labels{if !safeName(l){return errors.New("invalid label")}}
+  return provisionRunner(*a)
+ case "github-runner.stop","host.cleanup":
+  if !safeName(a.RunnerName)||a.RunnerName!=hostname()||a.RegistrationToken!=""{
+   return errors.New("decommission action must match this host and contain no registration token")
+  }
+  if os.Geteuid()!=0{return errors.New("host decommission requires root")}
+  if a.Type=="github-runner.stop"{return stopManagedRunner()}
+  return cleanupManagedHost()
+ default:
+  return errors.New("unsupported action")
+ }
+}
+// Remove only explicitly TinkerTunnel-managed paths; never uninstall SSH or Avahi.
+// Cleanup of this running daemon is scheduled after its report has reached the controller.
+func stopManagedRunner()error{
+ service:=filepath.Join(runnerDir,".service")
+ if _,e:=os.Lstat(service);errors.Is(e,os.ErrNotExist){return nil}else if e!=nil{return e}
+ return runCmd("",runnerDir,"./svc.sh","stop")
+}
+func cleanupManagedHost()error{
+ if e:=stopManagedRunner();e!=nil{return e}
+ if _,e:=os.Lstat(filepath.Join(runnerDir,".service"));e==nil{
+  if e=runCmd("",runnerDir,"./svc.sh","uninstall");e!=nil{return e}
+ }else if !errors.Is(e,os.ErrNotExist){return e}
+ if e:=os.RemoveAll(runnerDir);e!=nil{return e}
+ // The delayed one-shot is independent of this service; it stops and removes
+ // the Host Service only after the completed action has been acknowledged.
+ script:="/run/tinkertunnel-finalize.sh"
+ contents:`#!/bin/sh
+set -eu
+systemctl disable --now tinkertunnel-host.service
+rm -f /etc/systemd/system/tinkertunnel-host.service /usr/local/bin/tinkertunnel-host /etc/sudoers.d/90-tinkertunnel-pair
+systemctl daemon-reload
+rm -rf /var/lib/tinkertunnel
+rm -f /run/tinkertunnel-finalize.sh
+`
+ if e:=os.WriteFile(script,[]byte(contents),0700);e!=nil{return e}
+ return runCmd("","","systemd-run","--unit=tinkertunnel-finalize","--on-active=8s",
+  "--property=Type=oneshot","/bin/sh",script)
 }
 func main(){
  command:="";if len(os.Args)>1{command=os.Args[1]}

@@ -6,21 +6,25 @@ HOST_BIN=/usr/local/bin/tinkertunnel-host
 PAIR_RULE=/etc/sudoers.d/90-tinkertunnel-pair
 HOST_STATE=/var/lib/tinkertunnel
 RUNNER_DIR=/opt/tinkertunnel/actions-runner
-APPLY=false; PURGE_STATE=false; PURGE_FILES=false
+APPLY=false; PURGE_STATE=false; PURGE_FILES=false; GITHUB_REMOVED_HOST=""
 for arg in "$@"; do
   case "$arg" in
     --yes) APPLY=true ;;
     --dry-run) APPLY=false ;;
     --purge-state) PURGE_STATE=true ;;
     --purge-unregistered-runner) PURGE_FILES=true ;;
+    --github-removed=*) GITHUB_REMOVED_HOST="${arg#--github-removed=}" ;;
     -h|--help)
       cat <<'HELP'
-Usage: sudo bash uninstall-linux.sh [--dry-run | --yes] [--purge-state] [--purge-unregistered-runner]
+Usage: sudo bash uninstall-linux.sh [--dry-run | --yes] [--purge-state] [--purge-unregistered-runner] [--github-removed=HOSTNAME]
 Default is a dry-run. --yes applies changes. Optional flags separately
 remove local host enrollment data or UNREGISTERED runner leftovers.
 Before running, drain and deregister any GitHub Actions runner and revoke
 the Host Service enrollment from TinkerTunnel's controller.
 Never removes GitHub registration, SSH, Avahi, or the tt-runner OS user.
+After GitHub confirms runner deletion, --github-removed=HOSTNAME permits
+cleanup of a locally configured runner with the same machine hostname.
+It requires --purge-state and --purge-unregistered-runner.
 HELP
       exit 0 ;;
     *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
@@ -48,11 +52,19 @@ if "$APPLY" && [[ "$EUID" -ne 0 ]]; then
   status FAIL "Run with sudo to apply changes."; exit 1
 fi
 # Never sever a still-registered GitHub runner or interrupt its service.
+REGISTERED_LOCAL=false
 if [[ -e "$RUNNER_DIR/.runner" || -L "$RUNNER_DIR/.runner" ||
       -e "$RUNNER_DIR/.service" || -L "$RUNNER_DIR/.service" ]]; then
-  status FAIL "GitHub Actions runner still configured at $RUNNER_DIR."
-  status INFO "Drain and remove its registration using GitHub's supported process first."
-  status INFO "No local changes made."; exit 3
+  REGISTERED_LOCAL=true
+  if [[ "$GITHUB_REMOVED_HOST" != "$(hostname)" || "$PURGE_STATE" != true || "$PURGE_FILES" != true ]]; then
+    status FAIL "A GitHub runner is configured locally. First remove it from GitHub via TinkerTunnel."
+    status INFO "Then repeat with --github-removed=$(hostname) --purge-state --purge-unregistered-runner."
+    status INFO "No local changes made."; exit 3
+  fi
+  if [[ -L "$RUNNER_DIR" || -L "$RUNNER_DIR/.service" || -L "$RUNNER_DIR/.runner" ]]; then
+    status FAIL "Unexpected symlink in runner installation; refusing removal."; exit 4
+  fi
+  status INFO "Operator confirms GitHub runner was removed remotely for host $(hostname)."
 fi
 status INFO "Will stop/disable TinkerTunnel Host Service and remove its binary, unit, and pairing sudo rule."
 if "$PURGE_STATE"; then
@@ -80,6 +92,15 @@ fi
 rm -f -- "$HOST_BIN" "$PAIR_RULE"
 status OK "Host executable and pairing sudo rule removed."
 if "$PURGE_FILES"; then
+  if "$REGISTERED_LOCAL"; then
+    if [[ -e "$RUNNER_DIR/.service" && -x "$RUNNER_DIR/svc.sh" ]]; then
+      (cd "$RUNNER_DIR" && ./svc.sh stop) || true
+      (cd "$RUNNER_DIR" && ./svc.sh uninstall)
+      status OK "Previously registered runner service uninstalled."
+    elif [[ -e "$RUNNER_DIR/.service" ]]; then
+      status FAIL "Runner service exists but svc.sh is unavailable; refusing runner file removal."; exit 4
+    fi
+  fi
   if [[ -L "$RUNNER_DIR" ]]; then
     status FAIL "Runner directory is a symlink; refusing purge."; exit 4
   fi

@@ -365,7 +365,7 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
-       const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited});
+       const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
@@ -695,7 +695,8 @@ export async function localRoute(req) {
             items:stored.runners.slice(0,24).map(r=>({
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
               labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
-              githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null
+              githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
+              decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null}:null
             })),
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
@@ -845,7 +846,7 @@ export async function localRoute(req) {
       }
       return deny(404,"Unknown management endpoint");
     }
-    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal});
+    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal,rnd,githubIdentityCurrent});
      if(agentHostResponse)return agentHostResponse;
      if(path==="/api/agent/enroll"&&method==="POST"){
       const b=await body(req),s=state();
