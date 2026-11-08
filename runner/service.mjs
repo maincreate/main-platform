@@ -106,7 +106,7 @@ async function pair(){
  if(typeof invitation!=="string"||invitation.length<32)throw error("Pairing expired. Run pair again.");
  const enrollmentSignature=signature(host.privateKey,"enroll",[invitation,name,os,architecture]);
  const child=spawn(process.execPath,[agent,"enroll"],{
-  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin,TT_ENROLLMENT_TOKEN:invitation,
+  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin,TT_RUNNER_NAME:name,TT_ENROLLMENT_TOKEN:invitation,
    TT_PAIRING_PUBLIC_KEY:host.publicKey,TT_PAIRING_ENROLL_SIGNATURE:enrollmentSignature}});
  const exitCode=await new Promise((resolve,reject)=>{
   child.once("error",reject);child.once("exit",code=>resolve(code??1));
