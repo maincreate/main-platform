@@ -67,6 +67,23 @@ test('Connected host is queued and remains until cleanup acknowledgment',async()
  assert.equal(h.state().runners.length,0);
  assert.equal(h.state().builderRemovalAudit[0].localResult,'cleanup_scheduled');
 });
+test('Unsupported legacy Host Service leaves a recoverable builder and allows forced cleanup',async()=>{
+ const h=harness({online:true});
+ const initial=await h.removal();
+ assert.equal(initial.status,200);
+ const claim=await h.call('/api/agent/actions/claim',{id:ID},true);
+ const result=await h.call('/api/agent/actions/complete',{
+  id:ID,action_id:claim.data.action.id,success:false,message:'unsupported action'
+ },true);
+ assert.equal(result.status,200);
+ assert.equal(h.state().runners.length,1);
+ assert.equal(h.state().runners[0].decommission.phase,'failed');
+ assert.match(h.state().runners[0].decommission.error,/Upgrade/i);
+ const force=await h.removal({mode:'remote'});
+ assert.equal(force.status,200);
+ assert.equal(force.data.localCleanupRequired,true);
+ assert.equal(h.state().runners.length,0);
+});
 test('Queued registration blocks removal',async()=>{
  const h=harness({actions:[{id:'pending',runnerId:ID,status:'queued'}]});
  assert.equal((await h.removal()).status,409);

@@ -209,8 +209,9 @@ export async function adminHostRoute(req,ctx){
     return deny(401,'Administrator password confirmation failed.');
   const mode=input.mode;
   if(!['managed','remote'].includes(mode))return deny(422,'Select full cleanup or unreachable removal.');
-  if(mode==='remote'&&builderFresh(host)&&!failedInitialSetup(host,initial.hostActions||[]))
-   return deny(409,'Healthy connected builders require managed removal. Force removal is for failed setup or unreachable hosts.');
+  if(mode==='remote'&&builderFresh(host)&&!failedInitialSetup(host,initial.hostActions||[])&&
+     host.decommission?.phase!=='failed')
+   return deny(409,'Healthy connected builders require managed removal. Force removal is for failed setup, unsuccessful cleanup or unreachable hosts.');
   if((initial.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
    return deny(409,'A host operation is in progress. Wait for it to finish.');
   if(mode==='managed'&&!builderFresh(host))return deny(409,'Host is unreachable. Choose unreachable removal.');
@@ -274,7 +275,12 @@ export async function agentHostRoute(req,ctx){
   runner.githubRunnerName=action.runnerName;runner.labels=action.labels;
  }
  if(action.type&&runner.decommission){
-  if(!input.success){runner.decommission.phase='failed';runner.decommission.error=action.message;}
+  if(!input.success){
+   runner.decommission.phase='failed';
+   runner.decommission.error=action.message==='unsupported action'?
+     'Installed Host Service does not support removal. Upgrade using the current TinkerTunnel installer on this machine, then retry.':
+     action.message;
+  }
   else runner.decommission.phase=action.type==='github-runner.stop'?'unregistering':'cleanup_scheduled';
  }
  save(s);

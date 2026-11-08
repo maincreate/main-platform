@@ -22,6 +22,7 @@ function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
 function builderStage(host){
+ if(host.decommission?.phase==="failed")return "removal-failed";
  if(host.decommission)return "removing";
  const action=recentAction(host),connected=currentState(host)==="online";
  if(!host.githubRunnerName){
@@ -72,7 +73,9 @@ function openRemoveDialog(host,mode){
       "Connected: TinkerTunnel will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
       "Force removal: TinkerTunnel will unregister any idle GitHub runner and revoke controller access without uninstalling this machine. You must uninstall or reimage the host manually.")+
     " Active builds cannot be removed. This action cannot be undone.";
-  $("removeBuilderFeedback").textContent="";
+  $("removeBuilderFeedback").textContent=host.decommission?.error?.includes("unsupported action")||
+    host.decommission?.error?.includes("upgrade")?
+    "The installed Host Service is outdated. Run the current TinkerTunnel installer on the host to upgrade it while keeping enrollment, then retry.":"";
   $("confirmRemoveBuilder").disabled=true;
   removeDialog.showModal();
 }
@@ -164,6 +167,10 @@ function renderBuilders(){
    panel.append(menuAction("Remove runner",()=>openRemoveDialog(host,"managed")));
   }else if(stage==="unreachable"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
+  }else if(stage==="removal-failed"){
+   panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
    panel.append(el("span",stage==="removing"?"Removal in progress":"Setup in progress","tt-builder-menu-disabled"));
