@@ -1,11 +1,11 @@
-# TinkerTunnel Local: deployment entry point at the repository ROOT.
+# Main{Create}: deployment entry point at the repository ROOT.
 # Default services: management portal/controller + authenticated read-only MCP gateway.
 # Optional profiles: tunnel and runner. No device, Docker socket or host access.
 services:
   portal:
     build:
       context: .
-      dockerfile: portal/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     init: true
     environment:
@@ -17,7 +17,8 @@ services:
       # Must be explicitly enabled by the operator AFTER reviewing the trust model.
       MAIN_ENABLE_FABRIC_EXECUTION: ${MAIN_ENABLE_FABRIC_EXECUTION:-0}
       # Browser-created account credentials are persisted under /data.
-      # For legacy encrypted-state migrations only, explicitly pass MAIN_MASTER_KEY.
+      MAIN_MASTER_KEY: ${MAIN_MASTER_KEY:-}
+      MAIN_GITHUB_CLIENT_ID: ${MAIN_GITHUB_CLIENT_ID:-}
       MAIN_SERVICE_TOKEN: ${MAIN_SERVICE_TOKEN:-}
       MAIN_MCP_TOKEN: ${MAIN_MCP_TOKEN:-}
     expose:
@@ -25,7 +26,7 @@ services:
     ports:
       - "127.0.0.1:${PORTAL_PORT:-13000}:3000"
     volumes:
-      - tt_data:/data
+      - main_data:/data
     read_only: true
     cap_drop:
       - ALL
@@ -101,9 +102,9 @@ services:
         condition: service_healthy
     environment:
       MAIN_CONTROLLER_URL: http://portal:3000
-      MAIN_RUNNER_STATE_DIR: /var/lib/tinkertunnel
+      MAIN_RUNNER_STATE_DIR: /var/lib/maincreate
     volumes:
-      - tt_runner:/var/lib/tinkertunnel
+      - main_runner:/var/lib/maincreate
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
@@ -111,5 +112,5 @@ services:
     mem_limit: 128m
 
 volumes:
-  tt_data:
-  tt_runner:
+  main_data:
+  main_runner:

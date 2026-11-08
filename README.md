@@ -102,3 +102,7 @@ Update the source repository first. For each entry in the lock, archive the list
 ### Upgrading environment configuration
 
 Before deploying this revision, rename configured environment keys with the former `TT_` prefix to `MAIN_`, preserving their values. Apply the change to the controller, MCP gateway, and any separately configured builders or runner services as each component upgrades. Keep the existing data mount. If you use an external master key, preserve its value under `MAIN_MASTER_KEY`. Rollbacks need the environment key names expected by the rolled-back revision.
+
+### Upgrading Compose storage
+
+New Compose projects create `main_data` and `main_runner` volumes. When upgrading a Compose project with existing state, keep its existing volumes attached by mapping them explicitly in Compose or Coolify before redeploying. Mount controller state at `/data` and runner container state at `/var/lib/maincreate`. Standalone Linux Host Service storage is separate from the Compose runner volume.
