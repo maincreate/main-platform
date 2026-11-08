@@ -130,8 +130,8 @@ export async function enrollHost({address,username,password,approvedFingerprint,
   ].join("\n")+"\n";
   await execute(conn,"bash -se",registration,110000);
   progress("Starting Actions runner service");
-  await sudo(conn,shell(runnerDir+"/svc.sh")+" install "+shell(username),password);
-  await sudo(conn,shell(runnerDir+"/svc.sh")+" start",password);
+  await execute(conn,"cd "+shell(runnerDir)+" && sudo -S -p '' -- ./svc.sh install "+shell(username),password+"\n",65000);
+  await execute(conn,"cd "+shell(runnerDir)+" && sudo -S -p '' -- ./svc.sh start",password+"\n",65000);
   progress("Installing TinkerTunnel companion");
   await copy(conn,fileURLToPath(new URL("../runner/agent.mjs",import.meta.url)),base+"/agent.mjs");
   await copy(conn,fileURLToPath(new URL("../runner/scan_devices.py",import.meta.url)),base+"/scan_devices.py");
