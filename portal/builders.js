@@ -444,6 +444,7 @@ function renderBuilders(){
   panel.setAttribute("role","menu");
 
   if(stage==="setup-incomplete"){
+   panel.append(menuAction("View setup progress",()=>openSetupProgress(host)));
    panel.append(menuAction("Retry GitHub registration",()=>requestRunnerSetup(host),
      currentState(host)!=="online"||!host.managedHost));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote"),false));
@@ -468,6 +469,7 @@ function renderBuilders(){
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
    panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","tt-builder-menu-disabled"));
+   if(stage==="setting-up")panel.append(menuAction("View setup progress",()=>openSetupProgress(host)));
    if(stage==="removing"){
     panel.append(menuAction("View removal progress",()=>viewRemovalProgress(host)));
     panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
@@ -540,6 +542,143 @@ async function load(){
  renderBuilders();
 }
 const dialog=$("addBuilderDialog");
+const setupStageNames={
+ connection:"Connecting to machine",
+ enrollment:"Enrolling Host Service",
+ installation:"Installing GitHub runner",
+ registration:"Registering with GitHub",
+ online:"Verifying runner online"
+};
+const setupRecovery={
+ connection:["Check that the host is powered on and reachable over SSH.","Verify the hostname/IP, local Linux credentials and confirmed SSH fingerprint.","Correct the connection details and retry pairing."],
+ enrollment:["Verify that the TinkerTunnel Host Service is installed and running.","Confirm the host can reach the controller over HTTPS.","Check Host Service logs, then retry enrollment only if no previous enrollment exists."],
+ installation:["Inspect the Host Service logs and the latest provisioning action.","Verify the builder has network access to GitHub and sufficient disk space.","When the host is online, use Retry GitHub registration from the Builders menu."],
+ registration:["Check the organization's GitHub Actions runner-management permission.","Verify the runner was registered under the intended organization.","Reconnect GitHub in Settings if authorization expired, then retry registration."],
+ online:["In GitHub organization settings, inspect the registered runner's status.","Check the GitHub runner service on the build machine.","Wait for the runner to report online or restart its service; do not create a duplicate registration."]
+};
+let setupHostId=null,setupName=null,setupPollTimer=null,setupPollSerial=0,setupPollBusy=false,setupStartedAt=0,setupFailed=null;
+function stopSetupPoll(){
+ setupPollSerial++;
+ if(setupPollTimer!==null)clearInterval(setupPollTimer);
+ setupPollTimer=null;setupPollBusy=false;
+}
+function setupProgressMode(enabled){
+ $("addBuilderProgress").hidden=!enabled;
+ for(let i=1;i<=3;i++)$("builderStep"+i).hidden=enabled||i!==step;
+ const progress=dialog.querySelector(".tt-builder-progress");
+ if(progress)progress.hidden=enabled;
+ $("backBuilder").hidden=enabled||step===1;
+ $("nextBuilder").hidden=enabled||step===3;
+ $("pairHost").hidden=enabled||step!==3;
+ $("cancelBuilder").textContent=enabled?"Close":"Cancel";
+}
+function renderSetupTimeline(stages,headline){
+ const holder=$("addBuilderStages");holder.replaceChildren();
+ for(const id of ["connection","enrollment","installation","registration","online"]){
+  const stage=stages.find(item=>item.id===id)||{id,status:"pending"};
+  const item=el("li",undefined,"tt-removal-stage tt-removal-"+stage.status);
+  const heading=el("div",undefined,"tt-removal-stage-heading");
+  heading.append(el("span",({completed:"✓",active:"●",failed:"!",pending:"○"})[stage.status]||"○","tt-removal-symbol"),
+   el("strong",setupStageNames[id]),el("small",({completed:"Complete",active:"In progress",failed:"Failed",pending:"Pending"})[stage.status]||"Pending"));
+  item.append(heading);
+  if(stage.status==="failed"){
+   const details=el("details",undefined,"tt-removal-failure");details.open=true;
+   details.append(el("summary","Failure details and recovery"));
+   details.append(el("p",stage.detail||"The current setup step could not complete."));
+   const steps=el("ol");for(const instruction of setupRecovery[id])steps.append(el("li",instruction));
+   details.append(steps);item.append(details);
+  }
+  holder.append(item);
+ }
+ $("addBuilderProgressHeadline").textContent=headline;
+}
+function setupTimeline(stage,failed=null,detail=null){
+ const names=["connection","enrollment","installation","registration","online"];
+ const index=names.indexOf(stage);
+ return names.map((id,i)=>({id,status:i<index?"completed":i===index?(failed?"failed":"active"):"pending",
+  detail:i===index?detail:null}));
+}
+function setupFailure(stage,message){
+ setupFailed={stage,message};
+ renderSetupTimeline(setupTimeline(stage,true,message),"Builder setup needs attention · "+setupStageNames[stage]);
+ stopSetupPoll();
+}
+async function pollSetupProgress(serial){
+ if(serial!==setupPollSerial||setupPollBusy||!dialog.open||!setupHostId)return;
+ setupPollBusy=true;
+ try{
+  // Use independently persisted host state, action results and GitHub inventory.
+  const overview=await api("/api/local/overview");
+  if(serial!==setupPollSerial||!dialog.open)return;
+  const host=overview.runners?.items?.find(r=>r.id===setupHostId);
+  if(!host){setupFailure("enrollment","The controller no longer has this builder enrollment.");return;}
+  const recent=await api("/api/local/builders/actions");
+  if(serial!==setupPollSerial||!dialog.open)return;
+  const action=(recent.actions||[]).filter(a=>a.runnerId===setupHostId&&a.type!=="host.upgrade").at(-1);
+  const live=host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000;
+  if(action?.status==="failed"||action?.status==="expired"){
+   setupFailure(action.status==="expired"?"installation":"installation",
+    action.message||"The GitHub runner provisioning action "+action.status+".");return;
+  }
+  if(!host.managedHost){renderSetupTimeline(setupTimeline("enrollment"),"Waiting for Host Service enrollment…");return;}
+  if(!action&&!host.githubRunnerName){
+   setupFailure("registration","Host enrolled, but runner registration was not queued. Review the GitHub connection and retry registration.");return;
+  }
+  if(!host.githubRunnerName){
+   const stage=action?.status==="claimed"?"installation":"installation";
+   renderSetupTimeline(setupTimeline(stage),action?.status==="claimed"?
+    "Installing and registering runner on "+host.name+"…":"Runner setup queued · waiting for builder to claim the action…");
+   return;
+  }
+  let runners;
+  try{
+   const inventory=await api("/api/local/builders/github-runners");
+   runners=inventory.runners||[];
+  }catch(e){
+   renderSetupTimeline(setupTimeline("online"),"GitHub verification unavailable · retrying: "+e.message);
+   return;
+  }
+  if(serial!==setupPollSerial||!dialog.open)return;
+  const github=runners.find(r=>r.name===host.githubRunnerName);
+  if(!github){
+   renderSetupTimeline(setupTimeline("registration"),"Waiting for GitHub runner inventory to confirm registration…");
+  }else if(github.status!=="online"||!live){
+   renderSetupTimeline(setupTimeline("online"),"Runner registered · waiting for online status and Host Service heartbeat…");
+  }else{
+   renderSetupTimeline(["connection","enrollment","installation","registration","online"].map(id=>({id,status:"completed"})),
+    host.name+" is online and ready.");
+   stopSetupPoll();
+   await load();
+   // Leave success visible briefly? The setup is complete; return to inventory.
+   dialog.close();status(host.name+" · Builder setup completed and GitHub runner is online.");
+   return;
+  }
+  if(Date.now()-setupStartedAt>10*60*1000){
+   const active=github?"online":host.githubRunnerName?"registration":"installation";
+   setupFailure(active,"Setup verification timed out. Inspect the host and GitHub status, then retry the failed step.");
+  }
+ }catch(e){
+  if(serial===setupPollSerial&&dialog.open)
+   $("addBuilderProgressHeadline").textContent="Unable to read builder status · "+e.message+" · retrying…";
+ }finally{setupPollBusy=false;}
+}
+function watchSetup(host){
+ stopSetupPoll();
+ setupHostId=host.id;setupName=host.name;setupStartedAt=Date.now();setupFailed=null;
+ setupProgressMode(true);
+ const serial=setupPollSerial;
+ pollSetupProgress(serial);
+ setupPollTimer=setInterval(()=>pollSetupProgress(serial),4000);
+}
+function openSetupProgress(host){
+ if(dialog.open)return;
+ platform="linux-arm64";method="manual";step=3;pairing=false;
+ setupHostId=host.id;setupName=host.name;setupStartedAt=Date.now();
+ setupProgressMode(true);
+ dialog.showModal();
+ watchSetup(host);
+}
+
 function chosenHost(){return method==="manual"?$("hostAddress").value.trim():selectedDiscoveryHost;}
 function clearIdentity(){
  identitySerial++;fingerprint=null;verifiedHost=null;
@@ -655,6 +794,7 @@ function showStep(number){
 }
 function openDialog(){
  if(dialog.open)return;
+ stopSetupPoll();setupHostId=null;setupFailed=null;setupProgressMode(false);
  platform="linux-arm64";method="manual";step=1;selectedDiscoveryHost=null;pairing=false;
  clearIdentity();hideDiscovery();scanLastHosts=new Map();
  $("hostAddress").value="";$("hostUsername").value="";$("hostPassword").value="";
@@ -667,6 +807,7 @@ function openDialog(){
 }
 function closeDialog(){if(!pairing&&dialog.open)dialog.close();}
 dialog.addEventListener("close",()=>{
+ stopSetupPoll();setupProgressMode(false);setupHostId=null;
  hideDiscovery();clearIdentity();$("hostPassword").value="";pairing=false;
 });
 dialog.addEventListener("cancel",event=>{
@@ -741,10 +882,19 @@ $("pairHost").addEventListener("click",async()=>{
  try{
   const result=await api("/api/local/builders/pair",{host,username,password,fingerprint,confirmFingerprint:true});
   $("hostPassword").value="";
-  dialog.close();await load();
+  setupHostId=result.runner.id;
+  setupProgressMode(true);
+  renderSetupTimeline(setupTimeline("installation"),"Host enrolled · preparing GitHub runner setup…");
+  if(!result.provisioning){setupFailure("registration",result.provisioningError||"GitHub registration could not be queued.");}
+  else watchSetup(result.runner);
+  await load();
   status(result.provisioning?result.runner.name+" Host Service paired; GitHub runner installation and registration queued. Not ready until Online.":
    result.runner.name+" Host Service paired; GitHub runner setup needs attention: "+(result.provisioningError||"retry from Builders when online."));
- }catch(e){pairStatus(e.message)}
+ }catch(e){
+  pairStatus(e.message);
+  setupProgressMode(true);
+  setupFailure("connection",e.message);
+ }
  finally{pairing=false;button.disabled=!$("confirmFingerprint").checked;
   $("backBuilder").disabled=false;$("cancelBuilder").disabled=false;$("closeBuilder").disabled=false;
   $("hostPassword").value="";
