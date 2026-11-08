@@ -346,7 +346,7 @@ export async function adminHostRoute(req,ctx){
   const audit=(current.builderRemovalAudit||[]).findLast(r=>r.id===id);
   return audit?reply({...audit,...removalTimeline(null,[],audit)}):deny(404,'Builder not found');
  }
-  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
+  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,type,organization,status,createdAt,completedAt,expiresAt,message})=>({id,runnerId,runnerName,type:type||"github-runner.provision",organization,status,createdAt,completedAt,expiresAt,message}))});
  if(path==='/api/local/builders/upgrade'&&method==='POST'){
   const input=await body(req),s=state(),host=s.runners.find(r=>r.id===input.runnerId);
   if(!host)return deny(404,'Builder not found');
