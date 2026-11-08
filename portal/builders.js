@@ -20,15 +20,42 @@ function el(tag,value,cls){const n=document.createElement(tag);if(value!==undefi
 function status(message){$("notification").textContent=message||"";}
 function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
-function editBuilderAssignment(host){
- const current=host.assignment||{};
- const name=prompt("Display name",current.displayName||host.name);if(name===null)return;
- const location=prompt("Location (site / room / desk)",current.location||"");if(location===null)return;
- const assignedTo=prompt("Assigned engineer or team",current.assignedTo||"");if(assignedTo===null)return;
- const accessGroup=prompt("Access group (informational; not authorization)",current.accessGroup||"");if(accessGroup===null)return;
- api("/api/local/builders/assignment",{builderId:host.id,assignment:{displayName:name,location,assignedTo,accessGroup}})
-  .then(()=>{status("Builder metadata saved. Access-group metadata is not an access-control policy.");return load();})
-  .catch(e=>status("Unable to save builder metadata: "+e.message));
+
+function removalStatus(host){
+ const phase=host.decommission?.phase;
+ if(phase==="failed")return "Removal failed: "+(host.decommission.error||"Unknown error");
+ const names={requested:"Stopping runner",stopping:"Stopping runner",unregistering:"Unregistering from Github",unregistered:"Removing Software",cleaning:"Removing Software",cleanup_scheduled:"Removing from Controller",controller:"Removing from Controller"};
+ return "Removal in Progress: "+(names[phase]||"Preparing removal");
+}
+function builderSignals(host){
+ const reachable=currentState(host)==="online";
+ const runner=githubRunners.find(r=>r.name===host.githubRunnerName);
+ const sw=host.software||{};
+ return {
+  host:{level:reachable?"good":"bad",text:reachable?"Reachable":"Not reachable"},
+  software:!reachable?{level:"unknown",text:"Unavailable while offline"}:
+   sw.error||!host.managedHost?{level:"bad",text:"Software communication error"}:
+   sw.updateAvailable?{level:"warn",text:"Update available"}:
+   sw.upToDate===true?{level:"good",text:"Installed · up to date"}:
+   {level:"unknown",text:"Installed · version unverified"},
+  github:!host.githubRunnerName?{level:"bad",text:"Not registered"}:
+   !runner?{level:"warn",text:"Registered · GitHub check unavailable"}:
+   runner.status!=="online"?{level:"warn",text:"Registered · "+runner.status}:
+   {level:"good",text:"Registered · "+(runner.busy?"busy":"online")}
+ };
+}
+function statusSignal(kind,label,signal){
+ const wrap=el("span",undefined,"tt-builder-signal tt-signal-"+signal.level);
+ wrap.title=label+": "+signal.text;wrap.setAttribute("aria-label",label+": "+signal.text);
+ const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ for(const [key,val] of Object.entries({viewBox:"0 0 24 24",width:"19",height:"19",fill:"none",stroke:"currentColor","stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"}))svg.setAttribute(key,val);
+ const paths={server:["M4 3h16a1 1 0 0 1 1 1v6H3V4a1 1 0 0 1 1-1Z","M3 14h18v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6Z","M7 7h.01","M7 18h.01"],tools:["M14.7 6.3 17.7 3.3 20.7 6.3 17.7 9.3","M3 21l8.8-8.8","M4 4l16 16","M7 4 4 7"],github:["M9 19c-4.5 1.4-4.5-2.5-6.5-3","M9 22v-3.1c-3.4-.9-5-3-5-6.5 0-1.6.5-3 1.4-4.1-.3-1.1-.4-2.5.2-3.8 1.6 0 2.7.7 3.5 1.4a13 13 0 0 1 6 0c.8-.7 1.9-1.4 3.5-1.4.6 1.3.5 2.7.2 3.8.9 1.1 1.4 2.5 1.4 4.1 0 3.5-1.6 5.6-5 6.5V22"]};
+ for(const d of paths[kind]){
+  const node=document.createElementNS("http://www.w3.org/2000/svg","path");
+  node.setAttribute("d",d);svg.append(node);
+ }
+ const symbol=el("span",undefined,"tt-builder-signal-icon");symbol.append(svg);
+ wrap.append(symbol,el("span",signal.text,"tt-builder-signal-text"));return wrap;
 }
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
 function builderStage(host){
@@ -130,15 +157,15 @@ function renderBuilders(){
   (!search||[host.name,host.os,host.arch,...(host.packages||[]).map(p=>p.name)].join(" ").toLowerCase().includes(search)));
  if(!shown.length){holder.append(el("p","No builders match this filter."));return}
  const table=el("table",undefined,"inventory-table"),head=el("tr");
- for(const label of ["Hostname","Platform","Host service","Toolchains","GitHub runner","Actions"])head.append(el("th",label));
+ for(const label of ["Hostname","Platform","Build Host","TinkerTunnel Software","GitHub Registration","Toolchains","Status","Actions"])head.append(el("th",label));
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
  for(const host of shown){
   const tr=el("tr");
-  tr.append(el("td",(host.assignment?.displayName||host.name)+
-   (host.assignment?.location?" · "+host.assignment.location:"")+
-   (host.assignment?.assignedTo?" · "+host.assignment.assignedTo:"")),
-   el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")),
-   el("td",currentState(host)==="online"?"Online":"Offline"));
+  tr.append(el("td",host.name),el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")));
+  const signals=builderSignals(host);
+  for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","TinkerTunnel Software",signals.software],["github","GitHub Runner Registration",signals.github]]){
+   const cell=el("td");cell.append(statusSignal(kind,label,signal));tr.append(cell);
+  }
   const tools=el("td"),packages=host.packages||[];
   if(packages.length){
    const details=el("details"),summary=el("summary",packages.length+" detected"),ul=el("ul");
@@ -147,10 +174,8 @@ function renderBuilders(){
   }else tools.textContent="Not yet reported";
   tr.append(tools);
   const action=recentAction(host),state=action?.status,runnerCell=el("td");
-  if(host.decommission){
-   runnerCell.textContent="Removal: "+host.decommission.phase+
-    (host.decommission.error?" · "+host.decommission.error:"");
-  }else if(host.githubRunnerName){
+  if(host.decommission)runnerCell.textContent=removalStatus(host);
+  else if(host.githubRunnerName){
    const known=githubRunners.find(r=>r.name===host.githubRunnerName);
    const runnerOnline=String(known?.status||"").toLowerCase()==="online";
    runnerCell.textContent=(runnerOnline&&currentState(host)==="online"?"Ready":"Registered · not verified online")+
@@ -171,7 +196,7 @@ function renderBuilders(){
   trigger.setAttribute("title","Builder actions");
   const panel=el("div",undefined,"tt-builder-menu-panel");
   panel.setAttribute("role","menu");
-  panel.append(menuAction("Edit details / location",()=>editBuilderAssignment(host)));
+
   if(stage==="setup-incomplete"){
    panel.append(menuAction("Retry GitHub registration",()=>requestRunnerSetup(host),
      currentState(host)!=="online"||!host.managedHost));
@@ -187,7 +212,7 @@ function renderBuilders(){
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
-   panel.append(el("span",stage==="removing"?"Removal in progress":"Setup in progress","tt-builder-menu-disabled"));
+   panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","tt-builder-menu-disabled"));
   }
   menu.append(trigger,panel);controls.append(menu);
   tr.append(controls);tbody.append(tr);
