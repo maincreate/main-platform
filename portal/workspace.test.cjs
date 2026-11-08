@@ -38,8 +38,16 @@ test("workspace serves current builder, marketplace, and job experiences",async(
    assert.ok(jobs.includes('id="'+id+'"'),"Jobs missing "+id);
   const marketplace=await page("/marketplace");
   assert.ok(marketplace.includes("Marketplace"));
+  assert.ok(marketplace.includes('id="mcuCatalog"'));
+  const marketplaceJs=await page("/marketplace.js");
+  assert.ok(marketplaceJs.includes("renderMicrocontrollers"));
   const devices=await page("/devices");
   assert.ok(devices.includes("Devices"));
+  assert.ok(devices.includes('id="deviceCompatibilityPanel"'));
+  const deviceScript=await page("/devices.js");
+  assert.ok(deviceScript.includes("showCompatibility"));
+  assert.ok(deviceScript.includes("candidateChips"));
+
   const overview=readFileSync(resolve(__dirname,"dashboard.html"),"utf8");
   const dashboardScript=await page("/dashboard.js");
   assert.ok(dashboardScript.includes("loadActivity"));
