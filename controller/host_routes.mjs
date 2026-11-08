@@ -361,7 +361,7 @@ export async function adminHostRoute(req,ctx){
    return deny(422,'Remote upgrades require a managed Linux ARM64 builder');
   if(!builderFresh(host))return deny(409,'Builder must be reachable before upgrading');
   if(host.decommission)return deny(409,'Finish or reconcile builder removal before upgrading');
-  const release='0.5.0';
+  const release='0.6.0';
   if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
   // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
   // bootstrap is required; never queue an instruction the host cannot execute.
