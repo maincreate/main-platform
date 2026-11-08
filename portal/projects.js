@@ -123,3 +123,6 @@ $("newRepoForm").addEventListener("submit",async event=>{
  
 $("projectSearch").addEventListener("input",renderProjectList);
 $("projectFilter").addEventListener("change",renderProjectList);
+const urlFilter=new URLSearchParams(location.search).get("filter");
+if(["missing","unknown","ignored","archived","active"].includes(urlFilter))$("projectFilter").value=urlFilter;
+setInterval(()=>{if(!document.hidden)load();},60_000);
