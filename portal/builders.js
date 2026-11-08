@@ -295,21 +295,33 @@ function renderGithub(){
   const update=runner.updateAvailable?" · Update available: v"+available:
     version&&available&&version===available?" · Current":"";
   tr.append(el("td",software+update));
-  const labels=(runner.labels||[]).map(l=>l.name);tr.append(el("td",labels.join(", ")));
-  const controls=el("td");
+  const labels=(runner.labels||[]).map(l=>l.name);
+  const labelCell=el("td",labels.join(", ")),controls=el("td");
   if(builders.some(host=>host.githubRunnerName===runner.name)){
    const button=el("button","Edit labels","plain-button");button.type="button";
-   button.addEventListener("click",async()=>{
-    const current=(runner.labels||[]).filter(l=>l.type==="custom").map(l=>l.name).join(", ");
-    const answer=prompt("Comma-separated tt- labels for "+runner.name,current);
-    if(answer===null)return;
-    const labels=answer.split(",").map(x=>x.trim()).filter(Boolean);
-    button.disabled=true;
-    try{await api("/api/local/builders/github-runners/labels",{runnerId:runner.id,runnerName:runner.name,labels});
-     await load();}catch(e){status(e.message)}finally{button.disabled=false}
+   button.addEventListener("click",()=>{
+    const editor=el("div",undefined,"tt-runner-label-editor"),input=el("input",undefined,"tt-runner-label-input");
+    input.type="text";input.setAttribute("aria-label","Custom labels for "+runner.name);
+    input.value=(runner.labels||[]).filter(l=>l.type==="custom").map(l=>l.name).join(", ");
+    const save=el("button","Save","plain-button"),cancel=el("button","Cancel","plain-button");
+    const restore=()=>{labelCell.textContent=labels.join(", ");controls.replaceChildren(button)};
+    cancel.addEventListener("click",restore);
+    save.addEventListener("click",async()=>{
+     const chosen=input.value.split(",").map(l=>l.trim()).filter(Boolean);
+     save.disabled=true;
+     try{
+      await api("/api/local/builders/github-runners/labels",{runnerId:runner.id,runnerName:runner.name,labels:chosen});
+      await load();status("GitHub runner labels saved.");
+     }catch(e){status("Unable to save labels: "+e.message);save.disabled=false}
+    });
+    input.addEventListener("keydown",event=>{
+     if(event.key==="Escape")restore();
+     if(event.key==="Enter"){event.preventDefault();save.click();}
+    });
+    editor.append(input,save,cancel);labelCell.replaceChildren(editor);controls.replaceChildren();input.focus();
    });controls.append(button);
   }
-  tr.append(controls);tbody.append(tr);
+  tr.append(labelCell,controls);tbody.append(tr);
  }
  table.append(tbody);holder.append(table);
 }
