@@ -644,7 +644,9 @@ export async function localRoute(req) {
           runners:{
             count:stored.runners.length,
             items:stored.runners.slice(0,24).map(r=>({
-              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
+              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
+              labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
+              githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null
             })),
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
@@ -836,7 +838,14 @@ export async function localRoute(req) {
       const token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
       const runner=s.runners.find(x=>x.id===b.id && equal(x.tokenHash, digest(token)));
       if(!runner)return deny(401,"Invalid runner token");
-      runner.lastSeen=new Date().toISOString();save(s);return reply({ok:true,jobExecution:"disabled"});
+      runner.lastSeen=new Date().toISOString();
+      if(Array.isArray(b.packages)&&b.packages.length<=20&&b.packages.every(p=>
+       p&&typeof p.name==="string"&&/^[a-z0-9_-]{1,32}$/.test(p.name)&&
+       typeof p.version==="string"&&p.version.length<=100)){
+        runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
+        runner.packagesObservedAt=runner.lastSeen;
+      }
+      save(s);return reply({ok:true});
     }
     if(path==="/api/agent/devices"&&method==="POST"){
       const b=await body(req),s=state(),token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");

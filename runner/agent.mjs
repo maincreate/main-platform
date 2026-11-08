@@ -161,6 +161,26 @@ async function scanSerialDevices(){
   });
  });
 }
+async function detectPackages(){
+ const candidates=[["node","node",["--version"]],["git","git",["--version"]],
+  ["python3","python3",["--version"]],["cmake","cmake",["--version"]],
+  ["gcc","gcc",["--version"]],["esp-idf","idf.py",["--version"]],
+  ["swift","swift",["--version"]],["xcode","xcodebuild",["-version"]]];
+ const packages=[];
+ for(const [name,bin,args] of candidates){
+  try{
+   const output=await new Promise((resolve,reject)=>{
+    const child=spawn(bin,args,{shell:false,windowsHide:true,stdio:["ignore","pipe","ignore"]});
+    let data="";const timer=setTimeout(()=>child.kill("SIGKILL"),3000);
+    child.stdout.on("data",c=>{data+=String(c);if(data.length>2000)child.kill("SIGKILL");});
+    child.once("error",e=>{clearTimeout(timer);reject(e);});
+    child.once("close",code=>{clearTimeout(timer);code===0?resolve(data.trim()):reject(new Error("Tool unavailable"));});
+   });
+   packages.push({name,version:String(output.split(/\\r?\\n/)[0]||"installed").slice(0,90)});
+  }catch{}
+ }
+ return packages;
+}
 async function run(){
  const config=JSON.parse(readFileSync(path,"utf8"));
  if(config.url!==endpoint)throw new Error("Controller URL does not match enrollment");
@@ -169,9 +189,14 @@ async function run(){
   post("/api/agent/heartbeat",{id:config.id},config.token).catch(e=>console.error("Heartbeat:",e.message));
  },30000);
  try{
-  let nextScan=0;
+  let nextScan=0,nextPackageScan=0;
   for(;;){
-   if(process.env.TT_RUNNER_DEVICE_DISCOVERY==="1"&&Date.now()>=nextScan){
+   if(Date.now()>=nextPackageScan){
+    nextPackageScan=Date.now()+300000;
+    try{await post("/api/agent/heartbeat",{id:config.id,packages:await detectPackages()},config.token);}
+    catch(e){console.error("Package inventory:",e.message);}
+   }
+   if(process.env.TT_RUNNER_DEVICE_DISCOVERY!=="0"&&Date.now()>=nextScan){
     nextScan=Date.now()+60000;
     try{
      const devices=await scanSerialDevices();
