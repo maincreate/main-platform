@@ -1,5 +1,5 @@
 /** Repo requirements and compatibility monitor. No arbitrary source execution.
- * Manifest: .tinkertunnel/project.json
+ * Manifest: .maincreate/project.json
  * {"schema":1,"targets":[{"os":"linux","arch":"arm64","tools":[{"name":"esp-idf","version":"5.5.x"}]}]}
  * targets are alternatives (OR); tools within a target are requirements (AND).
  */
@@ -7,7 +7,7 @@ import {readFileSync,writeFileSync,renameSync,mkdirSync,existsSync} from "node:f
 import {join} from "node:path";
 import {randomBytes} from "node:crypto";
 
-const dir=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data", location=join(dir,"project-monitor.json");
+const dir=process.env.MAIN_DATA_DIR||"./.maincreate-data", location=join(dir,"project-monitor.json");
 const pending=new Map();
 const osNames=new Set(["linux","macos","windows"]);
 const toolNames=new Set(["esp-idf","xcode","ios-sdk","node","cmake","gcc","python3","swift","git"]);
@@ -30,7 +30,7 @@ export function parseRequirements(text){
  if(typeof text!=="string"||text.length>16384)throw Error("Manifest too large");
  const manifest=JSON.parse(text);
  if(manifest?.schema!==1||!Array.isArray(manifest.targets)||!manifest.targets.length||manifest.targets.length>8)throw Error("Invalid Main{Create} project manifest");
- return {status:"declared",targets:manifest.targets.map(normalizeTarget),source:".tinkertunnel/project.json"};
+ return {status:"declared",targets:manifest.targets.map(normalizeTarget),source:".maincreate/project.json"};
 }
 export function inferRequirementsFromWorkflows(files){
  const targets=[];for(const text of files){
@@ -117,7 +117,7 @@ function decodedFile(body){
 }
 export async function detectProjectRequirements(fullName,token){
  if(!repoName(fullName))throw Error("Invalid repository name");
- const manifest=decodedFile(await githubGet(fullName,".tinkertunnel/project.json",token));
+ const manifest=decodedFile(await githubGet(fullName,".maincreate/project.json",token));
  if(manifest!==null)return parseRequirements(manifest);
  const listing=await githubGet(fullName,".github/workflows",token);
  if(!Array.isArray(listing))return {status:"unknown",targets:[],source:null};

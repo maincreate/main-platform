@@ -1,12 +1,12 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,currentJobs=[],currentAssets=[],devices=[];
-try{const theme=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(theme))document.body.dataset.theme=theme;}catch{}
+try{const theme=localStorage.getItem("maincreate-theme");if(["graphite","paper","midnight"].includes(theme))document.body.dataset.theme=theme;}catch{}
 function el(tag,text,cls){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;}
 function message(value){$("notification").textContent=value||"";}
 async function api(path,payload){
  const req={credentials:"same-origin",cache:"no-store"};
- if(payload!==undefined){req.method="POST";req.headers={"content-type":"application/json","x-tt-csrf":csrf};req.body=JSON.stringify(payload);}
+ if(payload!==undefined){req.method="POST";req.headers={"content-type":"application/json","x-maincreate-csrf":csrf};req.body=JSON.stringify(payload);}
  const response=await fetch(path,req);
  if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
  const data=await response.json().catch(()=>({}));
@@ -38,19 +38,19 @@ function render(){
  const matching=currentJobs.filter(j=>(!query||[j.capability,j.id,j.runner_id,j.status].join(" ").toLowerCase().includes(query))&&
  (status==="all"||j.status===status));
  if(!matching.length){holder.append(el("p","No matching local jobs. GitHub Actions workflow history will appear when that integration is available."));return;}
- const table=el("table",undefined,"tt-jobs-table"),thead=el("thead"),hdr=el("tr");
+ const table=el("table",undefined,"maincreate-jobs-table"),thead=el("thead"),hdr=el("tr");
  for(const h of ["Job","Status","Builder","Started","Actions"])hdr.append(el("th",h));
  thead.append(hdr);table.append(thead);
  const tbody=el("tbody");
  for(const j of matching){
   const row=el("tr");
-  const jobCell=td(row,j.capability||"Job");jobCell.append(el("div",j.id.slice(0,12),"tt-job-meta"));
+  const jobCell=td(row,j.capability||"Job");jobCell.append(el("div",j.id.slice(0,12),"maincreate-job-meta"));
   const state=td(row,"");state.append(el("span",String(j.status).replaceAll("_"," "),"job-status"));
   td(row,j.runner_id?.slice(0,12)||"—");
   td(row,j.created_at?new Date(j.created_at).toLocaleString():"—");
-  const controls=td(row,"","tt-job-actions");
-  const buttons=el("div",undefined,"tt-job-actions");
-  const details=el("tr"),detailCell=td(details,"","tt-job-details");detailCell.colSpan=5;details.hidden=true;
+  const controls=td(row,"","maincreate-job-actions");
+  const buttons=el("div",undefined,"maincreate-job-actions");
+  const details=el("tr"),detailCell=td(details,"","maincreate-job-details");detailCell.colSpan=5;details.hidden=true;
   const artifactList=currentAssets.filter(a=>a.job_id===j.id&&a.complete);
   const header=el("div","Steps and logs");detailCell.append(header,el("pre",JSON.stringify(j.steps||[],null,2)+(j.logs?"\n\n"+j.logs:"\nNo logs available.")));
   for(const a of artifactList)detailCell.append(action("Download "+a.name,()=>download(a)));
@@ -61,7 +61,7 @@ function render(){
    buttons.append(action("Approve",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});await load();}));
    buttons.append(action("Reject",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"reject"});await load();}));
   }
-  if(["awaiting_approval","queued"].includes(j.status))buttons.append(action("Cancel",async()=>{await fabric("tt_jobs",{action:"cancel",job_id:j.id});await load();}));
+  if(["awaiting_approval","queued"].includes(j.status))buttons.append(action("Cancel",async()=>{await fabric("maincreate_jobs",{action:"cancel",job_id:j.id});await load();}));
   controls.append(buttons);tbody.append(row,details);
  }
  table.append(tbody);holder.append(table);
@@ -69,7 +69,7 @@ function render(){
 async function download(asset){
  const chunks=[];let offset=0;
  while(offset<asset.size){
-  const chunk=await fabric("tt_assets",{action:"get",asset_id:asset.id,offset,length:48*1024});
+  const chunk=await fabric("maincreate_assets",{action:"get",asset_id:asset.id,offset,length:48*1024});
   const binary=atob(chunk.content_base64),bytes=new Uint8Array(binary.length);
   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
   chunks.push(bytes);offset=chunk.next_offset;
@@ -84,7 +84,7 @@ async function load(){
  try{
   const overview=await api("/api/local/overview");csrf=overview.csrf;
   $("username").textContent=overview.username||"administrator";
-  const results=await Promise.all([fabric("tt_jobs",{action:"list"}),fabric("tt_assets",{action:"list"}),api("/api/local/devices?mode=visible")]);
+  const results=await Promise.all([fabric("maincreate_jobs",{action:"list"}),fabric("maincreate_assets",{action:"list"}),api("/api/local/devices?mode=visible")]);
   currentJobs=results[0].jobs||[];currentAssets=results[1].assets||[];devices=results[2].devices||[];
    const requested=new URLSearchParams(location.search).get("job");
    if(requested){

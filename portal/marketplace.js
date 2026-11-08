@@ -4,7 +4,7 @@ let csrf=null,builders=[],releases=[],plans=[],selection=new Set(),current=null;
 let placement="selected";
 const esc=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el;};
 async function api(path,data){
- const headers={};if(data!==undefined){headers["content-type"]="application/json";headers["x-tt-csrf"]=csrf;}
+ const headers={};if(data!==undefined){headers["content-type"]="application/json";headers["x-maincreate-csrf"]=csrf;}
  const r=await fetch(path,{credentials:"same-origin",cache:"no-store",method:data===undefined?"GET":"POST",
   headers,body:data===undefined?undefined:JSON.stringify(data)});
  const json=await r.json().catch(()=>({}));if(!r.ok)throw Error(json.error||"HTTP "+r.status);return json;
@@ -15,9 +15,9 @@ function renderMicrocontrollers(){
  const search=$("mcuSearch").value.toLowerCase().trim();
  for(const family of microcontrollers.filter(f=>!search||[f.name,...f.chips,
   ...f.sdk.flatMap(s=>[s.id,...s.versions])].join(" ").toLowerCase().includes(search))){
-  const card=esc("article",undefined,"tt-marketplace-tile");
+  const card=esc("article",undefined,"maincreate-marketplace-tile");
   card.append(esc("h3",family.name),esc("small",family.chips.join(" · ")));
-  const list=esc("div",undefined,"tt-mcu-marketplace-sdks");
+  const list=esc("div",undefined,"maincreate-mcu-marketplace-sdks");
   for(const sdk of family.sdk){
    const row=esc("p");row.append(esc("strong",sdk.id+" "));
    row.append(esc("span",sdk.versions.length?sdk.versions.join(", "):"Version selection pending"));
@@ -39,7 +39,7 @@ function render(){
  const list=$("marketplaceFamilies");list.replaceChildren();
  for(const family of familyGroups()){
   const versions=releases.filter(x=>x.family===family);
-  const box=esc("article",undefined,"tt-marketplace-tile");
+  const box=esc("article",undefined,"maincreate-marketplace-tile");
   const title=esc("h3",versions[0].name);box.append(title,esc("p",versions[0].category));
   box.append(esc("small",versions.length+" selectable release"+(versions.length===1?"":"s")));
   const choose=esc("button","View versions","plain-button");
@@ -52,7 +52,7 @@ function openFamily(family){
  $("marketplaceFamilyTitle").textContent=versions[0]?.name||family;
  const list=$("marketplaceVersions");list.replaceChildren();
  for(const release of versions){
-  const row=esc("div",undefined,"tt-marketplace-version");
+  const row=esc("div",undefined,"maincreate-marketplace-version");
   const button=esc("button",release.version+" · "+release.targets.map(t=>t.os+"/"+t.arch).join(", "),"plain-button");
   button.type="button";button.addEventListener("click",()=>openRelease(release));row.append(button);list.append(row);
  }
@@ -67,7 +67,7 @@ function openRelease(release){
 function renderTargets(){
  const list=$("marketplaceTargets");list.replaceChildren();
  for(const builder of builders){
-  const match=compatible(builder,current),row=esc("label",undefined,"tt-marketplace-target-row");
+  const match=compatible(builder,current),row=esc("label",undefined,"maincreate-marketplace-target-row");
   const check=document.createElement("input");check.type="checkbox";check.disabled=!match||placement==="all-compatible";
   check.checked=placement==="all-compatible"?match:selection.has(builder.id);
   check.addEventListener("change",()=>{if(check.checked)selection.add(builder.id);else selection.delete(builder.id);renderTargets();});
@@ -86,7 +86,7 @@ function renderPlans(){
  const box=$("marketplacePlans");box.replaceChildren();
  if(!plans.length){box.textContent="No installation plans yet.";return;}
  for(const plan of plans.slice(0,10)){
-  const row=esc("div",undefined,"tt-marketplace-plan-row");
+  const row=esc("div",undefined,"maincreate-marketplace-plan-row");
   row.append(esc("strong",plan.family+"@"+plan.version));
   row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · Planned; not installed"));
   box.append(row);

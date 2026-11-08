@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-try{const theme=localStorage.getItem("tt-theme");if(["midnight","graphite","paper"].includes(theme))document.body.dataset.theme=theme;}catch{}
+try{const theme=localStorage.getItem("maincreate-theme");if(["midnight","graphite","paper"].includes(theme))document.body.dataset.theme=theme;}catch{}
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 async function api(path){
  const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
@@ -123,12 +123,12 @@ function bucketLabel(bucket,range){
 }
 function renderActivityDetails(bucket){
  const holder=$("activityDetails");holder.replaceChildren();
- if(!bucket){holder.append(element("div","Select a time bar to inspect its operations.","tt-activity-empty"));return;}
+ if(!bucket){holder.append(element("div","Select a time bar to inspect its operations.","maincreate-activity-empty"));return;}
  const total=bucket.build.length+bucket.job.length;
- holder.append(element("div",bucketLabel(bucket,activityRange)+" · "+total+" recorded operation"+(total===1?"":"s"),"tt-activity-detail-title"));
- if(!total){holder.append(element("p","No recorded operations in this period.","tt-activity-empty"));return;}
+ holder.append(element("div",bucketLabel(bucket,activityRange)+" · "+total+" recorded operation"+(total===1?"":"s"),"maincreate-activity-detail-title"));
+ if(!total){holder.append(element("p","No recorded operations in this period.","maincreate-activity-empty"));return;}
  for(const event of [...bucket.build,...bucket.job].sort((a,b)=>b.time.localeCompare(a.time))){
-  const row=element("div",undefined,"tt-activity-detail-row"),left=element("div");
+  const row=element("div",undefined,"maincreate-activity-detail-row"),left=element("div");
   const name=element("strong",(event.type==="build"?"Build: ":"Job: ")+event.title);
   const runner=activityBuilders.find(b=>b.id===event.builderId);
   left.append(name,element("small",(runner?.name||event.repository||event.builderId||"Builder not recorded")+
@@ -152,7 +152,7 @@ function renderActivityChart(){
  const max=Math.max(1,...counts),scale=Math.max(1,Math.ceil(max/4))*4;
  const svg=svgEl("svg",{viewBox:"0 0 "+width+" "+height,role:"img",
   "aria-label":"Activity from "+new Date(buckets[0].start).toLocaleString()+" to "+new Date(buckets.at(-1).end).toLocaleString()});
- svg.classList.add("tt-activity-svg");
+ svg.classList.add("maincreate-activity-svg");
  for(let i=0;i<=4;i++){
   const value=Math.round(scale*i/4),y=top+chartH*(1-i/4);
   svg.append(svgEl("line",{x1:left,x2:width-right,y1:y,y2:y,class:"gridline"}));

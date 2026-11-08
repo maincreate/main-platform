@@ -2,7 +2,7 @@ import {readFileSync,writeFileSync,renameSync,mkdirSync,existsSync,chmodSync} fr
 import {join} from "node:path";
 import {randomBytes} from "node:crypto";
 
-const root=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data";
+const root=process.env.MAIN_DATA_DIR||"./.maincreate-data";
 const path=join(root,"projects.json");
 const err=(status,message)=>Object.assign(new Error(message),{status});
 function load(){

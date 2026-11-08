@@ -18,11 +18,11 @@ const panels=["loading","unavailable","disconnected","authorizing","connected"];
 function show(panel){panels.forEach(id=>$(id).hidden=id!==panel);}
 function notice(text){$("notice").textContent=text||"";}
 function applyTheme(){
-  try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
+  try{const t=localStorage.getItem("maincreate-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 }
 async function api(path,values){
   const opts={cache:"no-store",credentials:"same-origin"};
-  if(values!==undefined){opts.method="POST";opts.headers={"content-type":"application/json","x-tt-csrf":csrf};opts.body=JSON.stringify(values);}
+  if(values!==undefined){opts.method="POST";opts.headers={"content-type":"application/json","x-maincreate-csrf":csrf};opts.body=JSON.stringify(values);}
   const response=await fetch(path,opts);
   if(response.status===401){window.location.replace("/setup");throw Error("Sign in required");}
   const data=await response.json().catch(()=>({}));

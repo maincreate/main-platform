@@ -5,7 +5,7 @@ import {createHash} from "node:crypto";
 import {spawn} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const configDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
+const configDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".maincreate");
 const path=join(configDir,"runner.json");
 const command=process.argv[2]||"run",endpoint=process.env.MAIN_CONTROLLER_URL||"http://portal:3000";
 const os={win32:"windows",darwin:"macos",linux:"linux"}[platform()];

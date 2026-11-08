@@ -6,15 +6,15 @@ function theme(id){
  if(!themes.includes(id))id="midnight";
  document.body.dataset.theme=id;
  document.querySelectorAll(".theme-choice").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.palette===id)));
- try{localStorage.setItem("tt-theme",id);}catch{}
+ try{localStorage.setItem("maincreate-theme",id);}catch{}
 }
-try{theme(localStorage.getItem("tt-theme")||"midnight");}catch{theme("midnight");}
+try{theme(localStorage.getItem("maincreate-theme")||"midnight");}catch{theme("midnight");}
 document.querySelectorAll(".theme-choice").forEach(button=>button.addEventListener("click",()=>theme(button.dataset.palette)));
 async function api(path,payload){
  const opts={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){
   opts.method="POST";
-  opts.headers={"content-type":"application/json","x-tt-csrf":csrf};
+  opts.headers={"content-type":"application/json","x-maincreate-csrf":csrf};
   opts.body=JSON.stringify(payload);
  }
  const response=await fetch(path,opts);
@@ -58,13 +58,13 @@ async function loadRepositoryPreferences(){
  const list=$("repoRequests");list.replaceChildren();
  if(!preferences.requests?.length){const p=document.createElement("p");p.textContent="No repository requests.";list.append(p);return;}
  for(const request of preferences.requests){
-  const row=document.createElement("div");row.className="tt-approval-row";
+  const row=document.createElement("div");row.className="maincreate-approval-row";
   const detail=document.createElement("div"),label=document.createElement("strong"),meta=document.createElement("small");
   label.textContent=request.organization+"/"+request.name+" · "+request.visibility;
   meta.textContent=request.status+" · "+request.source+" · "+new Date(request.requestedAt).toLocaleString();
   detail.append(label,meta);row.append(detail);
   if(request.status==="pending"){
-    const actions=document.createElement("div");actions.className="tt-approval-actions";
+    const actions=document.createElement("div");actions.className="maincreate-approval-actions";
     for(const [decision,title] of [["approve","Approve"],["reject","Reject"]]){
       const button=document.createElement("button");button.type="button";button.className="plain-button";button.textContent=title;
       button.addEventListener("click",async()=>{

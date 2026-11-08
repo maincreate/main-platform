@@ -10,10 +10,10 @@ The controller stores observations in `MAIN_DATA_DIR/devices.json`. The Devices 
 
 ## Test on a Linux ARM64 builder
 
-1. Confirm the controller has deployed Host Service v0.6.0 and the builder is online. On v0.5.0, use **Builders → Upgrade Host Service → Upgrade remotely**; older versions need the documented one-time bootstrap.
+1. Confirm the controller has deployed Host Service 0.7.0 and the builder is online. Migrate pre-0.7.0 installations over SSH before using remote upgrades.
 2. Connect the device by USB **data** cable to the same enrolled builder. Do not confuse the separate CI container runner with a physical USB-attached builder.
 3. Wait up to 60 seconds and refresh **Devices**. The inventory should show the port (`/dev/ttyACM*` or `/dev/ttyUSB*`), actual VID/PID, identity confidence, last seen and candidate SDKs.
-4. If missing, check locally with `ls -l /dev/serial/by-id/` and `lsusb`; check `journalctl -u tinkertunnel-host -n 100 --no-pager` for `USB discovery` or `USB inventory report` errors. Those are *read-only diagnostics*.
+4. If missing, check locally with `ls -l /dev/serial/by-id/` and `lsusb`; check `journalctl -u maincreate-host -n 100 --no-pager` for `USB discovery` or `USB inventory report` errors. Those are *read-only diagnostics*.
 5. If a device is in USB mass-storage boot mode or exposes no serial interface, the current serial-only scanner will not see it. Add a separate bounded USB-interface inventory before claiming full board discovery.
 
 No automatic USB permission changes or user-space shell execution are required for the sysfs scanner.

@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 
-const dir=mkdtempSync(join(tmpdir(),"tt-device-inventory-"));
+const dir=mkdtempSync(join(tmpdir(),"maincreate-device-inventory-"));
 process.env.MAIN_DATA_DIR=dir;
 const {reportDevices,listDevices,renameDevice}=await import("./devices.mjs");
 const DAY=86400_000;

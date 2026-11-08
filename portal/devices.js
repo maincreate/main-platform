@@ -1,10 +1,10 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,inventory=[];
-try{const t=localStorage.getItem("tt-theme");if(["midnight","graphite","paper"].includes(t))document.body.dataset.theme=t;}catch{}
+try{const t=localStorage.getItem("maincreate-theme");if(["midnight","graphite","paper"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
- if(payload!==undefined){options.method="POST";options.headers={"content-type":"application/json","x-tt-csrf":csrf};options.body=JSON.stringify(payload);}
+ if(payload!==undefined){options.method="POST";options.headers={"content-type":"application/json","x-maincreate-csrf":csrf};options.body=JSON.stringify(payload);}
  const response=await fetch(path,options);
  if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
  const data=await response.json().catch(()=>({}));
@@ -26,13 +26,13 @@ function showCompatibility(device){
  if(!info?.candidates?.length){
   holder.append(node("p","Unrecognized USB serial interface. No chip or SDK association can be asserted from its USB descriptor."));
  }else for(const candidate of info.candidates){
-  const group=node("section",undefined,"tt-device-compatibility");
+  const group=node("section",undefined,"maincreate-device-compatibility");
   group.append(node("h3",candidate.familyName));
   group.append(node("p",candidate.evidence+" · Candidate family only; chip unverified."));
   group.append(node("small","Potential chips: "+candidate.candidateChips.join(", ")));
-  const sdk=node("div",undefined,"tt-device-sdk-list");
+  const sdk=node("div",undefined,"maincreate-device-sdk-list");
   for(const tool of candidate.sdk){
-   const item=node("div",undefined,"tt-device-sdk");
+   const item=node("div",undefined,"maincreate-device-sdk");
    item.append(node("strong",tool.id),node("span",tool.versions.length?tool.versions.join(", "):"Versions under review"),
     node("small",tool.status));
    sdk.append(item);

@@ -56,7 +56,7 @@ async function run() {
     headers: {
       "content-type":"application/json",
       cookie:sessionCookie,
-      "x-tt-csrf":loginResponse.csrf
+      "x-maincreate-csrf":loginResponse.csrf
     },
     body: "{}"
   });

@@ -21,8 +21,8 @@ import (
  "time"
 )
 
-const version="0.6.2"
-var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/tinkertunnel")
+const version="0.7.0"
+var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
 
@@ -55,7 +55,7 @@ func post(origin,path,token string,body any,out any)error{
  if res.StatusCode<200||res.StatusCode>=300{return fmt.Errorf("controller %s returned HTTP %d",path,res.StatusCode)}
  if out!=nil{return json.Unmarshal(data,out)};return nil
 }
-func hostname()string{s,_:=os.Hostname();if s==""{return "tinkertunnel-host"};if len(s)>64{s=s[:64]};return s}
+func hostname()string{s,_:=os.Hostname();if s==""{return "maincreate-host"};if len(s)>64{s=s[:64]};return s}
 func join()error{
  if os.Geteuid()!=0{return errors.New("join requires root via installer-provided sudo rule")}
  if _,e:=load();e==nil{return errors.New("already enrolled; revoke at controller before re-pairing")}
@@ -82,7 +82,7 @@ func packages()[]map[string]string{
 }
 func advertise()func(){
  // Advertise the SSH pairing endpoint, not a publicly writable control API.
- cmd:=exec.Command("avahi-publish-service","Main{Create} "+hostname(),"_tinkertunnel._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
+ cmd:=exec.Command("avahi-publish-service","Main{Create} "+hostname(),"_maincreate._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
  if e:=cmd.Start();e!=nil{log.Printf("mDNS unavailable; manual hostname/IP pairing works: %v",e);return func(){}}
  go func(){if e:=cmd.Wait();e!=nil{log.Printf("mDNS exited: %v",e)}}()
  return func(){_ = cmd.Process.Kill()}
@@ -126,8 +126,8 @@ func run()error{
   message:="completed"
   if e!=nil{message=e.Error();log.Printf("action %s failed: %s",a.ID,message)}
   if e2:=report(c,a.ID,e==nil,message);e2!=nil{log.Printf("report action: %v",e2)}else if e==nil&&a.Type=="host.upgrade"{
-   if err:=runCmd("","","systemd-run","--unit=tinkertunnel-host-upgrade","--on-active=5s",
-    "/usr/local/bin/tinkertunnel-host","apply-upgrade");err!=nil{log.Printf("schedule upgrade: %v",err)}
+   if err:=runCmd("","","systemd-run","--unit=maincreate-host-upgrade","--on-active=5s",
+    "/usr/local/bin/maincreate-host","apply-upgrade");err!=nil{log.Printf("schedule upgrade: %v",err)}
   }
  }}
 }
@@ -190,7 +190,7 @@ func stageUpgrade(c config,a action)error{
  if os.Geteuid()!=0{return errors.New("upgrade requires root")}
  if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return errors.New("unsupported upgrade platform")}
  expected,e:=hex.DecodeString(a.SHA256);if e!=nil||len(expected)!=32{return errors.New("invalid expected checksum")}
- url:=c.Controller+"/downloads/tinkertunnel-host-linux-arm64"
+ url:=c.Controller+"/downloads/maincreate-host-linux-arm64"
  req,e:=http.NewRequest(http.MethodGet,url,nil);if e!=nil{return e}
  res,e:=httpClient.Do(req);if e!=nil{return e};defer res.Body.Close()
  if res.StatusCode!=200{return fmt.Errorf("upgrade download HTTP %d",res.StatusCode)}
@@ -211,7 +211,7 @@ func applyUpgrade()error{
  staged:=filepath.Join(dataDir,"upgrade-pending")
  target,e:=os.ReadFile(filepath.Join(dataDir,"upgrade-target"));if e!=nil{return e}
  if !validUpgradeVersion(string(target)){return errors.New("invalid staged target")}
- oldPath:="/usr/local/bin/tinkertunnel-host"
+ oldPath:="/usr/local/bin/maincreate-host"
  backup:=filepath.Join(dataDir,"host-previous")
  old,e:=os.ReadFile(oldPath);if e!=nil{return e}
  if e=os.WriteFile(backup,old,0700);e!=nil{return e}
@@ -219,15 +219,15 @@ func applyUpgrade()error{
  swap:=oldPath+".next"
  if e=os.WriteFile(swap,next,0700);e!=nil{return e}
  if e=os.Rename(swap,oldPath);e!=nil{return e}
- if e=runCmd("","","systemctl","restart","tinkertunnel-host.service");e!=nil{
+ if e=runCmd("","","systemctl","restart","maincreate-host.service");e!=nil{
   _=os.WriteFile(swap,old,0700);_=os.Rename(swap,oldPath)
-  _=runCmd("","","systemctl","restart","tinkertunnel-host.service")
+  _=runCmd("","","systemctl","restart","maincreate-host.service")
   return e
  }
  time.Sleep(4*time.Second)
- if e=runCmd("","","systemctl","is-active","--quiet","tinkertunnel-host.service");e!=nil{
+ if e=runCmd("","","systemctl","is-active","--quiet","maincreate-host.service");e!=nil{
   _=os.WriteFile(swap,old,0700);_=os.Rename(swap,oldPath)
-  _=runCmd("","","systemctl","restart","tinkertunnel-host.service")
+  _=runCmd("","","systemctl","restart","maincreate-host.service")
   return errors.New("new host service failed health check; rolled back")
  }
  _=os.Remove(staged);_=os.Remove(filepath.Join(dataDir,"upgrade-target"))
@@ -249,21 +249,21 @@ func cleanupManagedHost()error{
  if e:=os.RemoveAll(runnerDir);e!=nil{return e}
  // The delayed one-shot is independent of this service; it stops and removes
  // the Host Service only after the completed action has been acknowledged.
- script:="/run/tinkertunnel-finalize.sh"
+ script:="/run/maincreate-finalize.sh"
  contents:=`#!/bin/sh
 set -eu
-systemctl disable --now tinkertunnel-host.service
-rm -f /etc/systemd/system/tinkertunnel-host.service /usr/local/bin/tinkertunnel-host /etc/sudoers.d/90-tinkertunnel-pair
+systemctl disable --now maincreate-host.service
+rm -f /etc/systemd/system/maincreate-host.service /usr/local/bin/maincreate-host /etc/sudoers.d/90-maincreate-pair
 systemctl daemon-reload
-rm -rf /var/lib/tinkertunnel
-rm -f /run/tinkertunnel-finalize.sh
+rm -rf /var/lib/maincreate
+rm -f /run/maincreate-finalize.sh
 `
  if e:=os.WriteFile(script,[]byte(contents),0700);e!=nil{return e}
- return runCmd("","","systemd-run","--unit=tinkertunnel-finalize","--on-active=8s",
+ return runCmd("","","systemd-run","--unit=maincreate-finalize","--on-active=8s",
   "--property=Type=oneshot","/bin/sh",script)
 }
 func main(){
  command:="";if len(os.Args)>1{command=os.Args[1]}
- var err error;switch command{case "join":err=join();case "serve":err=run();case "version":fmt.Println(version);case "apply-upgrade":err=applyUpgrade();default:err=errors.New("usage: tinkertunnel-host serve|join|version|apply-upgrade")}
+ var err error;switch command{case "join":err=join();case "serve":err=run();case "version":fmt.Println(version);case "apply-upgrade":err=applyUpgrade();default:err=errors.New("usage: maincreate-host serve|join|version|apply-upgrade")}
  if err!=nil{log.Fatal(err)}
 }

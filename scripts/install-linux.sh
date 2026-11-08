@@ -86,33 +86,33 @@ install_dependencies() {
 }
 download_host() {
   TEMP="$(mktemp -d)"
-  local bin="tinkertunnel-host-linux-arm64"
+  local bin="maincreate-host-linux-arm64"
   curl --fail --show-error --silent --location --max-time 90 "$ORIGIN/downloads/$bin" -o "$TEMP/$bin"
   curl --fail --show-error --silent --location --max-time 30 "$ORIGIN/downloads/$bin.sha256" -o "$TEMP/$bin.sha256"
   (cd "$TEMP" && sha256sum --check "$bin.sha256")
 }
 install_host() {
   # Install through a same-directory rename: overwriting a running executable in-place can fail with ETXTBSY.
-  install -m 0755 "$TEMP/tinkertunnel-host-linux-arm64" /usr/local/bin/tinkertunnel-host.new
-  mv -f /usr/local/bin/tinkertunnel-host.new /usr/local/bin/tinkertunnel-host
-  id -u tt-runner >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/tt-runner --shell /usr/sbin/nologin tt-runner
-  install -d -m 0700 -o root -g root /var/lib/tinkertunnel
+  install -m 0755 "$TEMP/maincreate-host-linux-arm64" /usr/local/bin/maincreate-host.new
+  mv -f /usr/local/bin/maincreate-host.new /usr/local/bin/maincreate-host
+  id -u maincreate-runner >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/maincreate-runner --shell /usr/sbin/nologin maincreate-runner
+  install -d -m 0700 -o root -g root /var/lib/maincreate
 }
 configure_pairing() {
   local user="$1"
-  printf '%s ALL=(root) NOPASSWD: /usr/local/bin/tinkertunnel-host join\n' "$user" >/etc/sudoers.d/90-tinkertunnel-pair
-  chmod 0440 /etc/sudoers.d/90-tinkertunnel-pair
-  visudo -cf /etc/sudoers.d/90-tinkertunnel-pair >/dev/null
+  printf '%s ALL=(root) NOPASSWD: /usr/local/bin/maincreate-host join\n' "$user" >/etc/sudoers.d/90-maincreate-pair
+  chmod 0440 /etc/sudoers.d/90-maincreate-pair
+  visudo -cf /etc/sudoers.d/90-maincreate-pair >/dev/null
 }
 install_service() {
-  cat >/etc/systemd/system/tinkertunnel-host.service <<'UNIT'
+  cat >/etc/systemd/system/maincreate-host.service <<'UNIT'
 [Unit]
 Description=Main{Create} Host Service (discovery and controller-managed operations)
 After=network-online.target avahi-daemon.service
 Wants=network-online.target avahi-daemon.service
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/tinkertunnel-host serve
+ExecStart=/usr/local/bin/maincreate-host serve
 User=root
 Group=root
 Restart=always
@@ -124,13 +124,13 @@ PrivateTmp=yes
 WantedBy=multi-user.target
 UNIT
   systemctl daemon-reload
-  systemctl enable --now tinkertunnel-host.service
-  systemctl restart tinkertunnel-host.service
-  systemctl is-active --quiet tinkertunnel-host.service
+  systemctl enable --now maincreate-host.service
+  systemctl restart maincreate-host.service
+  systemctl is-active --quiet maincreate-host.service
 }
 
 UPGRADING=false
-if [[ -s /var/lib/tinkertunnel/host.json ]]; then UPGRADING=true; fi
+if [[ -s /var/lib/maincreate/host.json ]]; then UPGRADING=true; fi
 printf '\\n%bMAIN{CREATE}  /  LINUX ARM64 HOST SETUP%b\\n' "$BOLD" "$RESET"
 printf 'Controller: %s\n' "$ORIGIN"
 printf 'The GitHub Actions runner will be installed only after host pairing.\n\n'

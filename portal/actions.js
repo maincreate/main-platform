@@ -11,12 +11,12 @@
   const runs=allRuns.filter(r=>(!query||[r.name,r.title,r.repository,r.branch].join(" ").toLowerCase().includes(query))&&
     (status==="all"||(r.conclusion||r.status)===status));
   if(!runs.length){container.append(el("p","No matching GitHub workflow runs."));return;}
-  const table=el("table",undefined,"tt-jobs-table"),thead=el("thead"),headers=el("tr");
+  const table=el("table",undefined,"maincreate-jobs-table"),thead=el("thead"),headers=el("tr");
   for(const h of ["Workflow","Repository","Result","When","Actions"])headers.append(el("th",h));
   thead.append(headers);table.append(thead);
   const tbody=el("tbody");
   for(const run of runs){
-   const row=el("tr"),title=cell(row,run.name||"Workflow");title.append(el("div",run.title||"","tt-job-meta"));
+   const row=el("tr"),title=cell(row,run.name||"Workflow");title.append(el("div",run.title||"","maincreate-job-meta"));
    cell(row,run.repository);cell(row,run.conclusion||run.status||"unknown");
    cell(row,run.created_at?new Date(run.created_at).toLocaleString():"—");
    const actions=cell(row,""),link=el("a","View in GitHub");

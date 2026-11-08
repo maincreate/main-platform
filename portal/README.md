@@ -60,7 +60,7 @@ GitHub App installations may request **Repository creation (write)** to create r
 - `GET /api/local/github/repository/preferences`: Read the selected organization, default visibility (initially private) and pending/previous MCP requests.
 - `POST /api/local/github/repository/preferences`: Save `{"defaultVisibility":"private"|"public"}`, authenticated with the existing administrator session and CSRF.
 - `POST /api/local/github/repository/create`: Explicit, confirmed portal action with `name`, optional `description`, optional `visibility`. Creates a GitHub organization repository with a README and records the result.
-- `POST /api/internal/github/repository/request`: Service-token-only endpoint used by the `tt_github_repository_request` MCP tool. **Only queues an approval**, never creates a repository automatically.
+- `POST /api/internal/github/repository/request`: Service-token-only endpoint used by the `maincreate_github_repository_request` MCP tool. **Only queues an approval**, never creates a repository automatically.
 - `POST /api/local/github/repository/requests/decision`: Administrator action to approve/reject an exact MCP request (matching organization, name and visibility); only approval performs the GitHub API call.
 
 A new repository is not automatically populated with firmware, an Actions workflow or validated runner configuration. Those require separate project templates and workflow permissions. Main{Create}’s MCP gateway is currently bearer-authenticated and the ChatGPT remote OAuth/tunnel experience remains a separate deployment integration.
@@ -81,7 +81,7 @@ Deployment fix: the prior Dockerfiles incorrectly contained literal `\\n` charac
 
 The Linux ARM64 Host Service installer and **separate uninstaller** are available at `/install.sh` and `/uninstall.sh`. A Host Service install does not itself install or register GitHub Actions runners; the installer's colored summary shows those later steps as pending.
 
-Before removing a builder, **drain its GitHub runner, remove the runner registration through GitHub's supported removal process, and revoke its enrollment in Main{Create}**. The uninstaller deliberately refuses to run if a registered GitHub Actions runner is still detected in `/opt/tinkertunnel/actions-runner`. It does not attempt remote GitHub deregistration or controller revocation.
+Before removing a builder, **drain its GitHub runner, remove the runner registration through GitHub's supported removal process, and revoke its enrollment in Main{Create}**. The uninstaller deliberately refuses to run if a registered GitHub Actions runner is still detected in `/opt/maincreate/actions-runner`. It does not attempt remote GitHub deregistration or controller revocation.
 
 From the Linux builder, retrieve the uninstaller from your authenticated controller origin and review it before executing:
 
@@ -92,4 +92,4 @@ sudo bash /tmp/maincreate-uninstall.sh --dry-run
 sudo bash /tmp/maincreate-uninstall.sh --yes
 ```
 
-The default is **dry-run**. Optional `--purge-state` also deletes the local host identity and bearer token; optional `--purge-unregistered-runner` removes unregistered runner files and incomplete extraction backups. These flags are never implied. It leaves OpenSSH, Avahi, `tt-runner` OS account, and unrelated software intact. **Do not conflate local file removal with removal from Main{Create}'s inventory or GitHub's organization runner list.**
+The default is **dry-run**. Optional `--purge-state` also deletes the local host identity and bearer token; optional `--purge-unregistered-runner` removes unregistered runner files and incomplete extraction backups. These flags are never implied. It leaves OpenSSH, Avahi, `maincreate-runner` OS account, and unrelated software intact. **Do not conflate local file removal with removal from Main{Create}'s inventory or GitHub's organization runner list.**

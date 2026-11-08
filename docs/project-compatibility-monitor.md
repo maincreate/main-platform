@@ -4,7 +4,7 @@ Main{Create} does not require manual project imports. It periodically synchroniz
 
 ## Detection hierarchy
 
-1. **Explicit, versioned project manifest** at `.tinkertunnel/project.json` (authoritative). This optional metadata is the only way to express exact machine and SDK constraints that cannot be inferred reliably from CI. Example:
+1. **Explicit, versioned project manifest** at `.maincreate/project.json` (authoritative). This optional metadata is the only way to express exact machine and SDK constraints that cannot be inferred reliably from CI. Example:
 
 ```json
 {

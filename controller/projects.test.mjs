@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-const dir=mkdtempSync(join(tmpdir(),"tt-project-inventory-"));
+const dir=mkdtempSync(join(tmpdir(),"maincreate-project-inventory-"));
 process.env.MAIN_DATA_DIR=dir;
 const {syncProjects,listProjects}=await import("./projects.mjs");
 test.after(()=>rmSync(dir,{recursive:true,force:true}));

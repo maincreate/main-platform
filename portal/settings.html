@@ -3,7 +3,7 @@
 <title>Settings • Main{Create}</title>
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
 <script src="/settings.js" defer></script></head><body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization</span><div class="tt-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
+<aside class="maincreate-sidebar" aria-label="Main navigation"><a href="/" class="maincreate-brand"><span class="maincreate-logo">M{}</span>Main{Create}</a><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><span>GitHub organization</span><div class="maincreate-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
@@ -16,7 +16,7 @@
 <section class="settings-panel" aria-labelledby="repoDefaultsTitle">
  <h2 id="repoDefaultsTitle">GitHub repository creation</h2>
  <p>Default visibility for new repositories in the connected organization. Individual requests can explicitly override this choice.</p>
- <form id="visibilityForm" class="tt-inline-form">
+ <form id="visibilityForm" class="maincreate-inline-form">
   <label for="defaultVisibility">Default repository visibility</label>
   <select id="defaultVisibility" name="defaultVisibility">
    <option value="private">Private — recommended</option>
@@ -56,19 +56,19 @@
 <section class="settings-panel" aria-labelledby="approvalTitle">
  <h2 id="approvalTitle">Approval preferences</h2>
  <p>Decide how much Main{Create} can do without asking. GitHub Actions runs when its workflows are triggered; those triggers are not changed here.</p>
- <form id="approvalForm" class="tt-approval-form">
+ <form id="approvalForm" class="maincreate-approval-form">
   <label for="buildApproval">Firmware builds</label>
   <input type="range" id="buildApproval" min="0" max="1" step="1" value="0" aria-describedby="buildApprovalExplanation">
   <strong id="buildApprovalLabel">Ask before starting</strong>
   <p id="buildApprovalExplanation">Review Main{Create}-initiated jobs before they start.</p>
   <label for="flashApproval">Flashing devices</label>
-  <div class="tt-policy-locked"><span>Always ask before flashing</span><span class="inventory-badge">Safety requirement</span></div>
+  <div class="maincreate-policy-locked"><span>Always ask before flashing</span><span class="inventory-badge">Safety requirement</span></div>
   <p>Device flashing is not enabled yet. A future trusted-device mode will require verified firmware and a matching device before any automatic operation.</p>
   <button class="plain-button" type="submit">Save approval preferences</button>
   <p id="approvalNotice" role="status" aria-live="polite"></p>
  </form>
 </section>
-<section class="settings-panel tt-danger-zone" aria-labelledby="resetTitle">
+<section class="settings-panel maincreate-danger-zone" aria-labelledby="resetTitle">
  <h2 id="resetTitle">Reset this Main{Create} installation</h2>
  <p>Return to first-time setup. The local administrator, GitHub connection, inventory, job history, artifacts, and local policies will be moved into a private recovery snapshot.</p>
  <p><strong>This does not delete GitHub repositories, remove already-installed runners, or change Coolify configuration and environment variables.</strong> Existing runners will need to be re-enrolled.</p>
@@ -78,7 +78,7 @@
    <input id="resetPassword" type="password" autocomplete="current-password" required>
    <label for="resetConfirm">Type RESET MAINCREATE</label>
    <input id="resetConfirm" type="text" autocomplete="off" spellcheck="false" required placeholder="RESET MAINCREATE">
-   <button id="resetSubmit" type="submit" class="tt-danger-button">Reset installation</button>
+   <button id="resetSubmit" type="submit" class="maincreate-danger-button">Reset installation</button>
    <p id="resetNotice" role="status" aria-live="polite"></p>
   </form>
  </details>

@@ -8,12 +8,12 @@ The authenticated `/mcp` gateway now advertises six tools. Capability IDs are ar
 
 | Tool | Arguments | Behavior |
 | --- | --- | --- |
-| `tt_discover` | `resource`, optional `query` | List workspace, runners, capabilities, toolkits, jobs, or assets |
-| `tt_inspect` | `resource`, `id` | Read a capability input schema, runner, toolkit, or job |
-| `tt_plan` | `capability`, `runner_id`, `parameters` | Validate a versioned capability or workflow; persist a 30-minute plan |
-| `tt_execute` | `plan_id` | Request an approval-pending job, idempotently per plan |
-| `tt_jobs` | `action=list|get|logs|cancel`, `job_id` | Query or cancel **unclaimed** jobs |
-| `tt_assets` | `action=list|begin|chunk|finish|get` | Upload/download bounded artifacts with ordered chunks and SHA-256 |
+| `maincreate_discover` | `resource`, optional `query` | List workspace, runners, capabilities, toolkits, jobs, or assets |
+| `maincreate_inspect` | `resource`, `id` | Read a capability input schema, runner, toolkit, or job |
+| `maincreate_plan` | `capability`, `runner_id`, `parameters` | Validate a versioned capability or workflow; persist a 30-minute plan |
+| `maincreate_execute` | `plan_id` | Request an approval-pending job, idempotently per plan |
+| `maincreate_jobs` | `action=list|get|logs|cancel`, `job_id` | Query or cancel **unclaimed** jobs |
+| `maincreate_assets` | `action=list|begin|chunk|finish|get` | Upload/download bounded artifacts with ordered chunks and SHA-256 |
 
 The four prototype tool names remain callable as legacy aliases but are no longer advertised.
 
@@ -43,7 +43,7 @@ Example planning request:
 }
 ```
 
-Use that result's `plan_id` in `tt_execute`; it creates a job awaiting approval. A signed-in administrator approves the exact job on `/jobs`. The agent then claims approved work outbound.
+Use that result's `plan_id` in `maincreate_execute`; it creates a job awaiting approval. A signed-in administrator approves the exact job on `/jobs`. The agent then claims approved work outbound.
 
 ## Machine opt-in
 

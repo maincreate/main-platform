@@ -46,7 +46,7 @@ The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Pape
 
 ## Capability Fabric v0.2
 
-The gateway exposes **six stable MCP tools**: `tt_discover`, `tt_inspect`, `tt_plan`, `tt_execute`, `tt_jobs`, and `tt_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
+The gateway exposes **six stable MCP tools**: `maincreate_discover`, `maincreate_inspect`, `maincreate_plan`, `maincreate_execute`, `maincreate_jobs`, and `maincreate_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
 
 **The controller does not execute jobs by default.** Live job dispatch requires `MAIN_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `MAIN_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
 
@@ -107,10 +107,6 @@ Before deploying this revision, rename configured environment keys with the form
 
 New Compose projects create `main_data` and `main_runner` volumes. When upgrading a Compose project with existing state, keep its existing volumes attached by mapping them explicitly in Compose or Coolify before redeploying. Mount controller state at `/data` and runner container state at `/var/lib/maincreate`. Standalone Linux Host Service storage is separate from the Compose runner volume.
 
-### Compatibility identifiers
+### Host Service naming cutover
 
-Main{Create} owns this platform. A connected GitHub organization such as TinkerTunnel is an independent workspace for projects and runners.
-
-Existing Host Service installs still use the `tinkertunnel-host.service` systemd unit, the matching executable and sudo rule, and enrollment and runner data under the legacy paths. The controller also retains the download URL and mDNS service type used by installed hosts. Changing these together requires a host migration that preserves enrollment and runner registration.
-
-The project manifest path and MCP tool IDs remain compatible with existing repositories and clients. Historical source and CI records can show the former product name.
+Host Service 0.7 uses the `maincreate-host.service` unit, `maincreate-host` executable, and Main{Create} state paths. Existing installations must move their enrollment state and rebind the runner service before switching. Perform the first upgrade manually over SSH. Clients must refresh MCP tool discovery and use the new tool IDs. Project manifests belong at `.maincreate/project.json`.

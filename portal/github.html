@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/github.css">
 <script src="/github.js" defer></script></head>
 <body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization</span><div class="tt-account"><span id="username">administrator</span></div></header>
+<aside class="maincreate-sidebar" aria-label="Main navigation"><a href="/" class="maincreate-brand"><span class="maincreate-logo">M{}</span>Main{Create}</a><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><span>GitHub organization</span><div class="maincreate-account"><span id="username">administrator</span></div></header>
 <main class="main github-shell">
   <p class="eyebrow" id="githubStepLabel">SETUP / STEP 2 OF 2</p>
   <h1>Connect GitHub</h1><p id="githubSetupNotice" class="intro-text">Select your GitHub organization to finish Main{Create} setup. Your workspace will open after this step.</p>
@@ -41,17 +41,17 @@
     <p>Signed in as <strong id="githubLogin"></strong>. Select an organization to make it possible to share build machines between repositories later.</p>
     <label for="org">GitHub organization</label>
     <select id="org"><option value="">Choose an organization</option></select>
-    <p class="muted" id="organizationHint"></p><div class="tt-org-help" id="orgEmptyHelp" hidden>
+    <p class="muted" id="organizationHint"></p><div class="maincreate-org-help" id="orgEmptyHelp" hidden>
  <strong>No GitHub organizations available</strong>
  <p>Create an organization in GitHub, install the Main{Create} GitHub App in it, then come back and refresh this list.</p>
  <a class="plain-button" href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create a GitHub organization ↗</a>
 </div>
     <button id="refreshOrganizations" class="plain-button" type="button">Refresh organizations</button>
-    <section id="runnerPolicy" class="tt-runner-policy" aria-labelledby="runnerPolicyTitle" hidden>
+    <section id="runnerPolicy" class="maincreate-runner-policy" aria-labelledby="runnerPolicyTitle" hidden>
       <h3 id="runnerPolicyTitle">Self-hosted runner policy</h3>
       <p>Main{Create} is designed to use your self-hosted builders. Before continuing, disable GitHub's <strong>standard hosted runners</strong> for this organization. This is a GitHub organization setting, not the self-hosted runner permission switch.</p>
       <p><a id="runnerPolicyLink" href="#" target="_blank" rel="noopener noreferrer">Open organization Actions settings ↗</a> and under <strong>Standard hosted runners</strong>, select <strong>Disable for all repositories</strong>, then save.</p>
-      <label class="tt-runner-policy-check" for="runnerPolicyConfirmed"><input id="runnerPolicyConfirmed" type="checkbox"> I have saved this setting in GitHub for <strong id="runnerPolicyOrg"></strong>.</label>
+      <label class="maincreate-runner-policy-check" for="runnerPolicyConfirmed"><input id="runnerPolicyConfirmed" type="checkbox"> I have saved this setting in GitHub for <strong id="runnerPolicyOrg"></strong>.</label>
       <p id="runnerPolicyState" class="muted" role="status">This confirmation is recorded in Main{Create}, not verified by the GitHub API.</p>
       <p class="small">Disabling standard hosted runners is supported on GitHub Team and Enterprise. It blocks ordinary hosted runner labels; hosted runner groups may still be allowed. For strictly self-hosted execution, also restrict runner groups and workflow targets.</p>
     </section>

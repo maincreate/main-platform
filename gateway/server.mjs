@@ -14,24 +14,24 @@ const ok=(id,result)=>({jsonrpc:"2.0",id,result});
 const object=(properties={},required=[])=>({type:"object",properties,required,additionalProperties:false});
 const textField={type:"string"},idField={type:"string",description:"Server-issued identifier"};
 const tools=[
- {name:"tt_discover",title:"Discover Main{Create} resources",description:"Find installed runners, workspace details and versioned capability manifests. Read only.",
+ {name:"maincreate_discover",title:"Discover Main{Create} resources",description:"Find installed runners, workspace details and versioned capability manifests. Read only.",
   annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["all","capabilities","toolkits","runners","devices","workspace","jobs","assets"]},query:textField})},
- {name:"tt_inspect",title:"Inspect one resource",description:"Read the input schema and supported platforms of a capability, an enrolled runner or an existing job. Read only.",
+ {name:"maincreate_inspect",title:"Inspect one resource",description:"Read the input schema and supported platforms of a capability, an enrolled runner or an existing job. Read only.",
   annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["capability","toolkit","runner","device","job"]},id:idField},["id"])},
- {name:"tt_plan",title:"Plan a validated capability",description:"Validate parameters for a pinned capability or composed workflow against a specific runner. Produces an immutable expiring plan; no execution.",
-  annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({capability:textField,runner_id:idField,parameters:{type:"object",description:"Capability-specific parameters from tt_inspect; no arbitrary shell command."}},["capability","runner_id"])},
- {name:"tt_execute",title:"Request approved execution",description:"Submit a previously validated plan as an approval-pending job. Never executes without signed-in portal approval and operator-enabled runner.",
+ {name:"maincreate_plan",title:"Plan a validated capability",description:"Validate parameters for a pinned capability or composed workflow against a specific runner. Produces an immutable expiring plan; no execution.",
+  annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({capability:textField,runner_id:idField,parameters:{type:"object",description:"Capability-specific parameters from maincreate_inspect; no arbitrary shell command."}},["capability","runner_id"])},
+ {name:"maincreate_execute",title:"Request approved execution",description:"Submit a previously validated plan as an approval-pending job. Never executes without signed-in portal approval and operator-enabled runner.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({plan_id:idField},["plan_id"])},
- {name:"tt_jobs",title:"Track or cancel jobs",description:"List, inspect, retrieve bounded logs or cancel an unclaimed job. Cannot cancel an already running process.",
+ {name:"maincreate_jobs",title:"Track or cancel jobs",description:"List, inspect, retrieve bounded logs or cancel an unclaimed job. Cannot cancel an already running process.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","get","logs","cancel"]},job_id:idField})},
- {name:"tt_github_repository_request",title:"Request a new GitHub organization repository",
+ {name:"maincreate_github_repository_request",title:"Request a new GitHub organization repository",
   description:"Request creation of a new repository in the currently selected GitHub organization. Defaults to its configured private/public setting. Requires a separate approval by an authenticated Main{Create} administrator before GitHub is modified.",
   annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false},
   inputSchema:object({name:{type:"string",description:"Repository name, 1–100 characters"},
     description:{type:"string",description:"Optional repository description"},
     visibility:{type:"string",enum:["private","public"],description:"Optional override of organization default"},
     organization:{type:"string",description:"Optional organization identity; must match connected organization"}},["name"])},
- {name:"tt_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in Main{Create} storage; no filesystem paths.",
+ {name:"maincreate_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in Main{Create} storage; no filesystem paths.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","begin","chunk","finish","get"]},job_id:idField,
    asset_id:idField,name:textField,size:{type:"integer"},mime:textField,offset:{type:"integer"},
    length:{type:"integer"},content_base64:textField,sha256:textField})}
@@ -46,13 +46,13 @@ async function get(path,opts={}){
 }
 async function legacy(name,args){
  const headers={authorization:"Bearer "+serviceToken};
- if(name==="tinkertunnel_status")return get("/api/internal/status",{headers});
- if(name==="tinkertunnel_list_runners"){
+ if(name==="maincreate_status")return get("/api/internal/status",{headers});
+ if(name==="maincreate_list_runners"){
   const s=await get("/api/internal/status",{headers});
   return {runners:s.runners||[],jobExecution:s.executionEnabled?"operator-enabled":"disabled"};
  }
- if(name==="tinkertunnel_framework_catalog")return get("/api/v1/catalog");
- if(name==="tinkertunnel_plan_install"){
+ if(name==="maincreate_framework_catalog")return get("/api/v1/catalog");
+ if(name==="maincreate_plan_install"){
   if(!["framework","os","arch"].every(k=>typeof args?.[k]==="string"))throw new Error("framework, os, arch required");
   return get("/api/v1/plans",{method:"POST",headers:{"content-type":"application/json"},
    body:JSON.stringify({framework:args.framework,os:args.os,arch:args.arch})});
@@ -60,7 +60,7 @@ async function legacy(name,args){
  throw new Error("Unknown tool");
 }
 async function call(name,args){
- if(name==="tt_github_repository_request"){
+ if(name==="maincreate_github_repository_request"){
    return get("/api/internal/github/repository/request",{method:"POST",
      headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},
      body:JSON.stringify(args)});
@@ -73,8 +73,8 @@ async function call(name,args){
  // Compatibility for users who saved the original 4 tool names; not advertised.
  return legacy(name,args);
 }
-const legacyNames=["tinkertunnel_status","tinkertunnel_list_runners",
- "tinkertunnel_framework_catalog","tinkertunnel_plan_install"];
+const legacyNames=["maincreate_status","maincreate_list_runners",
+ "maincreate_framework_catalog","maincreate_plan_install"];
 async function processMessage(message){
  if(!message||message.jsonrpc!=="2.0"||typeof message.method!=="string")
   return error(message?.id??null,-32600,"Invalid JSON-RPC request");

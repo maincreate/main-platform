@@ -6,7 +6,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
-const service='_tinkertunnel._tcp.local';
+const service='_maincreate._tcp.local';
 const qname=s=>Buffer.concat([...s.split('.').map(part=>Buffer.concat([Buffer.from([part.length]),Buffer.from(part)])),Buffer.from([0])]);
 export const validHost=host=>typeof host==='string'&&host.length<=253&&/^[a-z0-9][a-z0-9.-]*$/i.test(host)&&!host.includes('..');
 export const validUser=user=>typeof user==='string'&&/^[a-z_][a-z0-9_-]{0,31}$/i.test(user);
@@ -60,7 +60,7 @@ export async function discoverHosts({timeoutMs=2200}={}){
   return instances.map(instance=>{
    const srv=records.find(r=>r.owner===instance&&r.type===33);
    const addr=records.find(r=>r.owner===srv?.value&&r.type===1);
-   return {name:instance.split('._tinkertunnel.')[0],hostname:srv?.value||null,address:addr?.address||null,port:srv?.port||22};
+   return {name:instance.split('._maincreate.')[0],hostname:srv?.value||null,address:addr?.address||null,port:srv?.port||22};
   }).filter(item=>item.hostname&&item.port===22).slice(0,50);
  }finally{socket.close()}
 }
@@ -94,10 +94,10 @@ export async function pairOverSsh({host,username,password,fingerprint,controller
  if(!/^SHA256:[A-Za-z0-9+/]+$/.test(fingerprint)||!/^https:\/\/[a-z0-9.-]+(:\d{1,5})?$/i.test(controller)||typeof invitation!=='string'||invitation.length<32)throw Error('Invalid pairing request');
  const current=await hostFingerprint(host);
  if(current.fingerprint!==fingerprint)throw Error('SSH host fingerprint changed. Refusing to send credentials.');
- const tmp=await mkdtemp(join(tmpdir(),'tt-ssh-'));const known=join(tmp,'known_hosts');
+ const tmp=await mkdtemp(join(tmpdir(),'maincreate-ssh-'));const known=join(tmp,'known_hosts');
  try{
   await writeFile(known,current.knownHostLine+'\n',{mode:0o600});
-  const args=['-e','ssh','-T','-p','22','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+known,'-o','PreferredAuthentications=password,keyboard-interactive','-o','PubkeyAuthentication=no','-o','ConnectTimeout=8',username+'@'+host,'sudo -n /usr/local/bin/tinkertunnel-host join'];
+  const args=['-e','ssh','-T','-p','22','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+known,'-o','PreferredAuthentications=password,keyboard-interactive','-o','PubkeyAuthentication=no','-o','ConnectTimeout=8',username+'@'+host,'sudo -n /usr/local/bin/maincreate-host join'];
   const result=await execBounded('sshpass',args,{input:JSON.stringify({controller,invitation})+'\n',env:{SSHPASS:password},timeout:30000});
   const id=/\(ID ([0-9a-f]{24})\)/.exec(result.stdout)?.[1];
   if(!id)throw Error('Host did not confirm enrollment');

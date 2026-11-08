@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Main{Create} Linux Host Service removal; intentionally no remote deregistration.
 set -Eeuo pipefail
-HOST_UNIT=/etc/systemd/system/tinkertunnel-host.service
-HOST_BIN=/usr/local/bin/tinkertunnel-host
-PAIR_RULE=/etc/sudoers.d/90-tinkertunnel-pair
-HOST_STATE=/var/lib/tinkertunnel
-RUNNER_DIR=/opt/tinkertunnel/actions-runner
+HOST_UNIT=/etc/systemd/system/maincreate-host.service
+HOST_BIN=/usr/local/bin/maincreate-host
+PAIR_RULE=/etc/sudoers.d/90-maincreate-pair
+HOST_STATE=/var/lib/maincreate
+RUNNER_DIR=/opt/maincreate/actions-runner
 APPLY=false; PURGE_STATE=false; PURGE_FILES=false; GITHUB_REMOVED_HOST=""
 for arg in "$@"; do
   case "$arg" in
@@ -21,7 +21,7 @@ Default is a dry-run. --yes applies changes. Optional flags separately
 remove local host enrollment data or UNREGISTERED runner leftovers.
 Before running, drain and deregister any GitHub Actions runner and revoke
 the Host Service enrollment from Main{Create}'s controller.
-Never removes GitHub registration, SSH, Avahi, or the tt-runner OS user.
+Never removes GitHub registration, SSH, Avahi, or the maincreate-runner OS user.
 After GitHub confirms runner deletion, --github-removed=HOSTNAME permits
 cleanup of a locally configured runner with the same machine hostname.
 It requires --purge-state and --purge-unregistered-runner.
@@ -77,12 +77,12 @@ if "$PURGE_FILES"; then
 else
   status INFO "Preserving unregistered runner files."
 fi
-status INFO "Will leave SSH, Avahi, tt-runner OS account, and unrelated software untouched."
+status INFO "Will leave SSH, Avahi, maincreate-runner OS account, and unrelated software untouched."
 if ! "$APPLY"; then
   status INFO "DRY RUN: no changes made. Re-run with --yes to apply."; exit 0
 fi
 if [[ -f "$HOST_UNIT" ]]; then
-  systemctl disable --now tinkertunnel-host.service
+  systemctl disable --now maincreate-host.service
   rm -f -- "$HOST_UNIT"
   systemctl daemon-reload
   status OK "Host Service stopped, disabled, and unit removed."

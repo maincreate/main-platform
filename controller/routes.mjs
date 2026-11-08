@@ -11,7 +11,7 @@ import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./proj
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
 
-const dataDir = process.env.MAIN_DATA_DIR || "./.tinkertunnel-data";
+const dataDir = process.env.MAIN_DATA_DIR || "./.maincreate-data";
 const dataFile = join(dataDir, "state.json");
 const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
@@ -170,7 +170,7 @@ function sameOrigin(req) {
 function authorized(req,mutation=false) {
   const s=session(req);
   if(!s)return deny(401,"Admin login required");
-  if(mutation && !equal(req.headers.get("x-tt-csrf")||"",s.csrf))return deny(403,"CSRF token required");
+  if(mutation && !equal(req.headers.get("x-maincreate-csrf")||"",s.csrf))return deny(403,"CSRF token required");
   return null;
 }
 async function body(req) {
@@ -256,7 +256,7 @@ function requestRepositoryFromMcp(input){
 function applyApprovalPreference(tool,args,context){
   const result=fabricCall(tool,args,context);
   // No device flashing or arbitrary shell capability can inherit automatic approval.
-  if(tool==="tt_execute"&&state().approvalSettings?.buildApproval==="automatic"&&
+  if(tool==="maincreate_execute"&&state().approvalSettings?.buildApproval==="automatic"&&
       result?.job?.status==="awaiting_approval"&&result.job.capability==="firmware.esp_idf.build"){
     return {...result,job:approveJob(result.job.id,"approve").job,requires_approval:false,notice:"Approved automatically under the saved firmware build policy."};
   }
@@ -416,7 +416,7 @@ export async function localRoute(req) {
         if(b.confirm!=="RESET MAINCREATE")return deny(422,"Enter RESET MAINCREATE to confirm");
         if(typeof b.password!=="string"||!(await verifyPassword(b.password,stored.admin.password)))
           return deny(401,"Administrator password is incorrect");
-        const running=fabricCall("tt_jobs",{action:"list"}).jobs.some(j=>j.status==="running");
+        const running=fabricCall("maincreate_jobs",{action:"list"}).jobs.some(j=>j.status==="running");
         if(running)return deny(409,"Stop active local jobs before resetting the installation");
         // Preserve a private on-disk recovery snapshot. External GitHub repos, host agents
         // and hosting environment variables are never modified.
@@ -623,7 +623,7 @@ export async function localRoute(req) {
       if(path==="/api/local/projects"&&method==="GET"){
         const stored=state(),gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
         try{
-          const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
+          const jobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
           const inventory=listProjects(org,jobs);
           if(org&&githubIdentityCurrent(gh))requestRequirementRefresh({organization:org,
             accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
@@ -715,7 +715,7 @@ export async function localRoute(req) {
         const range=new URL(req.url).searchParams.get("range")||"7d";
         if(!["24h","7d","30d"].includes(range))return deny(422,"Unsupported activity range");
         // This is the currently retained local job ledger, not GitHub Actions history.
-        const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
+        const jobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
         const events=jobs.flatMap(job=>{
           const timestamp=job.started_at||job.created_at;
           const time=Date.parse(timestamp||"");
@@ -736,7 +736,7 @@ export async function localRoute(req) {
         const stored=state(),current=session(req);
         return reply({
           username:current.username,csrf:current.csrf,
-          workspace:{name:["TinkerTunnel", "TinkerTunnel Local"].includes(stored.config.name)?"Main{Create}":stored.config.name},
+          workspace:{name:stored.config.name},
           github:{
             identityConnected:githubIdentityCurrent(stored.github),
             authorizationExpired:!!stored.github.oauthUser&&!githubIdentityCurrent(stored.github),
@@ -773,7 +773,7 @@ export async function localRoute(req) {
              const d=listProjects(org),monitor=projectSummary(d.repositories,stored.runners);
              return {count:d.repositories.length,updatedAt:d.updatedAt,organization:d.organization,
                missingBuilders:monitor.alerts,unclassified:monitor.unknown};})(),
-          jobs:(()=>{const j=fabricCall("tt_jobs",{action:"list"}).jobs;
+          jobs:(()=>{const j=fabricCall("maincreate_jobs",{action:"list"}).jobs;
             return {count:j.length,running:j.filter(x=>x.status==="running").length,
               pending:j.filter(x=>x.status==="awaiting_approval").length,
               failed:j.filter(x=>x.status==="failed").length,

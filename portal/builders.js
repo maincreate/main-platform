@@ -5,11 +5,11 @@ let platform="linux-arm64",method="manual",step=1;
 let fingerprint=null,verifiedHost=null,identitySerial=0;
 let selectedDiscoveryHost=null,scanActive=false,scanDeadline=0,scanTimer=null,scanClock=null,scanRequest=null,scanSerial=0,scanLastHosts=new Map(),pairing=false;
 const SCAN_MAX_MS=5*60*1000,SCAN_INTERVAL_MS=12000;
-try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
+try{const t=localStorage.getItem("maincreate-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,body,signal){
  const request={credentials:"same-origin",cache:"no-store"};
  if(signal)request.signal=signal;
- if(body!==undefined){request.method="POST";request.headers={"content-type":"application/json","x-tt-csrf":csrf};request.body=JSON.stringify(body);}
+ if(body!==undefined){request.method="POST";request.headers={"content-type":"application/json","x-maincreate-csrf":csrf};request.body=JSON.stringify(body);}
  const response=await fetch(path,request);
  if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
  const data=await response.json().catch(()=>({}));
@@ -46,7 +46,7 @@ function builderSignals(host){
  };
 }
 function statusSignal(kind,label,signal){
- const wrap=el("span",undefined,"tt-builder-signal tt-signal-"+signal.level);
+ const wrap=el("span",undefined,"maincreate-builder-signal maincreate-signal-"+signal.level);
  wrap.title=label+": "+signal.text;wrap.setAttribute("aria-label",label+": "+signal.text);
  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
  for(const [key,val] of Object.entries({viewBox:"0 0 24 24",width:"19",height:"19",fill:"none",stroke:"currentColor","stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"}))svg.setAttribute(key,val);
@@ -55,8 +55,8 @@ function statusSignal(kind,label,signal){
   const node=document.createElementNS("http://www.w3.org/2000/svg","path");
   node.setAttribute("d",d);svg.append(node);
  }
- const symbol=el("span",undefined,"tt-builder-signal-icon");symbol.append(svg);
- wrap.append(symbol,el("span",signal.text,"tt-builder-signal-text"));return wrap;
+ const symbol=el("span",undefined,"maincreate-builder-signal-icon");symbol.append(svg);
+ wrap.append(symbol,el("span",signal.text,"maincreate-builder-signal-text"));return wrap;
 }
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
 function builderStage(host){
@@ -79,18 +79,18 @@ async function reconcileRemoval(host){
  }catch(e){status("Removal reconciliation failed: "+e.message);}
 }
 function closeBuilderMenus(except=null){
- for(const menu of document.querySelectorAll(".tt-builder-action-menu")){
+ for(const menu of document.querySelectorAll(".maincreate-builder-action-menu")){
   if(menu!==except)menu.open=false;
  }
 }
 document.addEventListener("pointerdown",event=>{
- if(!event.target.closest(".tt-builder-action-menu"))closeBuilderMenus();
+ if(!event.target.closest(".maincreate-builder-action-menu"))closeBuilderMenus();
 });
 document.addEventListener("keydown",event=>{
  if(event.key==="Escape")closeBuilderMenus();
 });
 function menuAction(text,callback,disabled=false){
- const b=el("button",text,"tt-builder-menu-action");
+ const b=el("button",text,"maincreate-builder-menu-action");
  b.type="button";b.disabled=disabled;b.setAttribute("role","menuitem");
  b.addEventListener("click",event=>{
   const details=event.currentTarget.closest("details");if(details)details.open=false;
@@ -221,7 +221,7 @@ function openUpgradeDialog(host){
  const bootstrap=!host.software?.remoteUpgradeSupported;
  $("manualUpgradeSteps").hidden=!bootstrap&&!host.software?.updateAvailable;
  $("upgradeBuilderGuidance").textContent=bootstrap?
-  "Remote upgrade requires Host Service 0.5.0 or newer. Run the command below on the builder to install the current release ("+expected+").":
+  "Remote upgrade requires Host Service 0.7.0 or newer. For an existing install, migrate its state first. The command below installs the current release ("+expected+").":
   installed===expected?"Host Service is already at the current version.":
   "Queue a checksum-pinned update from the controller. The host downloads it over its existing HTTPS connection, stages it, restarts, and confirms the new version through heartbeat.";
  $("startRemoteUpgrade").disabled=bootstrap||installed===expected||currentState(host)!=="online"||!!host.decommission||
@@ -290,13 +290,13 @@ function renderRemovalProgress(result){
  const list=$("removeBuilderStages");list.replaceChildren();
  for(const id of ["stopping","unregistering","cleaning","controller"]){
   const stage=result.stages?.find(x=>x.id===id)||{status:"pending"};
-  const row=el("li",undefined,"tt-removal-stage tt-removal-"+stage.status);
-  const header=el("div",undefined,"tt-removal-stage-heading");
-  header.append(el("span",({completed:"✓",active:"●",failed:"!",skipped:"–",pending:"○"})[stage.status]||"○","tt-removal-symbol"),
+  const row=el("li",undefined,"maincreate-removal-stage maincreate-removal-"+stage.status);
+  const header=el("div",undefined,"maincreate-removal-stage-heading");
+  header.append(el("span",({completed:"✓",active:"●",failed:"!",skipped:"–",pending:"○"})[stage.status]||"○","maincreate-removal-symbol"),
    el("strong",removeStageNames[id]),el("small",({completed:"Complete",active:"In progress",failed:"Failed",skipped:"Skipped",pending:"Pending"})[stage.status]||"Pending"));
   row.append(header);
   if(stage.status==="failed"){
-   const details=el("details",undefined,"tt-removal-failure");details.open=true;
+   const details=el("details",undefined,"maincreate-removal-failure");details.open=true;
    details.append(el("summary","Failure details and manual recovery"));
    details.append(el("p",stage.detail||result.error||"The operation failed."));
    const instructions=el("ol");
@@ -467,14 +467,14 @@ function renderBuilders(){
   tr.append(runnerCell);
   const controls=el("td");
   controls.replaceChildren();
-  controls.classList.add("tt-builder-action-cell");
+  controls.classList.add("maincreate-builder-action-cell");
   const stage=builderStage(host);
-  const menu=el("details",undefined,"tt-builder-action-menu");
+  const menu=el("details",undefined,"maincreate-builder-action-menu");
   menu.addEventListener("toggle",()=>{if(menu.open)closeBuilderMenus(menu);});
-  const trigger=el("summary","⋮","tt-builder-menu-trigger");
+  const trigger=el("summary","⋮","maincreate-builder-menu-trigger");
   trigger.setAttribute("aria-label","Actions for "+host.name);
   trigger.setAttribute("title","Builder actions");
-  const panel=el("div",undefined,"tt-builder-menu-panel");
+  const panel=el("div",undefined,"maincreate-builder-menu-panel");
   panel.setAttribute("role","menu");
 
   if(stage==="setup-incomplete"){
@@ -502,7 +502,7 @@ function renderBuilders(){
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
-   panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","tt-builder-menu-disabled"));
+   panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","maincreate-builder-menu-disabled"));
    if(stage==="setting-up")panel.append(menuAction("View setup progress",()=>openSetupProgress(host)));
    if(stage==="removing"){
     panel.append(menuAction("View removal progress",()=>viewRemovalProgress(host)));
@@ -533,7 +533,7 @@ function renderGithub(){
   if(builders.some(host=>host.githubRunnerName===runner.name)){
    const button=el("button","Edit labels","plain-button");button.type="button";
    button.addEventListener("click",()=>{
-    const editor=el("div",undefined,"tt-runner-label-editor"),input=el("input",undefined,"tt-runner-label-input");
+    const editor=el("div",undefined,"maincreate-runner-label-editor"),input=el("input",undefined,"maincreate-runner-label-input");
     input.type="text";input.setAttribute("aria-label","Custom labels for "+runner.name);
     input.value=(runner.labels||[]).filter(l=>l.type==="custom").map(l=>l.name).join(", ");
     const save=el("button","Save","plain-button"),cancel=el("button","Cancel","plain-button");
@@ -599,7 +599,7 @@ function stopSetupPoll(){
 function setupProgressMode(enabled){
  $("addBuilderProgress").hidden=!enabled;
  for(let i=1;i<=3;i++)$("builderStep"+i).hidden=enabled||i!==step;
- const progress=dialog.querySelector(".tt-builder-progress");
+ const progress=dialog.querySelector(".maincreate-builder-progress");
  if(progress)progress.hidden=enabled;
  $("backBuilder").hidden=enabled||step===1;
  $("nextBuilder").hidden=enabled||step===3;
@@ -610,13 +610,13 @@ function renderSetupTimeline(stages,headline){
  const holder=$("addBuilderStages");holder.replaceChildren();
  for(const id of ["connection","enrollment","installation","registration","online"]){
   const stage=stages.find(item=>item.id===id)||{id,status:"pending"};
-  const item=el("li",undefined,"tt-removal-stage tt-removal-"+stage.status);
-  const heading=el("div",undefined,"tt-removal-stage-heading");
-  heading.append(el("span",({completed:"✓",active:"●",failed:"!",pending:"○"})[stage.status]||"○","tt-removal-symbol"),
+  const item=el("li",undefined,"maincreate-removal-stage maincreate-removal-"+stage.status);
+  const heading=el("div",undefined,"maincreate-removal-stage-heading");
+  heading.append(el("span",({completed:"✓",active:"●",failed:"!",pending:"○"})[stage.status]||"○","maincreate-removal-symbol"),
    el("strong",setupStageNames[id]),el("small",({completed:"Complete",active:"In progress",failed:"Failed",pending:"Pending"})[stage.status]||"Pending"));
   item.append(heading);
   if(stage.status==="failed"){
-   const details=el("details",undefined,"tt-removal-failure");details.open=true;
+   const details=el("details",undefined,"maincreate-removal-failure");details.open=true;
    details.append(el("summary","Failure details and recovery"));
    details.append(el("p",stage.detail||"The current setup step could not complete."));
    const steps=el("ol");for(const instruction of setupRecovery[id])steps.append(el("li",instruction));
@@ -802,7 +802,7 @@ function activateTabs(buttons,active,attribute){
 }
 function activatePlatform(value,focus=false){
  platform=value;
- const tabs=[...document.querySelectorAll(".tt-os-tabs [role=tab]")];
+ const tabs=[...document.querySelectorAll(".maincreate-os-tabs [role=tab]")];
  activateTabs(tabs,value,"platform");
  for(const tab of tabs)$(tab.getAttribute("aria-controls")).hidden=tab.dataset.platform!==value;
  if(focus)tabs.find(t=>t.dataset.platform===value)?.focus();
@@ -813,7 +813,7 @@ function activatePlatform(value,focus=false){
 function activateMethod(value,focus=false){
  if(value===method&&scanActive)return;
  method=value;clearIdentity();
- const tabs=[...document.querySelectorAll(".tt-connect-tabs [role=tab]")];
+ const tabs=[...document.querySelectorAll(".maincreate-connect-tabs [role=tab]")];
  activateTabs(tabs,value,"method");
  $("connectManual").hidden=value!=="manual";
  $("connectDiscovery").hidden=value!=="discovery";
@@ -877,13 +877,13 @@ function tabKeyboard(event,tabs,choose){
    (index+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
  choose(tabs[next].dataset[tabs[next].dataset.platform?"platform":"method"],true);
 }
-for(const tab of dialog.querySelectorAll(".tt-os-tabs [role=tab]")){
+for(const tab of dialog.querySelectorAll(".maincreate-os-tabs [role=tab]")){
  tab.addEventListener("click",()=>activatePlatform(tab.dataset.platform));
- tab.addEventListener("keydown",event=>tabKeyboard(event,[...document.querySelectorAll(".tt-os-tabs [role=tab]")],activatePlatform));
+ tab.addEventListener("keydown",event=>tabKeyboard(event,[...document.querySelectorAll(".maincreate-os-tabs [role=tab]")],activatePlatform));
 }
-for(const tab of dialog.querySelectorAll(".tt-connect-tabs [role=tab]")){
+for(const tab of dialog.querySelectorAll(".maincreate-connect-tabs [role=tab]")){
  tab.addEventListener("click",()=>activateMethod(tab.dataset.method));
- tab.addEventListener("keydown",event=>tabKeyboard(event,[...document.querySelectorAll(".tt-connect-tabs [role=tab]")],activateMethod));
+ tab.addEventListener("keydown",event=>tabKeyboard(event,[...document.querySelectorAll(".maincreate-connect-tabs [role=tab]")],activateMethod));
 }
 for(const id of ["hostAddress","hostUsername","hostPassword"])$(id).addEventListener("input",clearIdentity);
 $("copyInstallCommand").addEventListener("click",async()=>{

@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 
-const dir=mkdtempSync(join(tmpdir(),"tt-monitor-"));
+const dir=mkdtempSync(join(tmpdir(),"maincreate-monitor-"));
 process.env.MAIN_DATA_DIR=dir;
 const {parseRequirements,inferRequirementsFromWorkflows,evaluateProject,versionSatisfied,projectSummary,setProjectIgnored,detectProjectRequirements}=await import("./project_monitor.mjs");
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
@@ -59,7 +59,7 @@ test("GitHub requirement detection prefers versioned project manifest",async()=>
  try{
   globalThis.fetch=async(url,opts)=>{
    assert.ok(opts.headers.authorization.startsWith("Bearer "));
-   if(url.endsWith("/.tinkertunnel/project.json"))
+   if(url.endsWith("/.maincreate/project.json"))
     return new Response(JSON.stringify({type:"file",size:manifests.esp.length,encoding:"base64",content:Buffer.from(manifests.esp).toString("base64")}),{status:200});
    throw Error("Unexpected remote read");
   };

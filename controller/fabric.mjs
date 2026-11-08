@@ -2,7 +2,7 @@ import {randomBytes,createHash} from "node:crypto";
 import {mkdirSync,existsSync,readFileSync,writeFileSync,renameSync,chmodSync,openSync,writeSync,readSync,closeSync,statSync,rmSync} from "node:fs";
 import {join} from "node:path";
 
-const root=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data";
+const root=process.env.MAIN_DATA_DIR||"./.maincreate-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
 const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
 // The MCP surface is stable. These versioned, curated files define what it can discover.
@@ -81,7 +81,7 @@ function createPlan(args,ctx) {
  return {plan_id:p.id,capability:p.capability,version:p.version,runner_id:p.runnerId,
   parameters:p.parameters,steps:p.steps,requires_approval:true,runner_online:!!recent(runner),
   expires_at:new Date(p.expiresAt).toISOString(),
-  notice:"Planning does not execute. tt_execute creates an approval-pending job; approval must come from the signed-in portal."};
+  notice:"Planning does not execute. maincreate_execute creates an approval-pending job; approval must come from the signed-in portal."};
 }
 function createJob(args,ctx){
  const s=store(),p=s.plans.find(x=>x.id===args.plan_id);
@@ -235,12 +235,12 @@ function assets(args){
 export function fabricCall(tool,raw,ctx={}){
  const args=clean(raw);
  switch(tool){
-  case "tt_discover":return discover(args,ctx);
-  case "tt_inspect":return inspect(args,ctx);
-  case "tt_plan":return createPlan(args,ctx);
-  case "tt_execute":return createJob(args,ctx);
-  case "tt_jobs":return jobs(args);
-  case "tt_assets":return assets(args);
+  case "maincreate_discover":return discover(args,ctx);
+  case "maincreate_inspect":return inspect(args,ctx);
+  case "maincreate_plan":return createPlan(args,ctx);
+  case "maincreate_execute":return createJob(args,ctx);
+  case "maincreate_jobs":return jobs(args);
+  case "maincreate_assets":return assets(args);
   default:throw error(404,"Unknown fabric tool");
  }
 }

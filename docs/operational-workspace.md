@@ -25,7 +25,7 @@ The controller keeps `MAIN_DATA_DIR/devices.json` with: opaque device ID, report
 - After 7 days unseen, records leave the default visible list and appear in Hidden. After 30 days unseen, they move to Archived. They are retained and restored if seen again. No automatic permanent deletion.
 - An administrator may rename devices without changing their hardware keys.
 
-Existing MCP tools expose the inventory read-only: `tt_discover({resource:"devices"})` lists visible reported devices and `tt_inspect({resource:"device",id:"..."})` returns a single sanitized device record. Neither tool opens a serial port or changes hardware. No seventh MCP tool is required.
+Existing MCP tools expose the inventory read-only: `maincreate_discover({resource:"devices"})` lists visible reported devices and `maincreate_inspect({resource:"device",id:"..."})` returns a single sanitized device record. Neither tool opens a serial port or changes hardware. No seventh MCP tool is required.
 
 The runner opt-in does not grant execution capabilities. For a host installation: install Python 3 and `pyserial`, then run the current Main{Create} agent with `MAIN_RUNNER_DEVICE_DISCOVERY=1`. A containerized runner must have explicit access to USB host devices; Docker containers do not automatically see physical ports. Do not grant a Docker socket or privileged mode merely to enable discovery.
 

@@ -1,8 +1,8 @@
-.tt-marketplace-version{padding:8px 0;border-bottom:1px solid var(--line,#344)}
-.tt-marketplace-target-row{display:flex;gap:12px;align-items:center;padding:12px;
+.maincreate-marketplace-version{padding:8px 0;border-bottom:1px solid var(--line,#344)}
+.maincreate-marketplace-target-row{display:flex;gap:12px;align-items:center;padding:12px;
  border-bottom:1px solid var(--line,#344);cursor:pointer}
-.tt-marketplace-target-row span{display:flex;flex-direction:column;gap:3px}
-.tt-marketplace-target-row small,.tt-marketplace-plan-row small{display:block;opacity:.75}
-.tt-marketplace-plan-row{padding:12px;border-bottom:1px solid var(--line,#344)}
+.maincreate-marketplace-target-row span{display:flex;flex-direction:column;gap:3px}
+.maincreate-marketplace-target-row small,.maincreate-marketplace-plan-row small{display:block;opacity:.75}
+.maincreate-marketplace-plan-row{padding:12px;border-bottom:1px solid var(--line,#344)}
 #marketplacePlan label{display:block;margin:12px 0}
 #marketplacePlan input[type=checkbox]{width:18px;height:18px}

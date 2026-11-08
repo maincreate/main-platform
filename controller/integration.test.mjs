@@ -28,7 +28,7 @@ async function json(base,path,data,headers={}){
 }
 
 test("controller configuration persists, secrets stay encrypted, runners enroll once, MCP reads only",{timeout:30000},async()=>{
- const dir=mkdtempSync(join(tmpdir(),"tt-controller-"));
+ const dir=mkdtempSync(join(tmpdir(),"maincreate-controller-"));
  const p=await freePort(),g=await freePort();
  const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
  const adminUsername="admin",password="secure-user-created-password-123",service=token(),mcpToken=token();
@@ -124,7 +124,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(ghStatus.clientId,"Iv23li3oxxp1wVAadlN4");
    assert.equal(ghStatus.usingDefaultApp,true);
    assert.equal(ghStatus.connected,false);
-   const ghHeaders={cookie,"x-tt-csrf":csrf};
+   const ghHeaders={cookie,"x-maincreate-csrf":csrf};
    // Repository creation defaults to private; changes are authenticated and CSRF-protected.
    const prefPath="/api/local/github/repository/preferences";
    assert.equal((await json(base,prefPath,{defaultVisibility:"public"})).status,401);
@@ -150,14 +150,14 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
 
    // Starting a real device authorization requires GitHub network access and is covered by a separate live test.
    // Integration tests never perform a remote authorization or leak a device code.
-   assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
-   assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example",standardHostedRunnersDisabledConfirmed:true},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
+   assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-maincreate-csrf":csrf})).status,409);
+   assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example",standardHostedRunnersDisabledConfirmed:true},{"cookie":cookie,"x-maincreate-csrf":csrf})).status,409);
    const httpsLogin=await json(base,"/api/local/login",{username:adminUsername,password},{"x-forwarded-proto":"https"});
    assert.equal(httpsLogin.status,200);
    assert.match(httpsLogin.headers.get("set-cookie")||"",/; Secure$/);
    assert.equal(statSync(join(dir,"master.key")).size,32);
    if(process.platform!=="win32")assert.equal(statSync(join(dir,"master.key")).mode & 0o777,0o600);
-   const headers={cookie,"x-tt-csrf":csrf};
+   const headers={cookie,"x-maincreate-csrf":csrf};
    const newState={name:"Home Lab",role:"all-in-one",tunnelHostname:"mcp.example.com"};
    assert.equal((await json(base,"/api/local/config",newState,{cookie})).status,403);
    assert.equal((await json(base,"/api/local/config",newState,headers)).status,200);
@@ -180,16 +180,16 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(hb.status,200);
    assert.equal(hb.data.ok,true);
    // End-to-end fabric API: authenticated planning, explicit approval and default no-execution.
-   const fabricHeaders={cookie,"x-tt-csrf":csrf};
+   const fabricHeaders={cookie,"x-maincreate-csrf":csrf};
    const fabricCall=async(tool,args={})=>json(base,"/api/local/fabric",{tool,arguments:args},fabricHeaders);
-   const discovered=await fabricCall("tt_discover",{resource:"capabilities"});
+   const discovered=await fabricCall("maincreate_discover",{resource:"capabilities"});
    assert.equal(discovered.status,200);
    assert(discovered.data.capabilities.some(x=>x.id==="host.snapshot"));
    assert(discovered.data.capabilities.some(x=>x.id==="firmware.esp_idf.flash"&&x.state==="unavailable"));
-   const planned=await fabricCall("tt_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
+   const planned=await fabricCall("maincreate_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
    assert.equal(planned.status,200);
    assert.equal(planned.data.requires_approval,true);
-   const jobRequest=await fabricCall("tt_execute",{plan_id:planned.data.plan_id});
+   const jobRequest=await fabricCall("maincreate_execute",{plan_id:planned.data.plan_id});
    assert.equal(jobRequest.status,200);
    assert.equal(jobRequest.data.job.status,"awaiting_approval");
    const noClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
@@ -203,10 +203,10 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const stillNoClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
      {authorization:"Bearer "+enrolled.data.token});
    assert.equal(stillNoClaim.data.job,null);
-   const cancelled=await fabricCall("tt_jobs",{action:"cancel",job_id:jobRequest.data.job.id});
+   const cancelled=await fabricCall("maincreate_jobs",{action:"cancel",job_id:jobRequest.data.job.id});
    assert.equal(cancelled.status,200);
    assert.equal(cancelled.data.job.status,"cancelled");
-   assert.equal((await json(base,"/api/internal/fabric",{tool:"tt_discover",arguments:{resource:"capabilities"}})).status,401);
+   assert.equal((await json(base,"/api/internal/fabric",{tool:"maincreate_discover",arguments:{resource:"capabilities"}})).status,401);
 
    const topoOverview=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
    assert.equal(topoOverview.runners.count,1);
@@ -266,15 +266,15 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(init.status,200);
    assert.equal(init.data.result.serverInfo.name,"maincreate");
    const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
-   assert.deepEqual(list.data.result.tools.map(t=>t.name),["tt_discover","tt_inspect","tt_plan","tt_execute","tt_jobs","tt_github_repository_request","tt_assets"]);
-   const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"tinkertunnel_list_runners",arguments:{}}},authorized);
+   assert.deepEqual(list.data.result.tools.map(t=>t.name),["maincreate_discover","maincreate_inspect","maincreate_plan","maincreate_execute","maincreate_jobs","maincreate_github_repository_request","maincreate_assets"]);
+   const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"maincreate_list_runners",arguments:{}}},authorized);
    assert.equal(runners.data.result.isError,false);
    assert.match(runners.data.result.content[0].text,/build-pi/);
    const discovery=await json(mcp,"/mcp",{jsonrpc:"2.0",id:5,method:"tools/call",
-     params:{name:"tt_discover",arguments:{resource:"capabilities"}}},authorized);
+     params:{name:"maincreate_discover",arguments:{resource:"capabilities"}}},authorized);
    assert.equal(discovery.data.result.isError,false);
    assert(discovery.data.result.structuredContent.capabilities.some(x=>x.id==="host.snapshot"));
-   const planner=await json(mcp,"/mcp",{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"tinkertunnel_plan_install",arguments:{framework:"esp-idf",os:"linux",arch:"arm64"}}},authorized);
+   const planner=await json(mcp,"/mcp",{jsonrpc:"2.0",id:4,method:"tools/call",params:{name:"maincreate_plan_install",arguments:{framework:"esp-idf",os:"linux",arch:"arm64"}}},authorized);
    assert.equal(planner.data.result.isError,false);
    assert.match(planner.data.result.content[0].text,/dry_run/);
    assert.equal((await fetch(base+"/mcp")).status,503);
@@ -285,7 +285,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const nextLogin=await json(base,"/api/local/login",{username:adminUsername,password});
    assert.equal(nextLogin.status,200);
    const changeCookie=nextLogin.headers.get("set-cookie").split(";")[0];
-   const changeHeaders={cookie:changeCookie,"x-tt-csrf":nextLogin.data.csrf};
+   const changeHeaders={cookie:changeCookie,"x-maincreate-csrf":nextLogin.data.csrf};
    assert.equal((await json(base,"/api/local/account/password",{currentPassword:"wrong",newPassword:"new-long-credential-987654"},changeHeaders)).status,401);
    const changed=await json(base,"/api/local/account/password",{currentPassword:password,newPassword:"new-long-credential-987654"},changeHeaders);
    assert.equal(changed.status,200);
@@ -293,7 +293,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await json(base,"/api/local/login",{username:adminUsername,password})).status,401);
    const resetLogin=await json(base,"/api/local/login",{username:adminUsername,password:"new-long-credential-987654"});
    assert.equal(resetLogin.status,200);
-   const resetHeaders={cookie:resetLogin.headers.get("set-cookie").split(";")[0],"x-tt-csrf":resetLogin.data.csrf};
+   const resetHeaders={cookie:resetLogin.headers.get("set-cookie").split(";")[0],"x-maincreate-csrf":resetLogin.data.csrf};
    const prefs=await (await fetch(base+"/api/local/approval-settings",{headers:{cookie:resetHeaders.cookie}})).json();
    assert.equal(prefs.buildApproval,"review");assert.equal(prefs.flashApproval,"always");
    assert.equal((await json(base,"/api/local/approval-settings",{buildApproval:"automatic",flashApproval:"automatic"},resetHeaders)).status,422);
@@ -317,7 +317,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
 });
 
 test("first administrator persists across server restarts without a login environment secret",{timeout:30000},async()=>{
- const dir=mkdtempSync(join(tmpdir(),"tt-auth-persist-"));
+ const dir=mkdtempSync(join(tmpdir(),"maincreate-auth-persist-"));
  const p=await freePort(),base="http://127.0.0.1:"+p;
  const password="persistent-account-password-2026";
  const env={...process.env,HOST:"127.0.0.1",PORT:String(p),MAIN_DATA_DIR:dir,MAIN_ADMIN_TOKEN:"",MAIN_MASTER_KEY:"",MAIN_REQUIRE_LOGIN:"1"};

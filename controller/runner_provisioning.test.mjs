@@ -16,7 +16,7 @@ function harness({online=true,authorized=true}={}){
 test("runner name is exactly the machine hostname from Pi Imager",()=>{
  const {s}=harness();
  assert.equal(runnerIdentity(s.runners[0]),"waymarker-lab-01");
- assert.deepEqual(runnerLabels(s.runners[0]),["tt-managed","tt-linux","tt-arm64"]);
+ assert.deepEqual(runnerLabels(s.runners[0]),["maincreate-managed","maincreate-linux","maincreate-arm64"]);
  s.runners[0].name="bad hostname";
  assert.throws(()=>runnerIdentity(s.runners[0]),/hostname/);
 });
@@ -34,7 +34,7 @@ test("GitHub tokens remain controller-owned and pending action is idempotent",as
   const first=await queueRunnerProvisioning("machine-a",ctx,{permitPendingHeartbeat:true});
   assert.equal(first.runnerName,"waymarker-lab-01");
   assert.equal(first.status,"queued");
-  assert.equal(first.labels.includes("tt-arm64"),true);
+  assert.equal(first.labels.includes("maincreate-arm64"),true);
   assert.equal(s.hostActions[0].secret.cipher,"one-time-runner-registration-token");
   assert.equal(JSON.stringify(first).includes("one-time-runner-registration-token"),false);
   const again=await queueRunnerProvisioning("machine-a",ctx,{permitPendingHeartbeat:true});

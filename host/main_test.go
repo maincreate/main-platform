@@ -11,7 +11,7 @@ func TestValidController(t *testing.T) {
  }
 }
 func TestNames(t *testing.T){
- for _,s:=range []string{"tt-pi","runner_1","tt.arm64"} {if !safeName(s){t.Fatalf("rejected %q",s)}}
+ for _,s:=range []string{"maincreate-pi","runner_1","tt.arm64"} {if !safeName(s){t.Fatalf("rejected %q",s)}}
  for _,s:=range []string{"../../etc/passwd","bad name","a/b"} {if safeName(s){t.Fatalf("accepted %q",s)}}
 }
 func TestUnsupportedActions(t *testing.T){

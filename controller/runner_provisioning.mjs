@@ -15,8 +15,8 @@ export function runnerIdentity(runner){
  return runner.name;
 }
 export function runnerLabels(runner){
- const labels=["tt-managed","tt-linux","tt-arm64"];
- if((runner.packages||[]).some(p=>p.name==="esp-idf"&&typeof p.version==="string"&&p.version.length))labels.push("tt-esp-idf");
+ const labels=["maincreate-managed","maincreate-linux","maincreate-arm64"];
+ if((runner.packages||[]).some(p=>p.name==="esp-idf"&&typeof p.version==="string"&&p.version.length))labels.push("maincreate-esp-idf");
  return labels;
 }
 export async function queueRunnerProvisioning(runnerId,ctx,{permitPendingHeartbeat=false}={}){

@@ -144,8 +144,8 @@
           "title": "Check installed version",
           "userAction": "Compare installed and available Host Service versions.",
           "success": "Version known and upgrade supported.",
-          "failure": "Version unverified or older than remote-upgrade bootstrap.",
-          "recovery": "Run the documented one-time manual bootstrap for pre-v0.5.0 hosts."
+          "failure": "Version unverified or older than Host Service 0.7.0.",
+          "recovery": "Migrate the existing host installation over SSH before upgrading to 0.7.0."
         },
         {
           "id": "stage",

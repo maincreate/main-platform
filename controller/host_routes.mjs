@@ -21,12 +21,12 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.6.2";
+export const HOST_RELEASE = "0.7.0";
 const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
 const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
 export function supportsRemoteHostUpgrade(version) {
  const installed = parseHostVersion(version);
- return installed !== null && compareHostVersions(installed, [0, 5, 0]) >= 0;
+ return installed !== null && compareHostVersions(installed, [0, 7, 0]) >= 0;
 }
 
 export function removalActivity(host,actions=[],now=Date.now()){
@@ -178,10 +178,10 @@ export function hostDistributionRoute(req){
  if(method!=='GET')return null;
  if(path==='/install.sh')return new Response(readFileSync(new URL('../scripts/install-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
  if(path==='/uninstall.sh')return new Response(readFileSync(new URL('../scripts/uninstall-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
- if(path==='/downloads/tinkertunnel-host-linux-arm64')return new Response(readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url)),{headers:{'content-type':'application/octet-stream','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
- if(path==='/downloads/tinkertunnel-host-linux-arm64.sha256'){
-  const data=readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url));
-  return new Response(createHash('sha256').update(data).digest('hex')+'  tinkertunnel-host-linux-arm64\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+ if(path==='/downloads/maincreate-host-linux-arm64')return new Response(readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url)),{headers:{'content-type':'application/octet-stream','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
+ if(path==='/downloads/maincreate-host-linux-arm64.sha256'){
+  const data=readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url));
+  return new Response(createHash('sha256').update(data).digest('hex')+'  maincreate-host-linux-arm64\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
  }
  return null;
 }
@@ -371,16 +371,15 @@ export async function adminHostRoute(req,ctx){
   if(host.decommission)return deny(409,'Finish or reconcile builder removal before upgrading');
   const release=HOST_RELEASE;
   if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
-  // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
-  // bootstrap is required; never queue an instruction the host cannot execute.
+  // Older agents expect the previous binary and service paths. Migrate them manually.
   if(!supportsRemoteHostUpgrade(host.hostVersion))
-   return deny(409,'Remote upgrade requires Host Service 0.5.0 or newer. Run the manual installer to upgrade to '+release+'.');
+   return deny(409,'Remote upgrade requires Host Service 0.7.0 or newer. Run the manual installer to upgrade to '+release+'.');
   if(compareHostVersions(parseHostVersion(host.hostVersion),parseHostVersion(release))>0)
    return deny(409,'Host has a newer version than the controller release. Downgrades are not supported.');
   if(expireStaleHostActions(s,host.id))save(s);
   if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a)))
    return deny(409,'Another host operation is active');
-  const binary=readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url));
+  const binary=readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url));
   const hash=createHash('sha256').update(binary).digest('hex');
   const action={id:rnd(),runnerId:host.id,runnerName:host.name,type:'host.upgrade',
    targetVersion:release,sha256:hash,status:'queued',createdAt:new Date().toISOString(),

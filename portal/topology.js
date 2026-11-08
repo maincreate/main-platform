@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 let csrf=null;
 try {
-  const preference=localStorage.getItem("tt-theme");
+  const preference=localStorage.getItem("maincreate-theme");
   document.body.dataset.theme=["graphite","paper","midnight"].includes(preference)?preference:"midnight";
 }catch{document.body.dataset.theme="midnight";}
 async function load(){
@@ -22,7 +22,7 @@ $("signout").addEventListener("click",async()=>{
   if(!csrf)return;
   try {
     await fetch("/api/local/logout",{method:"POST",credentials:"same-origin",
-      headers:{"content-type":"application/json","x-tt-csrf":csrf},body:"{}"});
+      headers:{"content-type":"application/json","x-maincreate-csrf":csrf},body:"{}"});
   }finally{window.location.replace("/setup");}
 });
 // Read-only topology. Every node is based on overview data or explicitly marked unverified.

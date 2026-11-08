@@ -3,7 +3,7 @@
 FROM golang:1.23-alpine AS host-build
 WORKDIR /src
 COPY host/ /src/host/
-RUN cd /src/host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/tinkertunnel-host-linux-arm64 .
+RUN cd /src/host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/maincreate-host-linux-arm64 .
 
 FROM node:22-alpine
 RUN apk add --no-cache openssh-client sshpass
@@ -14,7 +14,7 @@ COPY --chown=node:node controller/builder_decommission.test.mjs controller/marke
 RUN node --test ./controller/builder_decommission.test.mjs ./controller/marketplace_planning.test.mjs
 COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
 COPY --chown=node:node registry/capabilities.json registry/toolkits.json registry/microcontrollers.json registry/ux-flows.json ./registry/
-COPY --from=host-build /out/tinkertunnel-host-linux-arm64 ./downloads/tinkertunnel-host-linux-arm64
+COPY --from=host-build /out/maincreate-host-linux-arm64 ./downloads/maincreate-host-linux-arm64
 COPY --chown=node:node scripts/install-linux.sh scripts/uninstall-linux.sh ./scripts/
 RUN mkdir -p /data && chown node:node /data
 USER node

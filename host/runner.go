@@ -20,7 +20,7 @@ import (
  "time"
 )
 
-const runnerDir="/opt/tinkertunnel/actions-runner"
+const runnerDir="/opt/maincreate/actions-runner"
 // The official runner bundle can contain files exceeding 100 MiB (for example bundled runtimes).
 // Keep separate limits on each member and on total expanded bytes.
 const maxRunnerMemberBytes int64 = 512 << 20
@@ -155,11 +155,11 @@ func provisionRunner(a action)error{
  if e=unpackVerified(archive,stage);e!=nil{return e}
  if e=prepareRunnerTarget(runnerDir);e!=nil{return e}
  if e=os.Rename(stage,runnerDir);e!=nil{return e}
- if e=runCmd("",runnerDir,"chown","-R","tt-runner:tt-runner",runnerDir);e!=nil{return e}
+ if e=runCmd("",runnerDir,"chown","-R","maincreate-runner:maincreate-runner",runnerDir);e!=nil{return e}
  args:=[]string{"--unattended","--url","https://github.com/"+a.Organization,"--token",a.RegistrationToken,"--name",a.RunnerName,"--labels",strings.Join(a.Labels,","),"--work","_work"}
  // Only the official runner config process sees the short-lived registration token.
- if e=runCmd("tt-runner",runnerDir,"./config.sh",args...);e!=nil{return e}
- if e=runCmd("",runnerDir,"./svc.sh","install","tt-runner");e!=nil{return e}
+ if e=runCmd("maincreate-runner",runnerDir,"./config.sh",args...);e!=nil{return e}
+ if e=runCmd("",runnerDir,"./svc.sh","install","maincreate-runner");e!=nil{return e}
  if e=runCmd("",runnerDir,"./svc.sh","start");e!=nil{return e}
  return nil
 }

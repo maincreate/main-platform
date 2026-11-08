@@ -26,7 +26,7 @@ test("workspace serves current builder, marketplace, and job experiences",async(
    "continueRemoveBuilder","removeBuilderPasswordStep","backRemoveBuilder","removeBuilderProgress"])
    assert.ok(builders.includes('id="'+id+'"'),"Staged removal missing "+id);
   const buildersScript=await page("/builders.js");
-  for(const feature of ["renderBuilders","validateBuilder","dismissDialogOnBackdrop","openUpgradeDialog","tt-runner-label-editor","renderSetupTimeline","pollSetupProgress","openSetupProgress","setupFailure"])
+  for(const feature of ["renderBuilders","validateBuilder","dismissDialogOnBackdrop","openUpgradeDialog","maincreate-runner-label-editor","renderSetupTimeline","pollSetupProgress","openSetupProgress","setupFailure"])
    assert.ok(buildersScript.includes(feature),"Builder script missing "+feature);
   assert.ok(!buildersScript.includes('prompt("Comma-separated'),"Labels must not use a browser prompt");
   assert.ok(buildersScript.includes("setRemovalStep(2)"),"Name confirmation must precede password");
@@ -56,7 +56,7 @@ test("workspace serves current builder, marketplace, and job experiences",async(
   for(const id of ["activityChart","activityDetails","recentJobs"])
    assert.ok(overview.includes('id="'+id+'"'),"Overview missing "+id);
   const activityStyle=await page("/activity.css");
-  assert.ok(activityStyle.includes(".tt-activity-chart"));
+  assert.ok(activityStyle.includes(".maincreate-activity-chart"));
  }finally{
   if(prior===undefined)delete process.env.MAIN_REQUIRE_LOGIN;
   else process.env.MAIN_REQUIRE_LOGIN=prior;

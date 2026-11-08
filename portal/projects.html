@@ -3,7 +3,7 @@
 <title>Projects • Main{Create}</title>
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
 <script src="/projects.js" defer></script></head><body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects" aria-current="page">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization</span><div class="tt-account"><span id="username">administrator</span></div></header>
+<aside class="maincreate-sidebar" aria-label="Main navigation"><a href="/" class="maincreate-brand"><span class="maincreate-logo">M{}</span>Main{Create}</a><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects" aria-current="page">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><span>GitHub organization</span><div class="maincreate-account"><span id="username">administrator</span></div></header>
 <main class="main inventory-page"><p class="eyebrow">WORKSPACE / SOURCE</p><h1>Projects</h1>
 <p>Repositories synchronize from GitHub automatically. Main{Create} compares declared or detected project requirements with online managed builders; projects without a matching builder appear below.</p>
 <p id="compatibilitySummary" role="status" aria-live="polite"></p>
@@ -11,10 +11,10 @@
 <section class="inventory-panel">
 <div class="setting-row"><div><h2 id="organization">GitHub repositories</h2>
 <p id="syncStatus">Reading repository inventory…</p></div>
-<div class="tt-toolbar-actions"><button class="plain-button" id="sync" type="button">Sync repositories</button><button class="action" id="newRepo" type="button">+ New Project</button></div></div>
+<div class="maincreate-toolbar-actions"><button class="plain-button" id="sync" type="button">Sync repositories</button><button class="action" id="newRepo" type="button">+ New Project</button></div></div>
 <div class="inventory-toolbar"><input id="projectSearch" type="search" placeholder="Search repositories" aria-label="Search repositories"><select id="projectFilter" aria-label="Filter repositories"><option value="all">All repositories</option><option value="active">Active</option><option value="archived">Archived</option><option value="private">Private</option><option value="public">Public</option><option value="missing">Needs a compatible builder</option><option value="unknown">Requirements unknown</option><option value="ignored">Ignored alerts</option></select></div><div id="projectRows" class="project-list">Loading projects…</div>
 </section>
-<dialog id="newRepoDialog" class="tt-repo-dialog" aria-labelledby="newRepoHeading">
+<dialog id="newRepoDialog" class="maincreate-repo-dialog" aria-labelledby="newRepoHeading">
  <form id="newRepoForm">
   <h2 id="newRepoHeading">Create new project</h2>
   <p>Creates a new repository in your connected organization with an initial README. This action is not a dry run.</p>
@@ -26,7 +26,7 @@
   <label for="newRepoVisibility">Visibility</label>
   <select id="newRepoVisibility" name="visibility"><option value="private">Private</option><option value="public">Public</option></select>
   <p id="newRepoNotice" role="status" aria-live="polite"></p>
-  <div class="tt-toolbar-actions"><button class="plain-button" type="button" id="cancelRepo">Cancel</button><button class="action" type="submit" id="createRepo">Create repository</button></div>
+  <div class="maincreate-toolbar-actions"><button class="plain-button" type="button" id="cancelRepo">Cancel</button><button class="action" type="submit" id="createRepo">Create repository</button></div>
  </form>
 </dialog>
 <footer>Repository creation requires a connected GitHub App with Repository creation: write permission.</footer>

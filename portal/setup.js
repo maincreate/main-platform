@@ -1,7 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 try {
-  const chosen=localStorage.getItem("tt-theme");
+  const chosen=localStorage.getItem("maincreate-theme");
   document.body.dataset.theme=["graphite","paper","midnight"].includes(chosen)?chosen:"midnight";
 } catch {}
 const notice=msg=>{$("notice").textContent=msg;};

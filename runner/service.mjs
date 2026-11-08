@@ -16,7 +16,7 @@ import {join} from "node:path";
 import {homedir} from "node:os";
 import {fileURLToPath} from "node:url";
 
-const stateDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
+const stateDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".maincreate");
 const statePath=join(stateDir,"runner.json");
 const agent=fileURLToPath(new URL("./agent.mjs",import.meta.url));
 const error=(message)=>Object.assign(new Error(message),{code:"PAIRING_FAILED"});
@@ -35,7 +35,7 @@ export function identityName(username){
 async function request(url,method,body,sessionCookie,csrf){
  const response=await fetch(url,{method,
   headers:{"content-type":"application/json",...(sessionCookie?{cookie:sessionCookie}:{ }),
-   ...(csrf?{"x-tt-csrf":csrf}:{})},
+   ...(csrf?{"x-maincreate-csrf":csrf}:{})},
   ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});
  const result=await response.json().catch(()=>({}));
  if(!response.ok)throw error("Controller rejected pairing: "+(result.error||"HTTP "+response.status));
