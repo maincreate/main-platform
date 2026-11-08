@@ -8,18 +8,33 @@
  <dialog id="removeBuilderDialog" class="tt-builder-dialog" aria-labelledby="removeBuilderTitle">
   <form id="removeBuilderForm" class="tt-builder-content">
    <div class="tt-builder-header"><div><p class="eyebrow">DANGER ZONE / BUILDERS</p><h2 id="removeBuilderTitle">Remove build machine</h2></div></div>
+   <div class="tt-removal-step-indicator" id="removeBuilderStepIndicator" aria-label="Removal confirmation stage">
+    <span id="removeBuilderStepOneLabel" aria-current="step">1 · Confirm machine</span>
+    <span id="removeBuilderStepTwoLabel">2 · Administrator approval</span>
+    <span id="removeBuilderStepThreeLabel">3 · Removal progress</span>
+   </div>
    <p id="removeBuilderExplanation"></p>
-   <label for="removeBuilderName">Type the exact hostname to confirm</label>
-   <input id="removeBuilderName" type="text" autocomplete="off" spellcheck="false" required>
-   <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
-   <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
+   <section id="removeBuilderIdentityStep" class="tt-remove-confirm-step" aria-label="Confirm builder name">
+    <label for="removeBuilderNameReference">Machine name</label>
+    <div class="tt-removal-copy-row">
+     <input id="removeBuilderNameReference" type="text" readonly tabindex="-1" aria-label="Machine name to confirm">
+     <button id="copyRemoveBuilderName" type="button" class="plain-button" aria-label="Copy machine name">Copy</button>
+    </div>
+    <label for="removeBuilderName">Type the exact machine name to confirm removal</label>
+    <input id="removeBuilderName" type="text" autocomplete="off" spellcheck="false" required>
+   </section>
+   <section id="removeBuilderPasswordStep" class="tt-remove-confirm-step" aria-label="Administrator password confirmation" hidden>
+    <p class="tt-removal-warning">Removing this builder unregisters the GitHub runner and revokes its controller access. This action cannot be undone.</p>
+    <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
+    <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
+   </section>
    <p id="removeBuilderFeedback" role="status" aria-live="polite"></p>
    <section id="removeBuilderProgress" class="tt-removal-progress" aria-label="Builder removal progress" hidden>
     <p id="removeBuilderProgressHeadline" class="tt-removal-headline" role="status" aria-live="polite">Preparing removal…</p>
     <ol id="removeBuilderStages" class="tt-removal-stages"></ol>
     <p class="tt-removal-hint">Removal is managed by the controller. Closing this window does not cancel the operation.</p>
    </section>
-   <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="submit" id="confirmRemoveBuilder" class="tt-danger-button" disabled>Remove builder</button></div>
+   <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="button" id="backRemoveBuilder" class="plain-button" hidden>Back</button><button type="button" id="continueRemoveBuilder" class="tt-danger-button" disabled>Continue</button><button type="submit" id="confirmRemoveBuilder" class="tt-danger-button" hidden disabled>Remove builder</button></div>
   </form>
  </dialog>
  <dialog id="upgradeBuilderDialog" class="tt-builder-dialog" aria-labelledby="upgradeBuilderTitle">
