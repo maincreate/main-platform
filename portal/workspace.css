@@ -243,3 +243,12 @@ body>.main{margin:0 0 0 var(--maincreate-sidebar-width);width:calc(100% - var(--
 .maincreate-account #signout{white-space:nowrap}
 #signoutStatus{position:absolute;right:15px;top:100%}
 #signoutStatus:not(:empty){padding:8px 12px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px}
+
+/* Keep user-reviewed GitHub workflow manifests readable in the routing dialog. */
+.maincreate-workflow-export{border-top:1px solid var(--line);padding-top:15px;margin-top:14px}
+.maincreate-workflow-export h3{margin:0 0 8px}
+.maincreate-workflow-export p{font-size:13px;color:var(--muted)}
+.maincreate-workflow-export textarea{display:block;width:100%;min-height:240px;max-height:380px;resize:vertical;
+  padding:12px;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--text);
+  background:var(--surface);border:1px solid var(--line);border-radius:9px}
+.maincreate-workflow-export textarea[hidden],.maincreate-workflow-export label[hidden]{display:none}

@@ -8,6 +8,7 @@ import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.m
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {planBuildFlashRoute,routeSummaries,validateRouteRemoval} from "./build_flash_routing.mjs";
+import {firmwareWorkflowPreview,provisionRunnerLabel} from "./github_workflow_routing.mjs";
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
@@ -670,9 +671,47 @@ export async function localRoute(req) {
           const route=planBuildFlashRoute(input,{
             organization:org,projects:listProjects(org).repositories,builders:stored.runners,
             devices:listDevices({mode:"all"}).devices},session(req).username);
+          const old=(stored.projectRoutes||[]).find(r=>r.organization===org&&r.repository===route.repository);
+          if(old&&route.buildTrigger==="github-actions"&&old.buildBuilderId===route.buildBuilderId&&
+            old.githubRunnerLabel&&old.githubRunnerName===route.builder?.runnerName){
+            route.githubRunnerId=old.githubRunnerId;
+            route.githubRunnerName=old.githubRunnerName;
+            route.githubRunnerLabel=old.githubRunnerLabel;
+            route.githubRunnerBindingAt=old.githubRunnerBindingAt;
+          }
           const others=(stored.projectRoutes||[]).filter(r=>r.organization!==org||r.repository!==route.repository);
           stored.projectRoutes=[...others,route].slice(-500);save(stored);
           return reply({route},201);
+        }catch(e){return deny(e.status||422,e.message);}
+      }
+      if(path==="/api/local/projects/routes/workflow"&&method==="GET"){
+        const stored=state(),gh=stored.github||{},org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        if(!org)return deny(409,"Connect a GitHub organization first");
+        const repo=new URL(req.url).searchParams.get("repository");
+        const route=(stored.projectRoutes||[]).find(r=>r.organization===org&&r.repository===repo);
+        const project=listProjects(org).repositories.find(r=>r.fullName===repo);
+        const builder=stored.runners.find(b=>b.id===route?.buildBuilderId);
+        try{return reply(firmwareWorkflowPreview({route,project,builder,organization:org}));}
+        catch(e){return deny(e.status||422,e.message);}
+      }
+      if(path==="/api/local/projects/routes/runner-label"&&method==="POST"){
+        const input=await body(req),stored=state(),gh=stored.github||{},org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        if(!org)return deny(409,"Connect a GitHub organization first");
+        const route=(stored.projectRoutes||[]).find(r=>r.organization===org&&r.repository===input.repository);
+        const project=listProjects(org).repositories.find(r=>r.fullName===input.repository);
+        const builder=stored.runners.find(b=>b.id===route?.buildBuilderId);
+        try{
+          const binding=await provisionRunnerLabel({route,project,builder,organization:org,token:unseal(gh.oauthToken)});
+          // A new route may have been assigned while awaiting GitHub; do not apply stale labels.
+          const next=state(),current=(next.projectRoutes||[]).find(r=>r.organization===org&&r.repository===input.repository);
+          if(!current||current.buildBuilderId!==route.buildBuilderId||current.buildTrigger!=="github-actions"||
+            next.github?.selectedOrganization!==org)return deny(409,"Routing changed while provisioning runner; re-open the project");
+          current.githubRunnerId=binding.runnerId;
+          current.githubRunnerName=binding.runnerName;
+          current.githubRunnerLabel=binding.label;
+          current.githubRunnerBindingAt=binding.at;
+          save(next);
+          return reply({configured:true,repository:current.repository,runnerName:binding.runnerName,label:binding.label});
         }catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/projects/routes/remove"&&method==="POST"){

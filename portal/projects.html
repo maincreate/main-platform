@@ -31,6 +31,18 @@
   <select id="routeDevice"><option value="">No device selected</option></select>
   <label for="routeAutoFlash"><input id="routeAutoFlash" type="checkbox"> Request auto-flash after a verified build</label>
   <p class="home-empty">Auto-flash is a saved preference only. Execution requires a fresh chip probe, verified artifact, reviewed flashing adapter and authorization. No GitHub trigger or USB write is installed by saving this route.</p>
+  <section class="maincreate-workflow-export">
+   <h3>GitHub Actions builder routing</h3>
+   <p>For a private ESP-IDF 5.5.6 project on a managed Linux ARM64 runner: provision the unique runner label, then copy a build-only GitHub Actions workflow into the repository. Commits made by an IDE or AI assistant will trigger the same build. No flashing is included.</p>
+   <div class="maincreate-toolbar-actions">
+    <button type="button" class="plain-button" id="routeProvisionLabel">Provision builder label</button>
+    <button type="button" class="plain-button" id="routeGenerateWorkflow">Generate workflow</button>
+    <button type="button" class="plain-button" id="routeCopyWorkflow" hidden>Copy YAML</button>
+   </div>
+   <p id="routeWorkflowState" class="setting-meta" role="status" aria-live="polite"></p>
+   <label for="routeWorkflowYaml" id="routeWorkflowPath" hidden>Workflow YAML</label>
+   <textarea id="routeWorkflowYaml" rows="14" readonly spellcheck="false" hidden></textarea>
+  </section>
   <p id="routeNotice" role="status" class="home-error" aria-live="polite"></p>
   <div class="maincreate-toolbar-actions"><button type="button" class="plain-button" id="routeRemove">Remove route</button><button type="button" class="plain-button" id="routeCancel">Cancel</button><button type="submit" class="action" id="routeSave">Save routing policy</button></div>
  </form>
