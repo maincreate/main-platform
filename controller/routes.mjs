@@ -6,6 +6,7 @@ import {hostDistributionRoute,adminHostRoute,agentHostRoute} from "./host_routes
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
+import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
@@ -565,11 +566,23 @@ export async function localRoute(req) {
         }
       }
       if(path==="/api/local/projects"&&method==="GET"){
-        const gh=state().github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        const stored=state(),gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
         try{
           const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
-          return reply(listProjects(org,jobs));
+          const inventory=listProjects(org,jobs);
+          if(org&&githubIdentityCurrent(gh))requestRequirementRefresh({organization:org,
+            accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
+          return reply({...inventory,...projectSummary(inventory.repositories,stored.runners)});
         }catch(e){return deny(e.status||503,e.message);}
+      }
+      if(path==="/api/local/projects/ignore"&&method==="POST"){
+        const input=await body(req),stored=state(),org=githubIdentityCurrent(stored.github)?stored.github.selectedOrganization:null;
+        if(!org)return deny(409,"Connect GitHub first");
+        if(typeof input.fullName!=="string"||typeof input.ignored!=="boolean"||
+          !listProjects(org).repositories.some(r=>r.fullName===input.fullName))
+          return deny(422,"Choose a repository from the selected GitHub organization");
+        try{return reply(setProjectIgnored(input.fullName,input.ignored));}
+        catch(e){return deny(422,e.message);}
       }
       if(path==="/api/local/projects/sync"&&method==="POST"){
         const gh=state().github;
@@ -577,8 +590,11 @@ export async function localRoute(req) {
         const match=gh.oauthOrganizations?.find(o=>o.login===gh.selectedOrganization);
         if(!match?.installationId)return deny(409,"GitHub App installation not selected");
         try{
-          return reply(await syncProjects({organization:gh.selectedOrganization,
-            installationId:match.installationId,accessToken:unseal(gh.oauthToken)}));
+          const accessToken=unseal(gh.oauthToken);
+          const result=await syncProjects({organization:gh.selectedOrganization,
+            installationId:match.installationId,accessToken});
+          requestRequirementRefresh({organization:gh.selectedOrganization,accessToken,repositories:result.repositories});
+          return reply(result);
         }catch(e){return deny(e.status||502,e.message);}
       }
       if(path==="/api/local/actions/runs"&&method==="GET"){
@@ -655,8 +671,9 @@ export async function localRoute(req) {
           },
           devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
           projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
-             const d=listProjects(org);return {count:d.repositories.length,updatedAt:d.updatedAt,
-             organization:d.organization};})(),
+             const d=listProjects(org),monitor=projectSummary(d.repositories,stored.runners);
+             return {count:d.repositories.length,updatedAt:d.updatedAt,organization:d.organization,
+               missingBuilders:monitor.alerts,unclassified:monitor.unknown};})(),
           jobs:(()=>{const j=fabricCall("tt_jobs",{action:"list"}).jobs;
             return {count:j.length,running:j.filter(x=>x.status==="running").length,
               pending:j.filter(x=>x.status==="awaiting_approval").length,
