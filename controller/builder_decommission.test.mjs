@@ -32,7 +32,7 @@ function harness({online=false,registered=false,actions=[]}={}){
   runnerId:ID,confirmName:'builder-linux-arm64-01',password:'correct-password',
   mode:online?'managed':'remote',...extras
  });
- return {call,removal,state};
+ return {call,removal,state,setState:s=>{data=structuredClone(s)}};
 }
 
 test('Wrong password and mismatched hostname do not revoke enrollment',async()=>{
@@ -108,4 +108,23 @@ test('Unreachable, idle but online GitHub runner can be de-registered',async()=>
   assert.equal(deletes,1);
   assert.equal(h.state().runners.length,0);
  }finally{globalThis.fetch=original}
+});
+
+test('Force removal accepts failed initial setup while host still heartbeats',async()=>{
+ const h=harness({online:true,actions:[{id:'failed',runnerId:ID,status:'failed',
+  runnerName:'builder-linux-arm64-01'}]});
+ const updated=h.state();updated.runners[0].managedHost={host:'builder-linux-arm64-01.local'};
+ h.setState(updated);
+ const result=await h.removal({mode:'remote'});
+ assert.equal(result.status,200);
+ assert.equal(result.data.removed,true);
+ assert.equal(h.state().runners.length,0);
+});
+test('Validation reports missing registration and heartbeat without claiming readiness',async()=>{
+ const h=harness({online:true});
+ const result=await h.call('/api/local/builders/validate',{runnerId:ID});
+ assert.equal(result.status,200);
+ assert.equal(result.data.ready,false);
+ assert(result.data.checks.some(c=>c.label==='GitHub registration'&&c.status==='fail'));
+ assert(result.data.checks.some(c=>c.label==='Host heartbeat'&&c.status==='pass'));
 });
