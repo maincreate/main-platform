@@ -9,6 +9,27 @@ async function api(path,data){
   headers,body:data===undefined?undefined:JSON.stringify(data)});
  const json=await r.json().catch(()=>({}));if(!r.ok)throw Error(json.error||"HTTP "+r.status);return json;
 }
+let microcontrollers=[];
+function renderMicrocontrollers(){
+ const target=$("mcuCatalog");target.replaceChildren();
+ const search=$("mcuSearch").value.toLowerCase().trim();
+ for(const family of microcontrollers.filter(f=>!search||[f.name,...f.chips,
+  ...f.sdk.flatMap(s=>[s.id,...s.versions])].join(" ").toLowerCase().includes(search))){
+  const card=esc("article",undefined,"tt-marketplace-tile");
+  card.append(esc("h3",family.name),esc("small",family.chips.join(" · ")));
+  const list=esc("div",undefined,"tt-mcu-marketplace-sdks");
+  for(const sdk of family.sdk){
+   const row=esc("p");row.append(esc("strong",sdk.id+" "));
+   row.append(esc("span",sdk.versions.length?sdk.versions.join(", "):"Version selection pending"));
+   row.append(esc("small"," · "+sdk.status));
+   list.append(row);
+  }
+  card.append(list,esc("p","Read-only reference · no automatic installation"));
+  target.append(card);
+ }
+ if(!target.children.length)target.append(esc("p","No matching microcontrollers or SDKs."));
+}
+$("mcuSearch").addEventListener("input",renderMicrocontrollers);
 function compatible(b,r){return !!b.managedHost&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch);}
 function familyGroups(){
  const q=$("marketplaceSearch").value.toLowerCase().trim();
@@ -73,9 +94,10 @@ function renderPlans(){
 }
 async function load(){
  try{
-  const [overview,catalog,history]=await Promise.all([
-   api("/api/local/overview"),api("/api/local/marketplace/releases"),api("/api/local/marketplace/plans")]);
+  const [overview,catalog,history,mcu]=await Promise.all([
+   api("/api/local/overview"),api("/api/local/marketplace/releases"),api("/api/local/marketplace/plans"),api("/api/local/microcontrollers")]);
   csrf=overview.csrf;builders=overview.runners.items||[];releases=catalog.releases||[];plans=history.plans||[];
+  microcontrollers=mcu.families||[];renderMicrocontrollers();
   render();renderPlans();
  }catch(e){$("marketplaceNotice").textContent=e.message;}
 }
