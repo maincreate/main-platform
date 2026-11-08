@@ -84,6 +84,12 @@ async function load(){
   $("workspaceOrg").textContent=overview.github?.organization||overview.github?.savedOrganization||"GitHub organization";
   statusText("projectCount",String(projects.repositories?.length||0));
   statusText("projectMeta",projects.updatedAt?"Synced "+relative(projects.updatedAt):"Not synced yet");
+  const missing=(projects.repositories||[]).filter(p=>p.alert).length;
+  const notice=$("builderCoverageNotice");notice.replaceChildren();
+  if(missing){
+   notice.append(element("span",missing+" active project"+(missing===1?" needs":"s need")+" a compatible build machine. "));
+   const a=element("a","Review project requirements →","quiet-link");a.href="/projects?filter=missing";notice.append(a);
+  }
   statusText("builderCount",String(overview.runners?.count||0));
   const online=(overview.runners?.items||[]).filter(r=>r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000).length;
   statusText("builderMeta",online+" reporting recently");

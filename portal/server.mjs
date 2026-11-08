@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { localRoute, hasLocalAdminSession, initializeFirstRun } from "../controller/routes.mjs";
+import { localRoute, hasLocalAdminSession, initializeFirstRun, refreshProjectMonitoring } from "../controller/routes.mjs";
 
 const port = Number(process.env.PORT ?? "3000");
 const host = process.env.HOST ?? "127.0.0.1";
@@ -26,6 +26,11 @@ function reject(res, status, message) {
 // A private admin deployment must not expose the unauthenticated dashboard by default.
 const requireLogin = process.env.TT_REQUIRE_LOGIN !== "0";
 if (requireLogin) initializeFirstRun();
+// Incremental, authenticated project compatibility checks continue without a browser open.
+// Work is bounded and coalesced in project_monitor.mjs.
+const monitorTimer=setInterval(refreshProjectMonitoring,60_000);
+monitorTimer.unref();
+setTimeout(refreshProjectMonitoring,10_000).unref();
 const server = createServer(async (req, res) => {
   try {
     const method = req.method || "GET";

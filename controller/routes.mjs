@@ -2,9 +2,11 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
+import {hostDistributionRoute,adminHostRoute,agentHostRoute} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
+import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
@@ -102,6 +104,23 @@ function newSession(req,username) {
   const id=rnd(),csrf=rnd();
   sessions.set(id,{username,csrf,expires:Date.now()+8*3600*1000});
   return reply({authenticated:true,username,csrf},200,{"set-cookie":sessionCookie(req,id)});
+}
+let automaticProjectSync=null;
+export function refreshProjectMonitoring(){
+  const stored=state(),gh=stored.github||{},org=gh.selectedOrganization;
+  if(!githubIdentityCurrent(gh)||!org)return;
+  try{
+    const inventory=listProjects(org),token=unseal(gh.oauthToken);
+    requestRequirementRefresh({organization:org,accessToken:token,repositories:inventory.repositories});
+    if(automaticProjectSync)return;
+    if(inventory.updatedAt&&Date.now()-Date.parse(inventory.updatedAt)<60*60*1000)return;
+    const selection=gh.oauthOrganizations?.find(o=>o.login===org);
+    if(!Number.isSafeInteger(selection?.installationId))return;
+    automaticProjectSync=syncProjects({organization:org,installationId:selection.installationId,accessToken:token})
+      .then(result=>requestRequirementRefresh({organization:org,accessToken:token,repositories:result.repositories}))
+      .catch(e=>console.error("Automatic project sync unavailable: "+String(e.message||"unknown").slice(0,120)))
+      .finally(()=>{automaticProjectSync=null});
+  }catch(e){console.error("Project monitoring refresh unavailable: "+String(e.message||"unknown").slice(0,120));}
 }
 export function initializeFirstRun() {
   key(); // Provision durable encryption before accepting credentials; fail on unwritable storage.
@@ -249,6 +268,7 @@ export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
   const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
@@ -345,6 +365,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+       const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited});
+       if(hostResponse)return hostResponse;
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
@@ -561,11 +583,23 @@ export async function localRoute(req) {
         }
       }
       if(path==="/api/local/projects"&&method==="GET"){
-        const gh=state().github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        const stored=state(),gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
         try{
           const jobs=fabricCall("tt_jobs",{action:"list"}).jobs;
-          return reply(listProjects(org,jobs));
+          const inventory=listProjects(org,jobs);
+          if(org&&githubIdentityCurrent(gh))requestRequirementRefresh({organization:org,
+            accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
+          return reply({...inventory,...projectSummary(inventory.repositories,stored.runners)});
         }catch(e){return deny(e.status||503,e.message);}
+      }
+      if(path==="/api/local/projects/ignore"&&method==="POST"){
+        const input=await body(req),stored=state(),org=githubIdentityCurrent(stored.github)?stored.github.selectedOrganization:null;
+        if(!org)return deny(409,"Connect GitHub first");
+        if(typeof input.fullName!=="string"||typeof input.ignored!=="boolean"||
+          !listProjects(org).repositories.some(r=>r.fullName===input.fullName))
+          return deny(422,"Choose a repository from the selected GitHub organization");
+        try{return reply(setProjectIgnored(input.fullName,input.ignored));}
+        catch(e){return deny(422,e.message);}
       }
       if(path==="/api/local/projects/sync"&&method==="POST"){
         const gh=state().github;
@@ -573,8 +607,11 @@ export async function localRoute(req) {
         const match=gh.oauthOrganizations?.find(o=>o.login===gh.selectedOrganization);
         if(!match?.installationId)return deny(409,"GitHub App installation not selected");
         try{
-          return reply(await syncProjects({organization:gh.selectedOrganization,
-            installationId:match.installationId,accessToken:unseal(gh.oauthToken)}));
+          const accessToken=unseal(gh.oauthToken);
+          const result=await syncProjects({organization:gh.selectedOrganization,
+            installationId:match.installationId,accessToken});
+          requestRequirementRefresh({organization:gh.selectedOrganization,accessToken,repositories:result.repositories});
+          return reply(result);
         }catch(e){return deny(e.status||502,e.message);}
       }
       if(path==="/api/local/actions/runs"&&method==="GET"){
@@ -651,8 +688,9 @@ export async function localRoute(req) {
           },
           devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
           projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
-             const d=listProjects(org);return {count:d.repositories.length,updatedAt:d.updatedAt,
-             organization:d.organization};})(),
+             const d=listProjects(org),monitor=projectSummary(d.repositories,stored.runners);
+             return {count:d.repositories.length,updatedAt:d.updatedAt,organization:d.organization,
+               missingBuilders:monitor.alerts,unclassified:monitor.unknown};})(),
           jobs:(()=>{const j=fabricCall("tt_jobs",{action:"list"}).jobs;
             return {count:j.length,running:j.filter(x=>x.status==="running").length,
               pending:j.filter(x=>x.status==="awaiting_approval").length,
@@ -766,7 +804,9 @@ export async function localRoute(req) {
       }
       return deny(404,"Unknown management endpoint");
     }
-    if(path==="/api/agent/enroll"&&method==="POST"){
+    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal});
+     if(agentHostResponse)return agentHostResponse;
+     if(path==="/api/agent/enroll"&&method==="POST"){
       const b=await body(req),s=state();
       const invite=(s.invites||[]).find(x=>equal(x.hash,digest(b.token||""))&&x.expires>Date.now());
       if(!invite)return deny(401,"Enrollment token invalid or expired");
