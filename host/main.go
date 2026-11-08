@@ -76,12 +76,12 @@ func packages()[]map[string]string{
  }
  return result
 }
-func advertise(stop <-chan os.Signal){
+func advertise()func(){
  // Advertise the SSH pairing endpoint, not a publicly writable control API.
  cmd:=exec.Command("avahi-publish-service","TinkerTunnel "+hostname(),"_tinkertunnel._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
- if e:=cmd.Start();e!=nil{log.Printf("mDNS unavailable; manual hostname/IP pairing works: %v",e);return}
- go func(){<-stop;_ = cmd.Process.Kill()}()
+ if e:=cmd.Start();e!=nil{log.Printf("mDNS unavailable; manual hostname/IP pairing works: %v",e);return func(){}}
  go func(){if e:=cmd.Wait();e!=nil{log.Printf("mDNS exited: %v",e)}}()
+ return func(){_ = cmd.Process.Kill()}
 }
 func report(c config,id string,ok bool,message string)error{
  if len(message)>1000{message=message[:1000]}
@@ -89,7 +89,7 @@ func report(c config,id string,ok bool,message string)error{
 }
 func run()error{
  if _,e:=load();e!=nil{log.Print("Unpaired; waiting for controller enrollment")}
- sig:=make(chan os.Signal,1);signal.Notify(sig,syscall.SIGTERM,syscall.SIGINT);advertise(sig)
+ sig:=make(chan os.Signal,1);signal.Notify(sig,syscall.SIGTERM,syscall.SIGINT);stopAdvertising:=advertise();defer stopAdvertising()
  tick:=time.NewTicker(10*time.Second);defer tick.Stop()
  lastHeartbeat:=time.Time{};lastInventory:=time.Time{}
  for {select{
