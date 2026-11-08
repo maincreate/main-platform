@@ -76,3 +76,20 @@ Builder enrollment now starts on the host itself using the lightweight, cross-pl
 Detected tool versions and automatic Linux USB serial discovery remain supported by the existing bounded agent. GitHub Actions runner registration, label reconciliation, and package updates should be implemented as *locally executed verified adapters* mediated by the outbound Host Service rather than controller-initiated SSH. Host software will need a trusted HTTPS certificate for the selected controller hostname. An external tunnel is reserved for remote AI/cloud access and must not be required for on-premises host management.
 
 Deployment fix: the prior Dockerfiles incorrectly contained literal `\\n` characters between Docker instructions. The corrected deployment images use real newlines and no longer require an external npm install step to build the portal.
+
+## Linux Host Service removal
+
+The Linux ARM64 Host Service installer and **separate uninstaller** are available at `/install.sh` and `/uninstall.sh`. A Host Service install does not itself install or register GitHub Actions runners; the installer's colored summary shows those later steps as pending.
+
+Before removing a builder, **drain its GitHub runner, remove the runner registration through GitHub's supported removal process, and revoke its enrollment in TinkerTunnel**. The uninstaller deliberately refuses to run if a registered GitHub Actions runner is still detected in `/opt/tinkertunnel/actions-runner`. It does not attempt remote GitHub deregistration or controller revocation.
+
+From the Linux builder, retrieve the uninstaller from your authenticated controller origin and review it before executing:
+
+```sh
+curl -fsSLo /tmp/tinkertunnel-uninstall.sh https://tinkertunnel.home.ayusohaylock.com/uninstall.sh
+less /tmp/tinkertunnel-uninstall.sh
+sudo bash /tmp/tinkertunnel-uninstall.sh --dry-run
+sudo bash /tmp/tinkertunnel-uninstall.sh --yes
+```
+
+The default is **dry-run**. Optional `--purge-state` also deletes the local host identity and bearer token; optional `--purge-unregistered-runner` removes unregistered runner files and incomplete extraction backups. These flags are never implied. It leaves OpenSSH, Avahi, `tt-runner` OS account, and unrelated software intact. **Do not conflate local file removal with removal from TinkerTunnel's inventory or GitHub's organization runner list.**
