@@ -723,7 +723,7 @@ export async function localRoute(req) {
                version:r.hostVersion||null,
                expectedVersion:"0.4.0",
                upToDate:!!r.hostVersion&&r.hostVersion==="0.4.0",
-               updateAvailable:!!r.hostVersion&&/^\\d+\\.\\d+\\.\\d+$/.test(r.hostVersion)&&
+               updateAvailable:!!r.hostVersion&&r.hostVersion.split(".").length===3&&r.hostVersion.split(".").every(v=>v!==""&&String(Number(v))===v)&&
                 r.hostVersion.split(".").map(Number).some((n,i,a)=>{
                  const expected=[0,4,0];return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
                 }),
