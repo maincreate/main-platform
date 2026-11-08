@@ -146,15 +146,34 @@ func execute(a *action)error{
   return errors.New("unsupported action")
  }
 }
+func validUpgradeVersion(v string)bool{
+ parts:=strings.Split(v,".");if len(parts)!=3{return false}
+ for _,p:=range parts{
+  if len(p)==0||len(p)>8{return false}
+  for _,ch:=range p{if ch<'0'||ch>'9'{return false}}
+ }
+ return true
+}
+func compareUpgradeVersions(a,b string)int{
+ if !validUpgradeVersion(a)||!validUpgradeVersion(b){return -1}
+ aa,bb:=strings.Split(a,"."),strings.Split(b,".")
+ for i:=0;i<3;i++{
+  // Short decimal version components: lexical length first, then digits.
+  if len(aa[i])>len(bb[i]){return 1};if len(aa[i])<len(bb[i]){return -1}
+  if aa[i]>bb[i]{return 1};if aa[i]<bb[i]{return -1}
+ }
+ return 0
+}
 // Upgrade is a constrained host action: only the enrolled controller's binary,
 // pinned by SHA-256 in the queued instruction. No arbitrary URL or shell command.
 func stageUpgrade(c config,a action)error{
- if a.RunnerName!=hostname()||a.RegistrationToken!=""||a.TargetVersion!=version&&a.TargetVersion!=""&&a.TargetVersion<=version{
+ if !safeName(a.RunnerName)||a.RunnerName!=hostname()||a.RegistrationToken!=""{
   return errors.New("invalid host upgrade instruction")
  }
  // The instruction names the expected release; the remote binary is served by
  // the same HTTPS controller the host already trusts for enrollment.
- if len(a.TargetVersion)<3||len(a.TargetVersion)>40||len(a.SHA256)!=64{return errors.New("invalid upgrade metadata")}
+ if len(a.SHA256)!=64||!validUpgradeVersion(a.TargetVersion)||
+  compareUpgradeVersions(a.TargetVersion,version)<=0{return errors.New("invalid or non-incremental upgrade metadata")}
  expires,e:=time.Parse(time.RFC3339,a.ExpiresAt);if e!=nil||time.Now().After(expires){return errors.New("upgrade instruction expired")}
  if os.Geteuid()!=0{return errors.New("upgrade requires root")}
  if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return errors.New("unsupported upgrade platform")}
@@ -179,7 +198,7 @@ func applyUpgrade()error{
  if os.Geteuid()!=0{return errors.New("upgrade requires root")}
  staged:=filepath.Join(dataDir,"upgrade-pending")
  target,e:=os.ReadFile(filepath.Join(dataDir,"upgrade-target"));if e!=nil{return e}
- if !strings.Contains(string(target),"."){return errors.New("invalid staged target")}
+ if !validUpgradeVersion(string(target)){return errors.New("invalid staged target")}
  oldPath:="/usr/local/bin/tinkertunnel-host"
  backup:=filepath.Join(dataDir,"host-previous")
  old,e:=os.ReadFile(oldPath);if e!=nil{return e}
