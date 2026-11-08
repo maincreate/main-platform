@@ -317,8 +317,12 @@ export async function adminHostRoute(req,ctx){
   if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
   // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
   // bootstrap is required; never queue an instruction the host cannot execute.
-  if(!host.hostVersion||host.hostVersion==='0.4.0')
+  const parseVersion=v=>/^\\d+\\.\\d+\\.\\d+$/.test(v||'')?v.split('.').map(Number):null;
+  const installed=parseVersion(host.hostVersion),minimum=[0,5,0],available=parseVersion(release);
+  const compare=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
+  if(!installed||compare(installed,minimum)<0)
    return deny(409,'This Host Service does not support remote upgrades yet. Install v0.5.0 once using the upgrade instructions, then future upgrades can be remote.');
+  if(compare(installed,available)>0)return deny(409,'Host has a newer version than the controller release. Downgrades are not supported.');
   if(expireStaleHostActions(s,host.id))save(s);
   if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a)))
    return deny(409,'Another host operation is active');
