@@ -719,6 +719,16 @@ export async function localRoute(req) {
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
               labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
+              software:{
+               version:r.hostVersion||null,
+               expectedVersion:"0.4.0",
+               upToDate:!!r.hostVersion&&r.hostVersion==="0.4.0",
+               updateAvailable:!!r.hostVersion&&/^\\d+\\.\\d+\\.\\d+$/.test(r.hostVersion)&&
+                r.hostVersion.split(".").map(Number).some((n,i,a)=>{
+                 const expected=[0,4,0];return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
+                }),
+               error:null
+              },
               assignment:r.assignment||{displayName:"",location:"",assignedTo:"",accessGroup:""},
               decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null}:null
             })),
@@ -888,6 +898,10 @@ export async function localRoute(req) {
       const runner=s.runners.find(x=>x.id===b.id && equal(x.tokenHash, digest(token)));
       if(!runner)return deny(401,"Invalid runner token");
       runner.lastSeen=new Date().toISOString();
+      if(typeof b.hostVersion==="string"&&/^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.test(b.hostVersion)){
+       runner.hostVersion=b.hostVersion;
+       runner.hostVersionObservedAt=runner.lastSeen;
+      }
       if(Array.isArray(b.packages)&&b.packages.length<=20&&b.packages.every(p=>
        p&&typeof p.name==="string"&&/^[a-z0-9_-]{1,32}$/.test(p.name)&&
        typeof p.version==="string"&&p.version.length<=100)){
