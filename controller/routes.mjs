@@ -250,7 +250,7 @@ function githubOnboardingReady(g){
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
-  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
@@ -803,6 +803,14 @@ export async function localRoute(req) {
         const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
         if(!managed||!/^tt-[A-Za-z0-9._-]+$/.test(input.runnerName||""))
           return deny(403,"Only enrolled TinkerTunnel-managed runner labels can be edited");
+        // Match the claimed managed runner to the GitHub runner ID before mutating any labels.
+        const remote=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId,{
+          headers:{authorization:"Bearer "+unseal(gh.oauthToken),
+            accept:"application/vnd.github+json","user-agent":"TinkerTunnel",
+            "x-github-api-version":"2022-11-28"},signal:AbortSignal.timeout(15000)});
+        if(!remote.ok)return deny(502,"Unable to verify GitHub runner identity");
+        const identity=await remote.json();
+        if(identity.name!==input.runnerName)return deny(403,"GitHub runner ID does not match managed host");
         const labels=[...new Set(input.labels)].filter(l=>l.startsWith("tt-"));
         if(labels.length!==input.labels.length)return deny(422,"Custom labels must start with tt-");
         const current=state().runners.find(r=>r.githubRunnerName===input.runnerName);

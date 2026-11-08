@@ -37,10 +37,7 @@ function renderInventory(data){
   (summary.hidden||0)+" hidden · "+(summary.archived||0)+" archived";
  const query=$("deviceSearch").value.toLowerCase().trim(),host=$("deviceHost").value;
  const shown=inventory.filter(item=>(host==="all"||(item.runnerName||item.runnerId)===host)&&(!query||[item.label,item.description,item.product,item.manufacturer,item.runnerName,item.port,item.serialNumber].join(" ").toLowerCase().includes(query)));
- if(!shown.length){
-  const tr=node("tr"),td=node("td","");
-  td.colSpan=7;tr.append(td);rows.append(tr);return;
- }
+ if(!shown.length)return;
  for(const d of shown){
   const tr=node("tr");
   const name=node("td"),first=node("strong",d.label||d.product||d.description||"USB serial device");
