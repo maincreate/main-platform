@@ -373,11 +373,20 @@ export async function localRoute(req) {
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
       if(path==="/api/local/marketplace/plans"&&method==="GET")
-        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse()});
+        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse().map(p=>({...p,job_statuses:(p.job_ids||[]).map(id=>fabricCall('maincreate_jobs',{action:'get',job_id:id}).job.status)}))});
       if(path==="/api/local/marketplace/plan"&&method==="POST"){
         try{
           const input=await body(req),s=state();
           const plan=makeInstallationPlan(input,s.runners,session(req).username);
+          if(plan.family==='arduino-cli'&&plan.version==='1.5.1'){
+            plan.job_ids=[];
+            for(const target of plan.targets){
+              const fabricPlan=fabricCall('maincreate_plan',{capability:'sdk.arduino_cli.install',runner_id:target.builderId,parameters:{}},{runners:s.runners});
+              const job=fabricCall('maincreate_execute',{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
+              plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;
+            }
+            plan.execution='awaiting_approval';
+          }
           s.marketplacePlans=[...(s.marketplacePlans||[]).slice(-99),plan];save(s);
           return reply({plan},201);
         }catch(e){return deny(e.status||422,e.message)}

@@ -88,7 +88,8 @@ function renderPlans(){
  for(const plan of plans.slice(0,10)){
   const row=esc("div",undefined,"maincreate-marketplace-plan-row");
   row.append(esc("strong",plan.family+"@"+plan.version));
-  row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · Planned; not installed"));
+  const statuses=(plan.job_statuses||[]);const state=statuses.length?statuses.join(", "):plan.execution||"planned";
+  row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · "+state));
   box.append(row);
  }
 }

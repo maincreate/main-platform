@@ -4,6 +4,7 @@ import {homedir,hostname,platform,arch,cpus,totalmem,freemem,uptime} from "node:
 import {createHash} from "node:crypto";
 import {spawn} from "node:child_process";
 import {fileURLToPath} from "node:url";
+import {installArduinoCli} from "./sdk_install.mjs";
 
 const configDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".maincreate");
 const path=join(configDir,"runner.json");
@@ -127,6 +128,10 @@ async function executeJob(config,job){
      Buffer.from(output||"Build completed")));
     for(const artifact of gatherFirmware(checkout))
      ids.push(await uploadAsset(config,job.id,artifact.name,"application/octet-stream",artifact.data));
+   }else if(step.capability==="sdk.arduino_cli.install"){
+    if(process.env.MAIN_RUNNER_ENABLE_SDK_INSTALLS!=="1")throw new Error("SDK installation adapter disabled by operator opt-in");
+    const installed=await installArduinoCli({os,architecture:architecture});
+    out.push("Installed "+installed.family+" "+installed.version+" for "+installed.target+"; verified "+installed.sha256);
    }else throw new Error("Runner does not support capability "+step.capability);
    results.push({capability:step.capability,status:"completed"});
   }catch(e){

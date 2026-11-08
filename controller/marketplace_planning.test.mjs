@@ -10,6 +10,11 @@ test('Versioned registry returns releases and recognized host compatibility',()=
  const esp=releases().find(x=>x.id==='esp-idf@5.5.6');
  assert(esp);assert.equal(classifyBuilder(pi,esp).compatible,true);
  assert.equal(classifyBuilder(unmanaged,esp).compatible,false);
+ const arduino=releases().find(x=>x.id==='arduino-cli@1.5.1');
+ assert.equal(arduino.installable,true);
+ assert.equal(arduino.targets[0].sha256,'1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62');
+ assert(releases().some(x=>x.id==='esp-idf@6.1'&&x.reviewOnly===true));
+ assert.equal(releases().some(x=>x.id==='esp-idf@6.4'),false);
 });
 test('Selected builders is explicit, durable and does not install',()=>{
  const plan=makeInstallationPlan({family:'esp-idf',version:'5.5.6',placement:'selected',builder_ids:['a']},hosts,'tester');

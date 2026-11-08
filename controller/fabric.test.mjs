@@ -20,6 +20,7 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert.equal(runners.length,2);
  assert(capabilities.some(c=>c.id==="host.snapshot"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.build"&&c.state==="available"));
+ assert(capabilities.some(c=>c.id==="sdk.arduino_cli.install"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="workflow.esp_idf.preflight_build"&&c.kind==="workflow"));
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);

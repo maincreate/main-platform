@@ -28,7 +28,12 @@ Implemented adapters:
 - `firmware.esp_idf.build@1.0.0`: compile a clean, operator-allowlisted local checkout at an exact pinned SHA; no clone, shell, install, flash, or deploy.
 - `workflow.esp_idf.preflight_build@1.0.0`: host snapshot then ESP-IDF build, with one approval covering the ordered steps.
 
-Visible but **unavailable**: `sdk.esp_idf.install`, `firmware.esp_idf.flash`, and `deployment.release`.
+`sdk.arduino_cli.install` is the first executable SDK installer. It is Linux ARM64/x64 only, disabled unless the runner operator sets `MAIN_RUNNER_ENABLE_SDK_INSTALLS=1`, and still requires a signed-in portal approval job. The adapter downloads only these immutable official Arduino CLI v1.5.1 release assets and verifies the exact SHA-256 before per-user atomic installation:
+
+- [Linux ARM64 release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz) — `1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62`
+- [Linux 64-bit release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz) — `28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b`
+
+The existing ESP-IDF 5.5.6 catalog remains review/catalog-only, and ESP-IDF 6.1 is review-only. No ESP-IDF installer is enabled by this MVP. `firmware.esp_idf.flash` and `deployment.release` remain unavailable.
 
 Example planning request:
 
