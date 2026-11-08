@@ -100,6 +100,11 @@
    <p class="tt-builder-footnote">After pairing, the controller queues GitHub registration under the machine hostname. The Builder list shows provisioning status; no manual runner setup is needed.</p>
   </section>
 
+  <section id="addBuilderProgress" class="tt-removal-progress" aria-label="Builder setup progress" hidden>
+   <p id="addBuilderProgressHeadline" class="tt-removal-headline" role="status" aria-live="polite">Connecting to build machine…</p>
+   <ol id="addBuilderStages" class="tt-removal-stages"></ol>
+   <p class="tt-removal-hint">Setup continues on the controller and host if you close this window. Reopen progress from the builder action menu.</p>
+  </section>
   <p id="pairProgress" class="tt-builder-feedback" role="status" aria-live="polite"></p>
   <div class="tt-builder-footer"><button type="button" id="cancelBuilder" class="plain-button">Cancel</button><div class="tt-builder-footer-actions">
    <button type="button" id="backBuilder" class="plain-button" hidden>Back</button>
