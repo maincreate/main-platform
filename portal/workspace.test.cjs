@@ -23,13 +23,21 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     const builders = await page("/builders");
     assert.match(builders, /id="runners-list"/);
     assert.match(builders, /id="addBuilderDialog"/);
-    assert.match(builders, /node runner\/service.mjs pair/);
-    assert.match(builders, /node runner\/service\.mjs run/);
+    assert.match(builders, /id="installCommand"/);
+    assert.match(builders, /id="runCommand"/);
     assert.match(builders, /id="copyInstallCommand"/);
     assert.match(builders, /id="builderOS"/);
     assert.match(builders, /id="builderArch"/);
     assert.match(builders, /id="platformPrerequisites"/);
     assert.match(builders, /id="platformTerminal"/);
+    assert.match(builders, /id="builderStepOne"/);
+    assert.match(builders, /id="builderStepTwo"/);
+    assert.match(builders, /id="builderStepThree"/);
+    assert.match(builders, /id="hostPairId"/);
+    assert.match(builders, /id="pairHostFingerprint"/);
+    assert.match(builders, /id="approveHostPair"/);
+    assert.match(builders, /id="confirmHostPair"/);
+    assert.doesNotMatch(builders, /id="discoverHosts"|id="readFingerprint"/);
     assert.doesNotMatch(builders, /Read SSH fingerprint|one-time SSH pairing|id="hostPassword"|id="pairHost"/);
 
 
@@ -65,6 +73,11 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.match(buildersScript, /copyInstallCommand/);
     assert.match(buildersScript, /function platformCommands/);
     assert.match(buildersScript, /function updateBuilderInstructions/);
+    assert.match(buildersScript, /function wizardStep/);
+    assert.match(buildersScript, /function loadPairing/);
+    assert.match(buildersScript, /\/api\/local\/builders\/pending/);
+    assert.match(buildersScript, /\/api\/local\/builders\/approve/);
+    assert.doesNotMatch(buildersScript, /\/api\/local\/builders\/(fingerprint|discover|pair)/);
     assert.match(buildersScript, /Set-Location/);
     assert.match(buildersScript, /linux:\\s*\\{/);
     assert.match(buildersScript, /macos:\\s*\\{/);
