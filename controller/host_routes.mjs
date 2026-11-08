@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
+import {queueRunnerProvisioning,actionStatus} from './runner_provisioning.mjs';
 
 export function hostDistributionRoute(req){
  const path=new URL(req.url).pathname,method=req.method;
@@ -27,43 +28,48 @@ export async function adminHostRoute(req,ctx){
  }
  if(path==='/api/local/builders/pair'&&method==='POST'){
   const input=await body(req),host=input.host,username=input.username,password=input.password,fingerprint=input.fingerprint;
-  if(!validHost(host)||typeof username!=='string'||typeof fingerprint!=='string'||input.confirmFingerprint!==true)return deny(422,'Confirm host and SSH fingerprint');
+  if(!validHost(host)||typeof username!=='string'||typeof fingerprint!=='string'||input.confirmFingerprint!==true)
+   return deny(422,'Confirm the SSH fingerprint and enter valid host details');
   if(limited('builder-pair:'+session(req).username,15))return deny(429,'Too many pairing attempts');
   const forwarded=(req.headers.get('x-forwarded-host')||req.headers.get('host')||'').split(',')[0].trim();
   const controller=process.env.TT_PUBLIC_URL||'https://'+forwarded;
-  if(!/^https:\/\/[a-z0-9.-]+(:[0-9]{1,5})?$/i.test(controller))return deny(422,'Configure TT_PUBLIC_URL with the HTTPS controller origin');
-  const s=state(),invitation=rnd();s.invites=(s.invites||[]).filter(x=>x.expires>Date.now());
-  s.invites.push({hash:digest(invitation),expires:Date.now()+10*60*1000});save(s);
+  if(!/^https:\/\/[a-z0-9.-]+(:[0-9]{1,5})?$/i.test(controller))
+   return deny(422,'Configure TT_PUBLIC_URL with the HTTPS controller origin');
+  const before=state();
+  if(before.runners.some(r=>r.managedHost?.host===host))
+   return deny(409,'This address is already paired. If you re-imaged the host, reconcile its previous enrollment first.');
+  const invitation=rnd();
+  before.invites=(before.invites||[]).filter(x=>x.expires>Date.now());
+  before.invites.push({hash:digest(invitation),expires:Date.now()+10*60*1000});
+  save(before);
+  let paired;
+  try{paired=await pairOverSsh({host,username,password,fingerprint,controller,invitation})}
+  catch(e){return deny(502,'Pairing failed: '+String(e.message||'SSH unavailable').slice(0,200))}
+  const stored=state(),runner=stored.runners.find(r=>r.id===paired.runnerId);
+  if(!runner)return deny(502,'Host enrolled without a controller record');
+  runner.managedHost={host,sshFingerprint:paired.fingerprint,pairedAt:new Date().toISOString()};
+  save(stored);
+  // Enrollment is complete here, independently of GitHub. Auto-provision only after pairing.
+  // GitHub failure must not roll back or conceal a valid, authenticated host enrollment.
+  let provisioning=null,provisioningError=null;
   try{
-   const paired=await pairOverSsh({host,username,password,fingerprint,controller,invitation});
-   const stored=state(),runner=stored.runners.find(r=>r.id===paired.runnerId);
-   if(!runner)return deny(502,'Host enrolled without a controller record');
-   runner.managedHost={host,sshFingerprint:paired.fingerprint,pairedAt:new Date().toISOString()};save(stored);
-   return reply({runner:{id:runner.id,name:runner.name,os:runner.os,arch:runner.arch,managedHost:runner.managedHost}});
-  }catch(e){return deny(502,'Pairing failed: '+String(e.message||'SSH unavailable').slice(0,200))}
+   provisioning=await queueRunnerProvisioning(runner.id,{state,save,seal,unseal,githubIdentityCurrent,rnd},
+    {permitPendingHeartbeat:true});
+  }catch(e){provisioningError=String(e.message||'Runner registration unavailable').slice(0,300)}
+  const current=state(),savedRunner=current.runners.find(r=>r.id===paired.runnerId);
+  return reply({runner:{id:runner.id,name:runner.name,os:runner.os,arch:runner.arch,
+    managedHost:savedRunner?.managedHost,githubRunnerName:savedRunner?.githubRunnerName||null},
+    provisioning,provisioningError,
+    message:provisioning?'Paired. Controller queued GitHub Actions registration using hostname '+runner.name+'.':
+      'Host paired. GitHub runner provisioning needs attention.'});
  }
  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/provision'&&method==='POST'){
-  const input=await body(req),s=state(),runner=s.runners.find(r=>r.id===input.runnerId);
-  if(!runner?.managedHost||runner.os!=='linux'||runner.arch!=='arm64')return deny(422,'Select a paired Linux ARM64 host');
-  if(!runner.lastSeen||Date.now()-Date.parse(runner.lastSeen)>120000)return deny(409,'Host must be online before provisioning');
-  if(runner.githubRunnerName)return deny(409,'Runner already managed on this host');
-  if((s.hostActions||[]).some(a=>a.runnerId===runner.id&&['queued','claimed'].includes(a.status)))return deny(409,'Provisioning already pending');
-  const gh=s.github||{},org=gh.selectedOrganization;
-  if(!githubIdentityCurrent(gh)||!org)return deny(409,'Connect and select a GitHub organization');
-  const runnerName='tt-'+String(runner.name).toLowerCase().replace(/[^a-z0-9_.-]/g,'-').slice(0,46)+'-'+runner.id.slice(0,8);
-  const labels=['tt-linux','tt-arm64','tt-managed'];
-  if((runner.packages||[]).some(p=>p.name==='esp-idf'))labels.push('tt-esp-idf');
-  let response;
-  try{response=await fetch('https://api.github.com/orgs/'+encodeURIComponent(org)+'/actions/runners/registration-token',{
-   method:'POST',headers:{authorization:'Bearer '+unseal(gh.oauthToken),accept:'application/vnd.github+json','x-github-api-version':'2022-11-28','user-agent':'TinkerTunnel'},signal:AbortSignal.timeout(15000)});
-  }catch{return deny(502,'GitHub runner registration API unavailable')}
-  if(!response.ok)return deny(response.status===403?403:502,'GitHub could not issue runner token. Grant organization Self-hosted runners: write permission to TinkerTunnel GitHub App.');
-  const issued=await response.json();
-  if(typeof issued.token!=='string'||issued.token.length<15||!Number.isFinite(Date.parse(issued.expires_at)))return deny(502,'Invalid GitHub registration-token response');
-  const action={id:rnd(),runnerId:runner.id,runnerName,organization:org,labels,secret:seal(issued.token),expiresAt:issued.expires_at,status:'queued',createdAt:new Date().toISOString()};
-  s.hostActions=[...(s.hostActions||[]).slice(-99),action];save(s);
-  return reply({action:{id:action.id,runnerName,status:action.status,organization:org,labels}});
+  const input=await body(req);
+  try{
+   const action=await queueRunnerProvisioning(input.runnerId,{state,save,seal,unseal,githubIdentityCurrent,rnd});
+   return reply({action});
+  }catch(e){return deny(e.status||502,e.message||'Unable to provision GitHub Actions runner')}
  }
  return null;
 }
