@@ -117,7 +117,8 @@ export async function enrollHost({address,username,password,approvedFingerprint,
   await copy(conn,fileURLToPath(new URL("../runner/agent.mjs",import.meta.url)),base+"/agent.mjs");
   await copy(conn,fileURLToPath(new URL("../runner/scan_devices.py",import.meta.url)),base+"/scan_devices.py");
   const invite=await getInvite();
-  await execute(conn,"bash -se","TT_CONTROLLER_URL="+shell(url.origin)+" TT_ENROLLMENT_TOKEN="+shell(invite)+" node "+shell(base+"/agent.mjs")+" enroll\n",30000);
+  const enrollment=await execute(conn,"bash -se","TT_CONTROLLER_URL="+shell(url.origin)+" TT_ENROLLMENT_TOKEN="+shell(invite)+" node "+shell(base+"/agent.mjs")+" enroll\n",30000);
+  const agentId=/\(([a-f0-9]{24})\)/.exec(enrollment)?.[1]||null;
   const nodeBin=await execute(conn,"command -v node");
   const service="tinkertunnel-"+name.slice(3).toLowerCase()+".service";
   const unit=["[Unit]","Description=TinkerTunnel managed companion","After=network-online.target",
@@ -129,6 +130,6 @@ export async function enrollHost({address,username,password,approvedFingerprint,
   await sudo(conn,"systemctl enable --now "+service,password);
   progress("Verifying managed services");
   await sudo(conn,"systemctl is-active "+service,password);
-  return {name,os:"linux",arch,labels,host:parseHost(address,username).host,githubRunner:"registered",companion:"installed"};
+  return {name,os:"linux",arch,labels,agentId,host:parseHost(address,username).host,githubRunner:"registered",companion:"installed"};
  }finally{conn?.end();}
 }
