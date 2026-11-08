@@ -39,6 +39,20 @@ function renderJobs(jobs){
   row(holder,job.capability,(job.created_at?relative(job.created_at):"")+" · "+job.runner_id.slice(0,10)+source,job.status.replaceAll("_"," "));
  }
 }
+// The homepage is an activity shortlist, not the complete organization inventory.
+// GitHub pushed_at is the latest code push seen during sync; latestBuild is a
+// recorded TinkerTunnel build. Neither field claims to be a GitHub Actions run.
+function projectTime(value){
+ const parsed=Date.parse(value||"");
+ return Number.isFinite(parsed)?parsed:0;
+}
+function mostRecentProjects(repositories,limit=5){
+ return repositories.filter(p=>!p.archived&&!p.ignored)
+  .sort((a,b)=>{
+   const activity=project=>Math.max(projectTime(project.pushedAt),projectTime(project.latestBuild?.created_at));
+   return activity(b)-activity(a)||a.fullName.localeCompare(b.fullName);
+  }).slice(0,limit);
+}
 function renderProjects(projects){
  const holder=$("projectList");holder.replaceChildren();
  if(!projects?.repositories?.length){
@@ -46,9 +60,18 @@ function renderProjects(projects){
    projects?.organization?"Open Projects to synchronize your GitHub App repositories.":"Connect GitHub in Settings to view your repositories.",
    projects?.organization?"/projects":"/settings","Open "+(projects?.organization?"Projects":"Settings"));
  }
- for(const project of projects.repositories.slice(0,5)){
-  row(holder,project.fullName,project.description||"Default branch: "+(project.defaultBranch||"unknown"),
-   project.builds+" build"+(project.builds===1?"":"s"));
+ const recent=mostRecentProjects(projects.repositories);
+ if(!recent.length)return empty(holder,"No active projects to show",
+  "Archived and ignored projects stay available in the full project inventory.",
+  "/projects","View all projects");
+ for(const project of recent){
+  const pushed=projectTime(project.pushedAt),built=projectTime(project.latestBuild?.created_at);
+  const activity=built>pushed?"Build":pushed>0?"Push":built>0?"Build":null;
+  const last=Math.max(pushed,built);
+  const details=activity?activity+" "+relative(new Date(last).toISOString()):"No recorded activity";
+  row(holder,project.fullName,
+   details+" · "+(project.description||"Default branch: "+(project.defaultBranch||"unknown")),
+   Number(project.builds||0)+" build"+(Number(project.builds||0)===1?"":"s"));
  }
 }
 function renderBuilders(overview){
