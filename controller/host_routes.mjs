@@ -27,7 +27,7 @@ async function unregisterGithubRunner(host,actions,ctx){
   if(!matches.length)return 'not_found';
   const found=matches[0];
   if(found.busy)throw Error('GitHub runner has an active job. Wait for it to finish.');
-  if(found.status!=='offline'){
+  if(found.status!=='offline'&&host.decommission?.mode!=='remote'){
    if(attempt===3)throw Error('GitHub runner is still online. Wait for shutdown or select unreachable removal once the host is offline.');
    await new Promise(resolve=>setTimeout(resolve,2000));continue;
   }
