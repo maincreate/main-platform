@@ -1,6 +1,6 @@
 {
   "name": "tinkertunnel-local",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "TinkerTunnel capability registry, approved runner jobs and bounded artifacts",
   "type": "module",
