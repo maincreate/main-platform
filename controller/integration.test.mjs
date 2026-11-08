@@ -151,7 +151,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    // Starting a real device authorization requires GitHub network access and is covered by a separate live test.
    // Integration tests never perform a remote authorization or leak a device code.
    assert.equal((await json(base,"/api/local/github/device/poll",{},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
-   assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example"},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
+   assert.equal((await json(base,"/api/local/github/device/organization",{organization:"Example",standardHostedRunnersDisabledConfirmed:true},{"cookie":cookie,"x-tt-csrf":csrf})).status,409);
    const httpsLogin=await json(base,"/api/local/login",{username:adminUsername,password},{"x-forwarded-proto":"https"});
    assert.equal(httpsLogin.status,200);
    assert.match(httpsLogin.headers.get("set-cookie")||"",/; Secure$/);
