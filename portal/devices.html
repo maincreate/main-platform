@@ -18,10 +18,16 @@
   <button id="refresh" class="plain-button" type="button">Refresh inventory</button>
  </div>
  <table class="inventory-table">
- <thead><tr><th>Device</th><th>Attached builder</th><th>Serial port</th><th>Identity</th><th>Last seen</th><th>Status</th><th>Actions</th></tr></thead>
- <tbody id="deviceRows"><tr><td colspan="7">Loading…</td></tr></tbody></table>
+ <thead><tr><th>Device</th><th>Attached builder</th><th>Serial port</th><th>Identity</th><th>Microcontroller / SDK</th><th>Last seen</th><th>Status</th><th>Actions</th></tr></thead>
+ <tbody id="deviceRows"><tr><td colspan="8">Loading…</td></tr></tbody></table>
  <label class="tt-show-hidden"><input type="checkbox" id="showHidden"> Show hidden devices</label>
  <p class="inventory-note">Devices missing from a complete scan become offline. Records disappear from the default list after 7 days and move to the archive after 30 days; returning devices are recognized and restored. No inventory record is automatically deleted.</p>
+</section>
+<section class="inventory-panel" id="deviceCompatibilityPanel" aria-labelledby="deviceCompatibilityTitle" hidden>
+ <div class="panel-heading"><div><h2 id="deviceCompatibilityTitle">Device compatibility</h2><p id="deviceCompatibilityHint"></p></div><button type="button" class="plain-button" id="closeDeviceCompatibility">Close</button></div>
+ <div id="deviceCompatibilityContent"></div>
+ <p class="inventory-note">A matching USB identifier suggests a device family; it does not verify its exact chip, board, flash layout or supported firmware image. Flashing is disabled until read-only chip verification and artifact compatibility are implemented.</p>
+ <a href="/marketplace" class="quiet-link">Browse microcontroller SDK catalog</a>
 </section>
 <section class="inventory-panel">
  <h2>Manual flashing and automation</h2>
