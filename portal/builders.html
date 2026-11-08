@@ -14,6 +14,11 @@
    <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
    <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
    <p id="removeBuilderFeedback" role="status" aria-live="polite"></p>
+   <section id="removeBuilderProgress" class="tt-removal-progress" aria-label="Builder removal progress" hidden>
+    <p id="removeBuilderProgressHeadline" class="tt-removal-headline" role="status" aria-live="polite">Preparing removal…</p>
+    <ol id="removeBuilderStages" class="tt-removal-stages"></ol>
+    <p class="tt-removal-hint">Removal is managed by the controller. Closing this window does not cancel the operation.</p>
+   </section>
    <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="submit" id="confirmRemoveBuilder" class="tt-danger-button" disabled>Remove builder</button></div>
   </form>
  </dialog>
