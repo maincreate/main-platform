@@ -21,7 +21,7 @@ import (
  "time"
 )
 
-const version="0.6.1"
+const version="0.6.2"
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/tinkertunnel")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}

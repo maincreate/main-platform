@@ -21,7 +21,7 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.6.1";
+export const HOST_RELEASE = "0.6.2";
 
 export function removalActivity(host,actions=[],now=Date.now()){
  const d=host?.decommission;

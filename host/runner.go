@@ -27,7 +27,7 @@ const maxRunnerMemberBytes int64 = 512 << 20
 const maxRunnerExpandedBytes int64 = 800 << 20
 type release struct{
  TagName string `json:"tag_name"`
- Assets []struct{Name string `json:"name"`;Digest string `json:"digest"`;BrowserDownloadURL string `json:"browser_download_url"`} `json:"assets"`
+ Assets []struct{ID int64 `json:"id"`;Name string `json:"name"`;Digest string `json:"digest"`;BrowserDownloadURL string `json:"browser_download_url"`} `json:"assets"`
 }
 func runCmd(user,dir,bin string,args ...string)error{
  var cmd *exec.Cmd
@@ -49,7 +49,9 @@ func downloadRunner()([]byte,error){
   if a.Name!=name{continue}
   if !strings.HasPrefix(a.Digest,"sha256:")||len(a.Digest)!=71{return nil,errors.New("runner release missing sha256 digest")}
   if !strings.HasPrefix(a.BrowserDownloadURL,"https://github.com/actions/runner/releases/download/"){return nil,errors.New("unexpected GitHub runner asset URL")}
-  body,e:=fetchRunnerArchive(a.BrowserDownloadURL)
+  var fallback string
+  if a.ID>0{fallback=fmt.Sprintf("https://api.github.com/repos/actions/runner/releases/assets/%d",a.ID)}
+  body,e:=fetchRunnerArchive(a.BrowserDownloadURL,fallback)
   if e!=nil{return nil,e}
   if len(body)>256<<20{return nil,errors.New("runner archive too large")}
   hash:=sha256.Sum256(body)
@@ -59,7 +61,7 @@ func downloadRunner()([]byte,error){
  return nil,errors.New("no verified Linux ARM64 runner in latest release")
 }
 // Bound all attempts by the original archive download budget.
-func fetchRunnerArchive(url string) ([]byte, error) {
+func fetchRunnerArchive(url, fallback string) ([]byte, error) {
  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
  defer cancel()
  for attempt := 1; ; attempt++ {
@@ -67,6 +69,7 @@ func fetchRunnerArchive(url string) ([]byte, error) {
   if err != nil {
    return nil, err
   }
+  req.Header.Set("Accept", "application/octet-stream")
   resp, err := http.DefaultClient.Do(req)
   if err != nil {
    return nil, err
@@ -79,6 +82,9 @@ func fetchRunnerArchive(url string) ([]byte, error) {
   switch resp.StatusCode {
   case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
    if attempt < 3 {
+    if fallback != "" {
+     url, fallback = fallback, ""
+    }
     timer := time.NewTimer(time.Duration(attempt) * time.Second)
     select {
     case <-timer.C:
