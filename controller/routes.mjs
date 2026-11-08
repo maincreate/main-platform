@@ -284,7 +284,12 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":(path.endsWith(".js")?"text/javascript":"text/css")+"; charset=utf-8","cache-control":"no-store"}});
   }
   if((path==="/settings"||path==="/devices"||path==="/projects"||path==="/builders"||path==="/marketplace")&&method==="GET"){
-    if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    if(privateApp&&!session(req)){
+      const pairId=path==="/builders"?new URL(req.url).searchParams.get("pair"):null;
+      const next=path==="/builders"&&/^[a-f0-9]{32}$/.test(pairId||"")
+        ?"/setup?next="+encodeURIComponent("/builders?add=1&pair="+pairId):"/setup";
+      return new Response(null,{status:302,headers:{"location":next,"cache-control":"no-store"}});
+    }
     return new Response(readFileSync(new URL("../portal"+path+".html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
   if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css"].includes(path)&&method==="GET"){
