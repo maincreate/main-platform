@@ -2,6 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
+import {hostDistributionRoute,adminHostRoute,agentHostRoute} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
@@ -249,6 +250,7 @@ export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
   const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
@@ -345,6 +347,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+       const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited});
+       if(hostResponse)return hostResponse;
       if(path==="/api/local/logout"&&method==="POST"){
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
@@ -766,7 +770,9 @@ export async function localRoute(req) {
       }
       return deny(404,"Unknown management endpoint");
     }
-    if(path==="/api/agent/enroll"&&method==="POST"){
+    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal});
+     if(agentHostResponse)return agentHostResponse;
+     if(path==="/api/agent/enroll"&&method==="POST"){
       const b=await body(req),s=state();
       const invite=(s.invites||[]).find(x=>equal(x.hash,digest(b.token||""))&&x.expires>Date.now());
       if(!invite)return deny(401,"Enrollment token invalid or expired");
