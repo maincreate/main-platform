@@ -1,6 +1,5 @@
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
 
 export function hostDistributionRoute(req){
  const path=new URL(req.url).pathname,method=req.method;
@@ -16,32 +15,6 @@ export function hostDistributionRoute(req){
 export async function adminHostRoute(req,ctx){
  const path=new URL(req.url).pathname,method=req.method;
  const {state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited}=ctx;
- if(path==='/api/local/builders/discover'&&method==='GET'){
-  try{return reply({hosts:await discoverHosts()})}catch{return reply({hosts:[],warning:'mDNS not reachable from controller. Use hostname or IP.'})}
- }
- if(path==='/api/local/builders/fingerprint'&&method==='GET'){
-  const host=new URL(req.url).searchParams.get('host')||'';
-  if(!validHost(host))return deny(422,'Enter a valid hostname or IPv4 address');
-  try{const found=await hostFingerprint(host);return reply({host,fingerprint:found.fingerprint})}
-  catch{return deny(502,'SSH host key unavailable. Check hostname/IP and SSH reachability.')}
- }
- if(path==='/api/local/builders/pair'&&method==='POST'){
-  const input=await body(req),host=input.host,username=input.username,password=input.password,fingerprint=input.fingerprint;
-  if(!validHost(host)||typeof username!=='string'||typeof fingerprint!=='string'||input.confirmFingerprint!==true)return deny(422,'Confirm host and SSH fingerprint');
-  if(limited('builder-pair:'+session(req).username,15))return deny(429,'Too many pairing attempts');
-  const forwarded=(req.headers.get('x-forwarded-host')||req.headers.get('host')||'').split(',')[0].trim();
-  const controller=process.env.TT_PUBLIC_URL||'https://'+forwarded;
-  if(!/^https:\/\/[a-z0-9.-]+(:[0-9]{1,5})?$/i.test(controller))return deny(422,'Configure TT_PUBLIC_URL with the HTTPS controller origin');
-  const s=state(),invitation=rnd();s.invites=(s.invites||[]).filter(x=>x.expires>Date.now());
-  s.invites.push({hash:digest(invitation),expires:Date.now()+10*60*1000});save(s);
-  try{
-   const paired=await pairOverSsh({host,username,password,fingerprint,controller,invitation});
-   const stored=state(),runner=stored.runners.find(r=>r.id===paired.runnerId);
-   if(!runner)return deny(502,'Host enrolled without a controller record');
-   runner.managedHost={host,sshFingerprint:paired.fingerprint,pairedAt:new Date().toISOString()};save(stored);
-   return reply({runner:{id:runner.id,name:runner.name,os:runner.os,arch:runner.arch,managedHost:runner.managedHost}});
-  }catch(e){return deny(502,'Pairing failed: '+String(e.message||'SSH unavailable').slice(0,200))}
- }
  if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/provision'&&method==='POST'){
   const input=await body(req),s=state(),runner=s.runners.find(r=>r.id===input.runnerId);
