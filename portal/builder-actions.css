@@ -69,9 +69,11 @@
 .tt-remove-confirm-step{display:grid;gap:10px;margin:14px 0 18px}
 .tt-remove-confirm-step[hidden],.tt-removal-step-indicator[hidden]{display:none!important}
 .tt-remove-confirm-step label{margin-top:5px}
-.tt-removal-copy-row{display:flex;align-items:stretch;gap:8px}
-.tt-removal-copy-row input{flex:1;min-width:0;background:var(--bg);color:var(--muted);cursor:default}
-.tt-removal-copy-row button{flex:none;min-width:66px}
+.tt-removal-copy-row{position:relative;width:100%}
+.tt-removal-copy-row input{display:block;width:100%;min-width:0;box-sizing:border-box;padding-right:46px;background:var(--bg);color:var(--muted);cursor:default}
+.tt-removal-copy-row .tt-copy-inline{position:absolute;top:50%;right:7px;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.tt-removal-copy-row .tt-copy-inline:hover{background:var(--soft);color:var(--text)}
+.tt-removal-copy-row .tt-copy-inline:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .tt-removal-warning{padding:12px 14px;border:1px solid #db667166;border-radius:9px;background:color-mix(in srgb,#db6671 9%,transparent);font-size:13px;line-height:1.6}
 .tt-builder-dialog #removeBuilderForm .button-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 .tt-builder-dialog #removeBuilderForm .button-row button{margin:0}
