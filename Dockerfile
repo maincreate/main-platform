@@ -9,11 +9,11 @@ FROM node:22-alpine
 RUN apk add --no-cache openssh-client sshpass
 WORKDIR /app
 COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html portal/setup.js portal/setup.css portal/dashboard.html portal/dashboard.js portal/dashboard.css portal/activity.css portal/github.html portal/github.js portal/github.css portal/topology.html portal/topology.js portal/jobs.html portal/jobs.js portal/jobs.css portal/settings.html portal/settings.js portal/projects.html portal/projects.js portal/devices.html portal/devices.js portal/builders.html portal/builders.js portal/builder-actions.css portal/marketplace.html portal/marketplace.js portal/marketplace-planning.css portal/actions.js portal/workspace.css ./portal/
-COPY --chown=node:node controller/routes.mjs controller/host_routes.mjs controller/hosts.mjs controller/runner_provisioning.mjs controller/project_monitor.mjs controller/fabric.mjs controller/devices.mjs controller/projects.mjs controller/repository_creation.mjs controller/marketplace_planning.mjs ./controller/
+COPY --chown=node:node controller/routes.mjs controller/host_routes.mjs controller/hosts.mjs controller/runner_provisioning.mjs controller/project_monitor.mjs controller/fabric.mjs controller/devices.mjs controller/microcontrollers.mjs controller/projects.mjs controller/repository_creation.mjs controller/marketplace_planning.mjs ./controller/
 COPY --chown=node:node controller/builder_decommission.test.mjs controller/marketplace_planning.test.mjs ./controller/
 RUN node --test ./controller/builder_decommission.test.mjs ./controller/marketplace_planning.test.mjs
 COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
-COPY --chown=node:node registry/capabilities.json registry/toolkits.json ./registry/
+COPY --chown=node:node registry/capabilities.json registry/toolkits.json registry/microcontrollers.json ./registry/
 COPY --from=host-build /out/tinkertunnel-host-linux-arm64 ./downloads/tinkertunnel-host-linux-arm64
 COPY --chown=node:node scripts/install-linux.sh scripts/uninstall-linux.sh ./scripts/
 RUN mkdir -p /data && chown node:node /data
