@@ -315,6 +315,16 @@ function startRemovalPoll(){
  pollRemoval(serial);
  removalTimer=setInterval(()=>pollRemoval(serial),2500);
 }
+function viewRemovalProgress(host){
+ stopRemovalPoll();
+ removeTarget=host;removeMode=host.decommission?.mode||"managed";
+ $("removeBuilderFeedback").textContent="";
+ $("removeBuilderExplanation").textContent="Builder: "+host.name+
+  ". Showing the controller's recorded removal progress. Closing this window does not cancel removal.";
+ progressMode(true);
+ if(!removeDialog.open)removeDialog.showModal();
+ startRemovalPoll();
+}
 function openRemoveDialog(host,mode){
   stopRemovalPoll();progressMode(false);
   removeTarget=host;removeMode=mode;
@@ -430,17 +440,22 @@ function renderBuilders(){
    if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else if(stage==="removal-stalled"){
+   panel.append(menuAction("View removal progress",()=>viewRemovalProgress(host)));
    panel.append(menuAction("Reconcile stalled removal",()=>reconcileRemoval(host)));
    if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
   }else if(stage==="removal-failed"){
+   panel.append(menuAction("View removal failure",()=>viewRemovalProgress(host)));
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
    if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
    panel.append(el("span",stage==="removing"?removalStatus(host):"Setup in progress","tt-builder-menu-disabled"));
-   if(stage==="removing")panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   if(stage==="removing"){
+    panel.append(menuAction("View removal progress",()=>viewRemovalProgress(host)));
+    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   }
   }
   menu.append(trigger,panel);controls.append(menu);
   tr.append(controls);tbody.append(tr);
