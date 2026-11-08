@@ -117,7 +117,9 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(overview.runners.executionEnabled,false);
    assert.equal(overview.topology.toolkitsDiscovered,false);
    assert.equal(overview.topology.secureConnectionVerified,false);
-   const ghStatus=await (await fetch(base+"/api/local/github/device/status",{headers:{cookie}})).json();
+   const ghResponse=await fetch(base+"/api/local/github/device/status",{headers:{cookie}});
+   const ghStatus=await ghResponse.json();
+   assert.equal(ghResponse.status,200,"GitHub device status: "+JSON.stringify(ghStatus));
    assert.equal(ghStatus.available,true);
    assert.equal(ghStatus.clientId,"Iv23liAxFGcez9en0tY8");
    assert.equal(ghStatus.usingDefaultApp,true);
