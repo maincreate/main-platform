@@ -85,7 +85,7 @@ test('Unsupported legacy Host Service leaves a recoverable builder and allows fo
  assert.equal(h.state().runners.length,0);
 });
 test('Queued registration blocks removal',async()=>{
- const h=harness({actions:[{id:'pending',runnerId:ID,status:'queued'}]});
+ const h=harness({actions:[{id:'pending',runnerId:ID,status:'queued',expiresAt:new Date(Date.now()+60000).toISOString()}]});
  assert.equal((await h.removal()).status,409);
  assert.equal(h.state().runners.length,1);
 });
