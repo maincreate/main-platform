@@ -101,7 +101,7 @@ Update the source repository first. For each entry in the lock, archive the list
 
 ### Upgrading environment configuration
 
-Before deploying this revision, rename configured environment keys with the former `TT_` prefix to `MAIN_`, preserving their values. Apply the change to the controller, MCP gateway, and any separately configured builders or runner services as each component upgrades. Keep the existing data mount. If you use an external master key, preserve its value under `MAIN_MASTER_KEY`. Rollbacks need the environment key names expected by the rolled-back revision.
+Before deploying this revision, rename any pre-migration environment keys to use the `MAIN_` prefix, preserving their values. Apply the change to the controller, MCP gateway, and any separately configured builders or runner services as each component upgrades. Keep the existing data mount. If you use an external master key, preserve its value under `MAIN_MASTER_KEY`. Rollbacks need the environment key names expected by the rolled-back revision.
 
 ### Upgrading Compose storage
 

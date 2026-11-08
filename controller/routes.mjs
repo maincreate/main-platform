@@ -749,7 +749,7 @@ export async function localRoute(req) {
             count:stored.runners.length,
             items:stored.runners.slice(0,24).map(r=>({
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
-              labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
+              labels:r.labels||["maincreate-"+r.os,"maincreate-"+r.arch],packages:r.packages||[],
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
               software:{
                version:r.hostVersion||null,

@@ -12,7 +12,7 @@ const manifests={
  esp:JSON.stringify({schema:1,targets:[{os:"linux",arch:"arm64",tools:[{name:"esp-idf",version:"5.5.x"}]}]}),
  ios:JSON.stringify({schema:1,targets:[{os:"macos",tools:[{name:"xcode",version:">=16.4"}]}]})
 };
-const online=(name,os,arch,packages)=>({name,os,arch,packages,githubRunnerName:"tt-"+name,lastSeen:new Date().toISOString()});
+const online=(name,os,arch,packages)=>({name,os,arch,packages,githubRunnerName:"maincreate-"+name,lastSeen:new Date().toISOString()});
 
 test("an ESP-IDF 5.5 project requires a compatible SDK version",()=>{
  const requirement=parseRequirements(manifests.esp);
