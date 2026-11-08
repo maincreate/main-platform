@@ -20,6 +20,8 @@ test('installer validates platform before any download',async()=>{
 });
 test('version verification is exact, not merely a product-name check',()=>{
  assert.equal(isExactArduinoVersion('arduino-cli 1.5.1\n'),true);
+ assert.equal(isExactArduinoVersion('arduino-cli  Version: 1.5.1 Commit: 01f3d4f Date: 2026-06-05T10:22:17Z'),true);
+ assert.equal(isExactArduinoVersion('arduino-cli Version: 1.5.1 Commit: 01f3d4f'),true);
  assert.equal(isExactArduinoVersion('arduino-cli 1.5.10\n'),false);
  assert.equal(isExactArduinoVersion('arduino-cli nightly\n'),false);
 });
