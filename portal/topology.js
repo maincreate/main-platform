@@ -1,26 +1,17 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null;
 async function load(){
   try {
     const response=await fetch("/api/local/overview",{cache:"no-store",credentials:"same-origin"});
     if(response.status===401){window.location.replace("/setup");return;}
     if(!response.ok)throw Error("Unable to read workspace status");
     const data=await response.json();
-    csrf=data.csrf;
     $("username").textContent=data.username||"administrator";
     renderTopology(data);
   }catch(e){
     $("topologySummary").textContent=e.message||"Workspace status unavailable";
   }
 }
-$("signout").addEventListener("click",async()=>{
-  if(!csrf)return;
-  try {
-    await fetch("/api/local/logout",{method:"POST",credentials:"same-origin",
-      headers:{"content-type":"application/json","x-maincreate-csrf":csrf},body:"{}"});
-  }finally{window.location.replace("/setup");}
-});
 // Read-only topology. Every node is based on overview data or explicitly marked unverified.
 // Lines indicate conceptual relationships; only a recent runner heartbeat is rendered solid.
 let selectedRunner=null;

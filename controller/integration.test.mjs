@@ -100,7 +100,13 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await fetch(base+"/api/local/projects")).status,401);
 
    assert.equal((await fetch(base+"/jobs",{redirect:"manual"})).status,302);
-   assert.equal((await fetch(base+"/jobs",{headers:{cookie}})).status,200);
+   const jobsPage=await fetch(base+"/jobs",{headers:{cookie}});
+   assert.equal(jobsPage.status,200);
+   const jobsHtml=await jobsPage.text();
+   assert.match(jobsHtml,/id="signout"[^>]*>Sign out<\/button>/);
+   assert.match(jobsHtml,/src="\/account\.js"/);
+   assert.equal((await fetch(base+"/account.js")).status,401);
+   assert.equal((await fetch(base+"/account.js",{headers:{cookie}})).status,200);
    assert.equal((await fetch(base+"/jobs.js")).status,401);
    assert.equal((await fetch(base+"/jobs.css")).status,401);
    assert.equal((await fetch(base+"/jobs.js",{headers:{cookie}})).status,200);

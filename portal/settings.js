@@ -118,10 +118,6 @@ $("passwordForm").addEventListener("submit",async event=>{
   location.replace("/setup");
  }catch(e){$("notice").textContent=e.message;}
 });
-$("signout").addEventListener("click",async()=>{
- if(!csrf)return;
- try{await api("/api/local/logout",{});}finally{location.replace("/setup");}
-});
 load();
 
 async function loadRepositoryPreferences(){
