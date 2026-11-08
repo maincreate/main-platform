@@ -742,15 +742,15 @@ export async function localRoute(req) {
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
               software:{
                version:r.hostVersion||null,
-               expectedVersion:"0.4.0",
-               upToDate:!!r.hostVersion&&r.hostVersion==="0.4.0",
+               expectedVersion:"0.5.0",
+               upToDate:!!r.hostVersion&&r.hostVersion==="0.5.0",
                updateAvailable:!!r.hostVersion&&r.hostVersion.split(".").length===3&&r.hostVersion.split(".").every(v=>v!==""&&String(Number(v))===v)&&
                 r.hostVersion.split(".").map(Number).some((n,i,a)=>{
-                 const expected=[0,4,0];return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
+                 const expected=[0,5,0];return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
                 }),
                error:null
               },
-              assignment:r.assignment||{displayName:"",location:"",assignedTo:"",accessGroup:""},
+              upgrade:r.upgrade||null,
               decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null,...removalActivity(r,stored.hostActions||[])}:null
             })),
             truncated:stored.runners.length>24,
@@ -922,6 +922,9 @@ export async function localRoute(req) {
       if(typeof b.hostVersion==="string"&&/^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.test(b.hostVersion)){
        runner.hostVersion=b.hostVersion;
        runner.hostVersionObservedAt=runner.lastSeen;
+       if(runner.upgrade?.phase==='installing'&&runner.upgrade.targetVersion===b.hostVersion){
+        runner.upgrade.phase='completed';runner.upgrade.completedAt=runner.lastSeen;
+       }
       }
       if(Array.isArray(b.packages)&&b.packages.length<=20&&b.packages.every(p=>
        p&&typeof p.name==="string"&&/^[a-z0-9_-]{1,32}$/.test(p.name)&&
