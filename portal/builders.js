@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null,builders=[],githubRunners=[],fingerprint=null,operation=null;
+let csrf=null,builders=[],githubRunners=[];
 try{const t=localStorage.getItem("tt-theme");if(["graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,body){
  const request={credentials:"same-origin",cache:"no-store"};
@@ -105,6 +105,7 @@ async function load(){
 }
 function openDialog(){
  $("controllerAddress").textContent=location.origin;
+ $("dialogCopyStatus").textContent="";
  $("addBuilderDialog").showModal();
 }
 $("addBuilder").addEventListener("click",openDialog);
@@ -113,49 +114,19 @@ $("refresh").addEventListener("click",()=>load().catch(e=>status(e.message)));
 $("builderSearch").addEventListener("input",renderBuilders);
 $("builderStatus").addEventListener("change",renderBuilders);
 
-function selectedHost(host){
- $("hostAddress").value=host;
- fingerprint=null;$("hostFingerprint").textContent="";
- $("confirmFingerprint").checked=false;
+async function copyCommand(id){
+ const command=$(id).textContent.trim();
+ const output=$("dialogCopyStatus");
+ try{
+  if(!navigator.clipboard?.writeText)throw Error("Clipboard unavailable");
+  await navigator.clipboard.writeText(command);
+  output.textContent="Commands copied.";
+ }catch{
+  output.textContent="Copy is unavailable in this browser; select the command text above to copy manually.";
+ }
 }
-$("hostAddress").addEventListener("input",()=>{fingerprint=null;$("hostFingerprint").textContent="";$("confirmFingerprint").checked=false;});
-$("discoverHosts").addEventListener("click",async()=>{
- const button=$("discoverHosts");button.disabled=true;status("Searching for TinkerTunnel Host Services on the local network...");
- try{
-  const result=await api("/api/local/builders/discover"),box=$("discoveredHosts");box.replaceChildren();
-  if(!result.hosts?.length){box.textContent=result.warning||"No hosts discovered. Enter a hostname or IP address manually."}
-  for(const host of result.hosts||[]){
-   const name=host.name+" — "+(host.address||host.hostname);
-   const pick=el("button",name,"plain-button");pick.type="button";
-   pick.addEventListener("click",()=>selectedHost(host.address||host.hostname));
-   box.append(pick);
-  }
-  status(result.hosts?.length?"Select a discovered host, or type a hostname/IP.":"Discovery is optional; manual pairing works without mDNS.");
- }catch(e){status(e.message)}finally{button.disabled=false}
-});
-$("readFingerprint").addEventListener("click",async()=>{
- const host=$("hostAddress").value.trim();
- if(!host){status("Enter a hostname or IP address first.");return}
- const button=$("readFingerprint");button.disabled=true;
- try{
-  const result=await api("/api/local/builders/fingerprint?host="+encodeURIComponent(host));
-  fingerprint=result.fingerprint;
-  $("hostFingerprint").textContent="SSH host fingerprint: "+fingerprint;
-  $("confirmFingerprint").checked=false;
-  status("Verify that the SSH fingerprint matches your Pi before pairing.");
- }catch(e){status(e.message)}finally{button.disabled=false}
-});
-$("pairHost").addEventListener("click",async()=>{
- const host=$("hostAddress").value.trim(),username=$("hostUsername").value.trim(),
- password=$("hostPassword").value;
- if(!fingerprint||!$("confirmFingerprint").checked){status("Read and confirm the SSH host fingerprint first.");return}
- const button=$("pairHost");button.disabled=true;status("Pairing "+host+" using the Linux login...");
- try{
-  const result=await api("/api/local/builders/pair",{host,username,password,fingerprint,confirmFingerprint:true});
-  status("Host "+result.runner.name+" paired. After its heartbeat appears, provision its GitHub runner.");
-  $("addBuilderDialog").close();await load();
- }catch(e){status(e.message)}finally{$("hostPassword").value="";button.disabled=false}
-});
+$("copyInstallCommand").addEventListener("click",()=>copyCommand("installCommand"));
+$("copyRunCommand").addEventListener("click",()=>copyCommand("runCommand"));
 
 if(new URLSearchParams(location.search).get("add")==="1")openDialog();
 load().catch(e=>status(e.message));
