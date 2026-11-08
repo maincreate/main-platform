@@ -47,4 +47,4 @@ The API does not include runner bearer tokens, token hashes, machine IPs, privat
 
 ## Deployment
 
-Assets are packaged in both the root Dockerfile and the portal Dockerfile. The dashboard and topology API require an authenticated administrator session. This view is independent of Docker, Coolify or any particular hosting provider.
+Assets are packaged in the root Dockerfile shared by Dockerfile and Compose deployments. The dashboard and topology API require an authenticated administrator session. This view is independent of Docker, Coolify or any particular hosting provider.

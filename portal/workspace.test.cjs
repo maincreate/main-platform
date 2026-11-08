@@ -4,12 +4,11 @@ const {readFileSync}=require("node:fs");
 const {resolve}=require("node:path");
 
 test("workspace serves current builder, marketplace, and job experiences",async()=>{
- for(const dockerfile of [resolve(__dirname,"../Dockerfile"),resolve(__dirname,"Dockerfile")]){
-  const content=readFileSync(dockerfile,"utf8");
-  for(const asset of ["portal/builders.html","portal/builders.js","portal/dashboard.html","portal/dashboard.js",
-   "portal/marketplace.html","portal/marketplace.js","portal/jobs.html","portal/jobs.js","portal/activity.css"])
-   assert.ok(content.includes(asset),dockerfile+" must ship "+asset);
- }
+ const dockerfile=resolve(__dirname,"../Dockerfile");
+ const content=readFileSync(dockerfile,"utf8");
+ for(const asset of ["portal/builders.html","portal/builders.js","portal/dashboard.html","portal/dashboard.js",
+  "portal/marketplace.html","portal/marketplace.js","portal/jobs.html","portal/jobs.js","portal/activity.css"])
+  assert.ok(content.includes(asset),dockerfile+" must ship "+asset);
  const prior=process.env.MAIN_REQUIRE_LOGIN;
  process.env.MAIN_REQUIRE_LOGIN="0";
  try{
