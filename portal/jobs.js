@@ -55,6 +55,7 @@ function render(){
   const header=el("div","Steps and logs");detailCell.append(header,el("pre",JSON.stringify(j.steps||[],null,2)+(j.logs?"\n\n"+j.logs:"\nNo logs available.")));
   for(const a of artifactList)detailCell.append(action("Download "+a.name,()=>download(a)));
   buttons.append(action("Details",()=>{details.hidden=!details.hidden;}));
+  if(new URLSearchParams(location.search).get("job")===j.id)details.hidden=false;
   if(j.status==="completed")buttons.append(action("Flash device",()=>showFlash(j)));
   if(j.status==="awaiting_approval"){
    buttons.append(action("Approve",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});await load();}));
@@ -85,6 +86,11 @@ async function load(){
   $("username").textContent=overview.username||"administrator";
   const results=await Promise.all([fabric("tt_jobs",{action:"list"}),fabric("tt_assets",{action:"list"}),api("/api/local/devices?mode=visible")]);
   currentJobs=results[0].jobs||[];currentAssets=results[1].assets||[];devices=results[2].devices||[];
+   const requested=new URLSearchParams(location.search).get("job");
+   if(requested){
+    const job=currentJobs.find(j=>j.id===requested);
+    if(job){$("localJobSearch").value=requested;render();}
+   }
   render();message("");
  }catch(e){message(e.message);}finally{$("refreshJobs").disabled=false;}
 }
