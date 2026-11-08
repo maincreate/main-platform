@@ -24,7 +24,7 @@ export async function createOrganizationRepository(request,token,fetchImpl=fetch
       method:"POST",
       headers:{accept:"application/vnd.github+json","content-type":"application/json",
         authorization:"Bearer "+token,"x-github-api-version":"2022-11-28",
-        "user-agent":"TinkerTunnel"},
+        "user-agent":"Main{Create}"},
       body:JSON.stringify({name:request.name,description:request.description,
         private:request.visibility==="private",auto_init:true}),
       signal:AbortSignal.timeout(12000)

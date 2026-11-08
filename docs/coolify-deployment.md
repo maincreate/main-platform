@@ -1,6 +1,6 @@
 # Coolify deployment webhook
 
-TinkerTunnel's platform application is deployed by Coolify from `TinkerTunnel/tinkertunnel` on the `main` branch.
+Main{Create}'s platform application is deployed by Coolify from `maincreate/main-platform` on the `main` branch.
 
 ## Commit-to-deployment path
 
@@ -14,7 +14,7 @@ The public hostname must not proxy the Coolify dashboard, general APIs, or worke
 
 ## Separate build-runner path
 
-Project builds and device firmware compilation use GitHub Actions self-hosted runners with outbound connections to GitHub. They do not need the Coolify deployment webhook. Device flashing remains a separately authorized TinkerTunnel operation.
+Project builds and device firmware compilation use GitHub Actions self-hosted runners with outbound connections to GitHub. They do not need the Coolify deployment webhook. Device flashing remains a separately authorized Main{Create} operation.
 
 ## Verification checklist
 

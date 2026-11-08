@@ -2,7 +2,7 @@
 
 ## Objective
 
-Show a horizontal, UniFi-inspired overview of how cloud services and user-owned machines relate to the local TinkerTunnel workspace. Inspired by a separately supplied clickable design prototype; **do not** import its simulated organizations, machines, job histories, SDK versions, or success badges into production data.
+Show a horizontal, UniFi-inspired overview of how cloud services and user-owned machines relate to the local Main{Create} workspace. Inspired by a separately supplied clickable design prototype; **do not** import its simulated organizations, machines, job histories, SDK versions, or success badges into production data.
 
 The account-first flow is unchanged. Users create a username/password and immediately reach the Midnight dashboard; no infrastructure configuration is required first. The six-stage diagram lives on its own authenticated **/topology** page, reached through the primary navigation or a compact dashboard link. It is **not shown on the initial dashboard** and is not part of setup.
 

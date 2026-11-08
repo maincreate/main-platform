@@ -13,7 +13,7 @@ vm.runInNewContext(source, {
 
 function send(url, init) {
   let response;
-  handler({request: new Request("https://portal.tinkertunnel.com" + url, init),
+  handler({request: new Request("https://portal.example.com" + url, init),
     respondWith(promise) { response = promise; }});
   return response;
 }
@@ -21,7 +21,7 @@ function send(url, init) {
 test("serves branded portal with self-hosted script", async () => {
   const response = await send("/");
   assert.equal(response.status, 200);
-  assert.match(await response.text(), /TinkerTunnel • Portal/);
+  assert.match(await response.text(), /Main{Create} • Portal/);
   assert.match(response.headers.get("Content-Security-Policy"), /script-src 'self'/);
   const script = await send("/portal.js");
   assert.equal(script.status, 200);

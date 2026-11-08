@@ -1,4 +1,4 @@
-name: TinkerTunnel POC contract
+name: Main{Create} POC contract
 on:
   push:
     branches: [main, 'poc/**']

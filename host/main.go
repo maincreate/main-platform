@@ -1,4 +1,4 @@
-// TinkerTunnel Host Service: controller-owned SSH pairing and outbound management.
+// Main{Create} Host Service: controller-owned SSH pairing and outbound management.
 package main
 
 import (
@@ -21,7 +21,7 @@ import (
  "time"
 )
 
-const version="0.6.0"
+const version="0.6.1"
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/tinkertunnel")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -82,7 +82,7 @@ func packages()[]map[string]string{
 }
 func advertise()func(){
  // Advertise the SSH pairing endpoint, not a publicly writable control API.
- cmd:=exec.Command("avahi-publish-service","TinkerTunnel "+hostname(),"_tinkertunnel._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
+ cmd:=exec.Command("avahi-publish-service","Main{Create} "+hostname(),"_tinkertunnel._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
  if e:=cmd.Start();e!=nil{log.Printf("mDNS unavailable; manual hostname/IP pairing works: %v",e);return func(){}}
  go func(){if e:=cmd.Wait();e!=nil{log.Printf("mDNS exited: %v",e)}}()
  return func(){_ = cmd.Process.Kill()}
@@ -234,7 +234,7 @@ func applyUpgrade()error{
  return nil
 }
 
-// Remove only explicitly TinkerTunnel-managed paths; never uninstall SSH or Avahi.
+// Remove only explicitly Main{Create}-managed paths; never uninstall SSH or Avahi.
 // Cleanup of this running daemon is scheduled after its report has reached the controller.
 func stopManagedRunner()error{
  service:=filepath.Join(runnerDir,".service")

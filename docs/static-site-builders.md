@@ -1,6 +1,6 @@
 # Website builders and publishing targets — planned
 
-**Status:** roadmap/capability registry only. Neither site builds nor publishes are executable through the current TinkerTunnel Host Service. Tracking: [issue #31](https://github.com/TinkerTunnel/tinkertunnel/issues/31).
+**Status:** roadmap/capability registry only. Neither site builds nor publishes are executable through the current Main{Create} Host Service. Tracking: [issue #31](https://github.com/maincreate/main-platform/issues/31).
 
 ## The critical separation
 
@@ -10,7 +10,7 @@ A **builder** is any enrolled, compatible machine. A **website build profile** s
 GitHub repository @ exact commit SHA
        │
        ▼
-TinkerTunnel controller (requirements and policy)
+Main{Create} controller (requirements and policy)
        │
        ├── Linux ARM64 Pi [small site/toolchain workloads]
        ├── Linux x64 VM [default/heavier Node builds]
@@ -21,7 +21,7 @@ TinkerTunnel controller (requirements and policy)
 Pinned build adapter → verified static output → immutable artifact
        │
        ▼
-TinkerTunnel controller (provider credential; scope and audit)
+Main{Create} controller (provider credential; scope and audit)
        ├── GitHub Pages branch/path → GitHub Pages hosting
        ├── Cloudflare Workers Static Assets/Pages
        └── Later: S3-compatible bucket, Netlify, self-hosted static server
@@ -59,4 +59,4 @@ All four are currently **unavailable**, discoverable for planning only:
 
 ## First dogfood acceptance test
 
-Build the TinkerTunnel marketing/docs repository `TinkerTunnel/tinkertunnel.github.io` on a TinkerTunnel-managed Linux build host, publish to its existing Cloudflare-hosted `tinkertunnel.com` destination, and check the live response and source/artifact revisions. This is **not currently automatic**: the Cloudflare Worker website snapshot is deployed separately from GitHub pushes. A separate test covers GitHub Pages' publishing branch/path. GitHub Pages may perform its own hosting deployment even if a TinkerTunnel host generated the files, but it must not require a GitHub-hosted runner for the build.
+Build the Main{Create} marketing/docs repository `maincreate/main-create` on a Main{Create}-managed Linux build host, publish to its existing Cloudflare-hosted `tinkertunnel.com` destination, and check the live response and source/artifact revisions. This is **not currently automatic**: the Cloudflare Worker website snapshot is deployed separately from GitHub pushes. A separate test covers GitHub Pages' publishing branch/path. GitHub Pages may perform its own hosting deployment even if a Main{Create} host generated the files, but it must not require a GitHub-hosted runner for the build.

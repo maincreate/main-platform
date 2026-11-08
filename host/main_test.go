@@ -4,7 +4,7 @@ import "testing"
 
 func TestValidController(t *testing.T) {
  for _,tc:=range []struct{url string;want bool}{
-  {"https://tinkertunnel.home.ayusohaylock.com",true},{"https://pi.local:8443",true},
+  {"https://controller.example.com",true},{"https://pi.local:8443",true},
   {"http://pi.local",false},{"https://evil.com/path",false},{"https://user@evil.com",false},
  }{
   if validController(tc.url)!=tc.want { t.Fatalf("controller validation %q",tc.url) }

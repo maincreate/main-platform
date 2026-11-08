@@ -1,6 +1,8 @@
 package main
 
 import (
+ "net/http"
+ "net/http/httptest"
  "os"
  "path/filepath"
  "strings"
@@ -46,4 +48,22 @@ func TestPrepareRunnerTargetRefusesRegisteredRunner(t *testing.T) {
  err:=prepareRunnerTarget(dir)
  if err==nil||!strings.Contains(err.Error(),"already registered"){t.Fatalf("unexpected error: %v",err)}
  if _,err:=os.Stat(filepath.Join(dir,".runner"));err!=nil{t.Fatalf("existing registration touched: %v",err)}
+}
+
+func TestFetchRunnerArchiveRetriesGatewayTimeout(t *testing.T) {
+ attempts := 0
+ server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+  attempts++
+  if attempts == 1 {
+   w.WriteHeader(http.StatusGatewayTimeout)
+   return
+  }
+  _, _ = w.Write([]byte("archive"))
+ }))
+ defer server.Close()
+
+ body, err := fetchRunnerArchive(server.URL)
+ if err != nil || string(body) != "archive" {
+  t.Fatalf("download after gateway timeout: body=%q err=%v", body, err)
+ }
 }

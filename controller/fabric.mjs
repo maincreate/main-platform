@@ -95,7 +95,7 @@ function createJob(args,ctx){
   status:"awaiting_approval",createdAt:new Date().toISOString(),logs:"",assetIds:[]};
  s.jobs.push(j);save(s);
  return {job:publicJob(j),created:true,requires_approval:true,
-  notice:"A signed-in administrator must approve this job in the TinkerTunnel portal before a runner can claim it."};
+  notice:"A signed-in administrator must approve this job in the Main{Create} portal before a runner can claim it."};
 }
 function inspect(args,ctx){
  const kind=args.resource||"capability",id=args.id;
@@ -144,7 +144,7 @@ function discover(args,ctx){
   .slice(0,50).map(d=>({id:d.id,runnerId:d.runnerId,runnerName:d.runnerName,
    product:d.product,port:d.port,identityConfidence:d.identityConfidence,
    lastSeen:d.lastSeen,lifecycle:d.lifecycle,label:d.label||null}));
- if(resource==="all"||resource==="workspace")result.workspace=ctx.workspace||{name:"TinkerTunnel"};
+ if(resource==="all"||resource==="workspace")result.workspace=ctx.workspace||{name:"Main{Create}"};
  if(resource==="jobs")result.jobs=store().jobs.slice(-30).reverse().map(publicJob);
  if(resource==="assets")result.assets=store().assets.filter(x=>x.complete).map(publicAsset);
  return result;

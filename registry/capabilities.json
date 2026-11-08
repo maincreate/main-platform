@@ -148,7 +148,7 @@
     "kind": "action",
     "risk": "build",
     "state": "unavailable",
-    "description": "Planned: build a static site on a compatible TinkerTunnel-managed Linux, macOS, or Windows host using an approved, pinned web toolchain. Record exact source SHA, output directory, artifact checksums and logs. No arbitrary shell adapter.",
+    "description": "Planned: build a static site on a compatible Main{Create}-managed Linux, macOS, or Windows host using an approved, pinned web toolchain. Record exact source SHA, output directory, artifact checksums and logs. No arbitrary shell adapter.",
     "platforms": [],
     "parameters": {
       "type": "object",

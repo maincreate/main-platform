@@ -110,8 +110,8 @@ function renderApprovalPreference(){
  const auto=$("buildApproval").value==="1";
  $("buildApprovalLabel").textContent=auto?"Build without asking":"Ask before starting";
  $("buildApprovalExplanation").textContent=auto?
-  "Approved ESP-IDF build profiles may start automatically when requested through TinkerTunnel. Flashing still requires approval.":
-  "TinkerTunnel waits for your approval before starting its managed build jobs.";
+  "Approved ESP-IDF build profiles may start automatically when requested through Main{Create}. Flashing still requires approval.":
+  "Main{Create} waits for your approval before starting its managed build jobs.";
 }
 $("buildApproval").addEventListener("input",renderApprovalPreference);
 $("approvalForm").addEventListener("submit",async event=>{
@@ -128,7 +128,7 @@ $("resetForm").addEventListener("submit",async event=>{
  event.preventDefault();
  const password=$("resetPassword").value,confirmText=$("resetConfirm").value,button=$("resetSubmit");
  if(confirmText!=="RESET TINKERTUNNEL"){$("resetNotice").textContent="Enter the exact confirmation phrase.";return;}
- if(!window.confirm("Reset the local TinkerTunnel installation and sign out all users? A private snapshot will be kept on this host. External GitHub resources will remain."))return;
+ if(!window.confirm("Reset the local Main{Create} installation and sign out all users? A private snapshot will be kept on this host. External GitHub resources will remain."))return;
  button.disabled=true;
  try{
   const result=await api("/api/local/installation/reset",{password,confirm:confirmText});

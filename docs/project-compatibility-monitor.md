@@ -1,6 +1,6 @@
 # Project requirements and compatible builders
 
-TinkerTunnel does not require manual project imports. It periodically synchronizes the repositories of the selected GitHub App installation (up to the existing 500-repository limit), then checks the default branches for build requirements. The controller checks a bounded batch of 25 repositories at a time, with concurrency 3, and retries unknown/failed scans. GitHub metadata and manifest reads require access to the repository through the connected GitHub App.
+Main{Create} does not require manual project imports. It periodically synchronizes the repositories of the selected GitHub App installation (up to the existing 500-repository limit), then checks the default branches for build requirements. The controller checks a bounded batch of 25 repositories at a time, with concurrency 3, and retries unknown/failed scans. GitHub metadata and manifest reads require access to the repository through the connected GitHub App.
 
 ## Detection hierarchy
 

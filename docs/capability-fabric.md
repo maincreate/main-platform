@@ -1,4 +1,4 @@
-# TinkerTunnel Capability Fabric v0.2
+# Main{Create} Capability Fabric v0.2
 
 **Status:** Implemented for release testing. Physical builder validation and remote ChatGPT OAuth are separate acceptance gates.
 

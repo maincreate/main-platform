@@ -63,7 +63,7 @@ function renderTopology(data){
     data.github?.authorizationExpired?
       (data.github?.savedOrganization?"Previously selected: "+data.github.savedOrganization:"Authorization expired"):
       "Code and repositories";
-  $("topoWorkspace").textContent=data.workspace?.name||"TinkerTunnel";
+  $("topoWorkspace").textContent=data.workspace?.name||"Main{Create}";
   const records=Array.isArray(data.runners?.items)?data.runners.items.slice(0,8):[];
   const holder=$("topologyRunners");
   holder.replaceChildren();

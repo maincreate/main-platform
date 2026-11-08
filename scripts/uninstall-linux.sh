@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TinkerTunnel Linux Host Service removal; intentionally no remote deregistration.
+# Main{Create} Linux Host Service removal; intentionally no remote deregistration.
 set -Eeuo pipefail
 HOST_UNIT=/etc/systemd/system/tinkertunnel-host.service
 HOST_BIN=/usr/local/bin/tinkertunnel-host
@@ -20,7 +20,7 @@ Usage: sudo bash uninstall-linux.sh [--dry-run | --yes] [--purge-state] [--purge
 Default is a dry-run. --yes applies changes. Optional flags separately
 remove local host enrollment data or UNREGISTERED runner leftovers.
 Before running, drain and deregister any GitHub Actions runner and revoke
-the Host Service enrollment from TinkerTunnel's controller.
+the Host Service enrollment from Main{Create}'s controller.
 Never removes GitHub registration, SSH, Avahi, or the tt-runner OS user.
 After GitHub confirms runner deletion, --github-removed=HOSTNAME permits
 cleanup of a locally configured runner with the same machine hostname.
@@ -44,7 +44,7 @@ status() {
   esac
   printf '%b%s%b %s\n' "$color" "$mark" "$RESET" "$2"
 }
-printf '\nTinkerTunnel Host Service uninstaller — %s\n' "$(hostname)"
+printf '\nMain{Create} Host Service uninstaller — %s\n' "$(hostname)"
 if [[ "$(uname -s)" != Linux ]] || ! command -v systemctl >/dev/null; then
   status FAIL "Requires Linux with systemd."; exit 1
 fi
@@ -57,7 +57,7 @@ if [[ -e "$RUNNER_DIR/.runner" || -L "$RUNNER_DIR/.runner" ||
       -e "$RUNNER_DIR/.service" || -L "$RUNNER_DIR/.service" ]]; then
   REGISTERED_LOCAL=true
   if [[ "$GITHUB_REMOVED_HOST" != "$(hostname)" || "$PURGE_STATE" != true || "$PURGE_FILES" != true ]]; then
-    status FAIL "A GitHub runner is configured locally. First remove it from GitHub via TinkerTunnel."
+    status FAIL "A GitHub runner is configured locally. First remove it from GitHub via Main{Create}."
     status INFO "Then repeat with --github-removed=$(hostname) --purge-state --purge-unregistered-runner."
     status INFO "No local changes made."; exit 3
   fi
@@ -66,7 +66,7 @@ if [[ -e "$RUNNER_DIR/.runner" || -L "$RUNNER_DIR/.runner" ||
   fi
   status INFO "Operator confirms GitHub runner was removed remotely for host $(hostname)."
 fi
-status INFO "Will stop/disable TinkerTunnel Host Service and remove its binary, unit, and pairing sudo rule."
+status INFO "Will stop/disable Main{Create} Host Service and remove its binary, unit, and pairing sudo rule."
 if "$PURGE_STATE"; then
   status INFO "Will also remove local host enrollment data (remote revocation remains separate)."
 else
@@ -123,4 +123,4 @@ if "$PURGE_STATE"; then
 fi
 printf '\n'
 status OK "Local Host Service removal completed."
-status INFO "Revoke the host identity in TinkerTunnel; GitHub was not changed remotely."
+status INFO "Revoke the host identity in Main{Create}; GitHub was not changed remotely."

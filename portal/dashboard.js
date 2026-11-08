@@ -41,7 +41,7 @@ function renderJobs(jobs){
 }
 // The homepage is an activity shortlist, not the complete organization inventory.
 // GitHub pushed_at is the latest code push seen during sync; latestBuild is a
-// recorded TinkerTunnel build. Neither field claims to be a GitHub Actions run.
+// recorded Main{Create} build. Neither field claims to be a GitHub Actions run.
 function projectTime(value){
  const parsed=Date.parse(value||"");
  return Number.isFinite(parsed)?parsed:0;

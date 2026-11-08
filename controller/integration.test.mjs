@@ -110,7 +110,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await fetch(base+"/api/local/overview")).status,401);
    const overview=await (await fetch(base+"/api/local/overview",{headers:{cookie}})).json();
    assert.equal(overview.username,adminUsername);
-   assert.equal(overview.workspace.name,"TinkerTunnel");
+   assert.equal(overview.workspace.name,"Main{Create}");
    assert.equal(overview.github.identityConnected,false);
    assert.equal(overview.runners.count,0);
    assert.deepEqual(overview.runners.items,[]);
@@ -121,7 +121,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const ghStatus=await ghResponse.json();
    assert.equal(ghResponse.status,200,"GitHub device status: "+JSON.stringify(ghStatus));
    assert.equal(ghStatus.available,true);
-   assert.equal(ghStatus.clientId,"Iv23liAxFGcez9en0tY8");
+   assert.equal(ghStatus.clientId,"Iv23li3oxxp1wVAadlN4");
    assert.equal(ghStatus.usingDefaultApp,true);
    assert.equal(ghStatus.connected,false);
    const ghHeaders={cookie,"x-tt-csrf":csrf};

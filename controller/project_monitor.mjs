@@ -29,7 +29,7 @@ const normalizeTarget=t=>{
 export function parseRequirements(text){
  if(typeof text!=="string"||text.length>16384)throw Error("Manifest too large");
  const manifest=JSON.parse(text);
- if(manifest?.schema!==1||!Array.isArray(manifest.targets)||!manifest.targets.length||manifest.targets.length>8)throw Error("Invalid TinkerTunnel project manifest");
+ if(manifest?.schema!==1||!Array.isArray(manifest.targets)||!manifest.targets.length||manifest.targets.length>8)throw Error("Invalid Main{Create} project manifest");
  return {status:"declared",targets:manifest.targets.map(normalizeTarget),source:".tinkertunnel/project.json"};
 }
 export function inferRequirementsFromWorkflows(files){
@@ -103,7 +103,7 @@ export function projectSummary(repositories,runners=[]){
  });
  return {repositories:items,alerts:items.filter(r=>r.alert).length,unknown:items.filter(r=>r.compatibility.status==="unknown"&&!r.ignored&&!r.archived).length};
 }
-const gitHeaders=token=>({"authorization":"Bearer "+token,"accept":"application/vnd.github+json","x-github-api-version":"2022-11-28","user-agent":"TinkerTunnel"});
+const gitHeaders=token=>({"authorization":"Bearer "+token,"accept":"application/vnd.github+json","x-github-api-version":"2022-11-28","user-agent":"Main{Create}"});
 async function githubGet(fullName,path,token){
  const url="https://api.github.com/repos/"+fullName.split("/").map(encodeURIComponent).join("/")+"/contents/"+path;
  const response=await fetch(url,{headers:gitHeaders(token),signal:AbortSignal.timeout(12000)});

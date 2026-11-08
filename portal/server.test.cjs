@@ -32,7 +32,7 @@ test("local Node portal serves marketplace and denies execution", {timeout: 1200
     assert(ready, "Local portal did not start");
     const home=await fetch(base+"/");
     assert.equal(home.status,200);
-    assert.match(await home.text(), /TinkerTunnel • Portal/);
+    assert.match(await home.text(), /Main{Create} • Portal/);
     const frameworks=await (await fetch(base+"/api/v1/catalog")).json();
     assert(frameworks.frameworks.some(x=>x.id==="esp-idf"));
     const plan=await fetch(base+"/api/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({framework:"esp-idf",os:"linux",arch:"arm64"})});

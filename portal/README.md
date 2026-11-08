@@ -1,10 +1,10 @@
-# TinkerTunnel portal and controller
+# Main{Create} portal and controller
 
 ## Account-first onboarding
 
 The same first-use experience applies to any supported deployment: visiting the portal without an administrator redirects to `/setup`, which shows **only** username, password and confirmation. Successful creation establishes an authenticated session and opens `/`, the dashboard. Existing users see a sign-in form.
 
-The instance's default display name is **TinkerTunnel**, not “TinkerTunnel Local”. Host topology, GitHub, runner enrollment and other settings are not part of creating the first user.
+The instance's default display name is **Main{Create}**, not “Main{Create}”. Host topology, GitHub, runner enrollment and other settings are not part of creating the first user.
 
 The dashboard is a **live operational homepage**: recent build jobs, GitHub repository inventory, enrolled builders, detected USB serial devices, and activity. Optional GitHub, AI, appearance, and account security settings are in `/settings`. USB inventory is at `/devices`; Projects at `/projects`; Jobs & Builders at `/jobs`; the topology at `/topology`. First-use setup remains account-only.
 
@@ -51,7 +51,7 @@ The static portal uses CSS variables and simple accessible HTML, with no runtime
 
 The persistent sidebar is based on the connected Penpot MVP design and separates Builders (`/builders`) from local Jobs (`/jobs`). Marketplace (`/marketplace`) reads the existing framework catalog without enabling installation. Existing login/session checks and controller operations are unchanged.
 
-**Not yet implemented:** native GitHub Actions runner installation/label management, GitHub workflow-run history, project-to-runner compatibility assignments, production firmware flash workflows, AI tunnel onboarding. Current builder enrollment registers a TinkerTunnel host agent, not a GitHub Actions runner. These distinctions are explicit in the interface.
+**Not yet implemented:** native GitHub Actions runner installation/label management, GitHub workflow-run history, project-to-runner compatibility assignments, production firmware flash workflows, AI tunnel onboarding. Current builder enrollment registers a Main{Create} host agent, not a GitHub Actions runner. These distinctions are explicit in the interface.
 
 ## GitHub organization repository provisioning
 
@@ -63,13 +63,13 @@ GitHub App installations may request **Repository creation (write)** to create r
 - `POST /api/internal/github/repository/request`: Service-token-only endpoint used by the `tt_github_repository_request` MCP tool. **Only queues an approval**, never creates a repository automatically.
 - `POST /api/local/github/repository/requests/decision`: Administrator action to approve/reject an exact MCP request (matching organization, name and visibility); only approval performs the GitHub API call.
 
-A new repository is not automatically populated with firmware, an Actions workflow or validated runner configuration. Those require separate project templates and workflow permissions. TinkerTunnel’s MCP gateway is currently bearer-authenticated and the ChatGPT remote OAuth/tunnel experience remains a separate deployment integration.
+A new repository is not automatically populated with firmware, an Actions workflow or validated runner configuration. Those require separate project templates and workflow permissions. Main{Create}’s MCP gateway is currently bearer-authenticated and the ChatGPT remote OAuth/tunnel experience remains a separate deployment integration.
 
 ## First-run repository synchronization and managed builders
 
 Selecting an authorized GitHub organization now runs repository synchronization **before** the server completes organization selection. If the GitHub App's installation repositories cannot be read, setup stays on the organization-selection step with an actionable error. Repositories remain authoritative in GitHub and are cached in `projects.json`.
 
-Builder enrollment now starts on the host itself using the lightweight, cross-platform `runner/service.mjs`. The operator runs `node runner/service.mjs pair` on Linux, macOS, or Windows with Node.js 22+, then enters the **controller HTTPS URL, TinkerTunnel local username, and password** in an interactive terminal. The service uses the existing local-admin login and a one-time runner invitation, then enrolls the bounded host companion. The administrator password is never saved, and ongoing management uses an individual revocable runner token. `node runner/service.mjs run` starts outbound polling, inventory, and bounded job operations.
+Builder enrollment now starts on the host itself using the lightweight, cross-platform `runner/service.mjs`. The operator runs `node runner/service.mjs pair` on Linux, macOS, or Windows with Node.js 22+, then enters the **controller HTTPS URL, Main{Create} local username, and password** in an interactive terminal. The service uses the existing local-admin login and a one-time runner invitation, then enrolls the bounded host companion. The administrator password is never saved, and ongoing management uses an individual revocable runner token. `node runner/service.mjs run` starts outbound polling, inventory, and bounded job operations.
 
 **No inbound port or SSH service is necessary for Host Service pairing.** The management control plane, host companion, and GitHub Actions runner are independent: the Host Service pairing MVP does **not yet install/register a GitHub Actions runner** or install persistent background services automatically. OS-specific signed binaries and systemd, Windows Service, and launchd installers are the next packaging steps. The long-term capability protocol must include identity, allowed operations, versioned schemas, audit actor correlation, health, package inventory, update plans, and explicit approval for device writes. Do not make arbitrary shell commands remotely available.
 
@@ -81,15 +81,15 @@ Deployment fix: the prior Dockerfiles incorrectly contained literal `\\n` charac
 
 The Linux ARM64 Host Service installer and **separate uninstaller** are available at `/install.sh` and `/uninstall.sh`. A Host Service install does not itself install or register GitHub Actions runners; the installer's colored summary shows those later steps as pending.
 
-Before removing a builder, **drain its GitHub runner, remove the runner registration through GitHub's supported removal process, and revoke its enrollment in TinkerTunnel**. The uninstaller deliberately refuses to run if a registered GitHub Actions runner is still detected in `/opt/tinkertunnel/actions-runner`. It does not attempt remote GitHub deregistration or controller revocation.
+Before removing a builder, **drain its GitHub runner, remove the runner registration through GitHub's supported removal process, and revoke its enrollment in Main{Create}**. The uninstaller deliberately refuses to run if a registered GitHub Actions runner is still detected in `/opt/tinkertunnel/actions-runner`. It does not attempt remote GitHub deregistration or controller revocation.
 
 From the Linux builder, retrieve the uninstaller from your authenticated controller origin and review it before executing:
 
 ```sh
-curl -fsSLo /tmp/tinkertunnel-uninstall.sh https://tinkertunnel.home.ayusohaylock.com/uninstall.sh
-less /tmp/tinkertunnel-uninstall.sh
-sudo bash /tmp/tinkertunnel-uninstall.sh --dry-run
-sudo bash /tmp/tinkertunnel-uninstall.sh --yes
+curl -fsSLo /tmp/maincreate-uninstall.sh https://controller.example.com/uninstall.sh
+less /tmp/maincreate-uninstall.sh
+sudo bash /tmp/maincreate-uninstall.sh --dry-run
+sudo bash /tmp/maincreate-uninstall.sh --yes
 ```
 
-The default is **dry-run**. Optional `--purge-state` also deletes the local host identity and bearer token; optional `--purge-unregistered-runner` removes unregistered runner files and incomplete extraction backups. These flags are never implied. It leaves OpenSSH, Avahi, `tt-runner` OS account, and unrelated software intact. **Do not conflate local file removal with removal from TinkerTunnel's inventory or GitHub's organization runner list.**
+The default is **dry-run**. Optional `--purge-state` also deletes the local host identity and bearer token; optional `--purge-unregistered-runner` removes unregistered runner files and incomplete extraction backups. These flags are never implied. It leaves OpenSSH, Avahi, `tt-runner` OS account, and unrelated software intact. **Do not conflate local file removal with removal from Main{Create}'s inventory or GitHub's organization runner list.**

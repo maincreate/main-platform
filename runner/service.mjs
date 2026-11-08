@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * TinkerTunnel Host Service — local-first enrollment and outbound management.
+ * Main{Create} Host Service — local-first enrollment and outbound management.
  *
  * Pair from the host with: node runner/service.mjs pair
  * Run after pairing:     node runner/service.mjs run
@@ -61,7 +61,7 @@ async function prompts(){
  const rl=createInterface({input:process.stdin,output,terminal:true});
  try{
   const address=await rl.question("Controller URL (https://...): ");
-  const username=await rl.question("TinkerTunnel administrator username: ");
+  const username=await rl.question("Main{Create} administrator username: ");
   process.stdout.write("Password: ");conceal=true;
   const password=await rl.question("");
   conceal=false;process.stdout.write("\n");
@@ -96,5 +96,5 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){
   if(command==="pair")await pair();
   else if(command==="run")run();
   else throw error("Usage: node runner/service.mjs pair | run");
- }catch(e){console.error("TinkerTunnel Host Service: "+e.message);process.exitCode=1;}
+ }catch(e){console.error("Main{Create} Host Service: "+e.message);process.exitCode=1;}
 }

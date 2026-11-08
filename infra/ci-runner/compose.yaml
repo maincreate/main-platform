@@ -1,13 +1,13 @@
-# TinkerTunnel internal CI runner — Coolify Docker Compose
+# Main{Create} internal CI runner — Coolify Docker Compose
 # Keep the GitHub credential in Coolify's environment settings, never in Git.
-# Restrict the org runner group to TinkerTunnel/tinkertunnel before enabling workflows.
+# Restrict the org runner group to maincreate/main-platform before enabling workflows.
 services:
   github-ci:
     image: ghcr.io/myoung34/docker-github-actions-runner:latest
     restart: unless-stopped
     environment:
       RUNNER_SCOPE: org
-      ORG_NAME: TinkerTunnel
+      ORG_NAME: Main{Create}
       RUNNER_NAME: ci-linux-01
       RUNNER_GROUP: Default
       LABELS: ci,linux-x64

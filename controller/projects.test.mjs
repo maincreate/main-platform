@@ -15,16 +15,16 @@ test("GitHub App installation project sync reads metadata only and joins matchin
    assert.match(url,/api.github.com\/user\/installations\/123\/repositories/);
    assert.match(opts.headers.authorization,/^Bearer /);
    return new Response(JSON.stringify({repositories:[
-    {id:11,full_name:"TinkerTunnel/tinkertunnel",html_url:"https://github.com/TinkerTunnel/tinkertunnel",
+    {id:11,full_name:"example-org/example-project",html_url:"https://github.com/example-org/example-project",
      default_branch:"main",pushed_at:"2026-11-07T17:00:00Z",archived:false,private:false},
     {id:12,full_name:"OtherOrg/unrelated",html_url:"https://github.com/OtherOrg/unrelated"}
    ]}),{status:200});
   };
-  const updated=await syncProjects({organization:"TinkerTunnel",installationId:123,accessToken:"some-long-test-token-without-privileges"});
+  const updated=await syncProjects({organization:"example-org",installationId:123,accessToken:"some-long-test-token-without-privileges"});
   assert.equal(updated.repositories.length,1);
-  const builds=[{source:{repository:"TinkerTunnel/tinkertunnel",revision:"a".repeat(40)},status:"completed",
+  const builds=[{source:{repository:"example-org/example-project",revision:"a".repeat(40)},status:"completed",
    created_at:"2026-11-07T17:30:00Z"}];
-  const view=listProjects("TinkerTunnel",builds);
+  const view=listProjects("example-org",builds);
   assert.equal(view.repositories.length,1);
   assert.equal(view.repositories[0].builds,1);
   assert.equal(view.repositories[0].latestBuild.status,"completed");
@@ -35,8 +35,8 @@ test("sync failure does not erase existing repository inventory",async()=>{
  const original=globalThis.fetch;
  try{
   globalThis.fetch=async()=>new Response(JSON.stringify({message:"Forbidden"}),{status:403});
-  await assert.rejects(syncProjects({organization:"TinkerTunnel",installationId:123,
+  await assert.rejects(syncProjects({organization:"example-org",installationId:123,
    accessToken:"test-token-long-enough-for-this-case"}),/GitHub repository inventory failed/);
-  assert.equal(listProjects("TinkerTunnel").repositories.length,1);
+  assert.equal(listProjects("example-org").repositories.length,1);
  }finally{globalThis.fetch=original;}
 });

@@ -14,7 +14,7 @@ const ok=(id,result)=>({jsonrpc:"2.0",id,result});
 const object=(properties={},required=[])=>({type:"object",properties,required,additionalProperties:false});
 const textField={type:"string"},idField={type:"string",description:"Server-issued identifier"};
 const tools=[
- {name:"tt_discover",title:"Discover TinkerTunnel resources",description:"Find installed runners, workspace details and versioned capability manifests. Read only.",
+ {name:"tt_discover",title:"Discover Main{Create} resources",description:"Find installed runners, workspace details and versioned capability manifests. Read only.",
   annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["all","capabilities","toolkits","runners","devices","workspace","jobs","assets"]},query:textField})},
  {name:"tt_inspect",title:"Inspect one resource",description:"Read the input schema and supported platforms of a capability, an enrolled runner or an existing job. Read only.",
   annotations:{readOnlyHint:true},inputSchema:object({resource:{type:"string",enum:["capability","toolkit","runner","device","job"]},id:idField},["id"])},
@@ -25,13 +25,13 @@ const tools=[
  {name:"tt_jobs",title:"Track or cancel jobs",description:"List, inspect, retrieve bounded logs or cancel an unclaimed job. Cannot cancel an already running process.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","get","logs","cancel"]},job_id:idField})},
  {name:"tt_github_repository_request",title:"Request a new GitHub organization repository",
-  description:"Request creation of a new repository in the currently selected GitHub organization. Defaults to its configured private/public setting. Requires a separate approval by an authenticated TinkerTunnel administrator before GitHub is modified.",
+  description:"Request creation of a new repository in the currently selected GitHub organization. Defaults to its configured private/public setting. Requires a separate approval by an authenticated Main{Create} administrator before GitHub is modified.",
   annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false},
   inputSchema:object({name:{type:"string",description:"Repository name, 1–100 characters"},
     description:{type:"string",description:"Optional repository description"},
     visibility:{type:"string",enum:["private","public"],description:"Optional override of organization default"},
     organization:{type:"string",description:"Optional organization identity; must match connected organization"}},["name"])},
- {name:"tt_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in TinkerTunnel storage; no filesystem paths.",
+ {name:"tt_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in Main{Create} storage; no filesystem paths.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","begin","chunk","finish","get"]},job_id:idField,
    asset_id:idField,name:textField,size:{type:"integer"},mime:textField,offset:{type:"integer"},
    length:{type:"integer"},content_base64:textField,sha256:textField})}
@@ -127,4 +127,4 @@ createServer(async(req,res)=>{
   if(result===null){res.writeHead(202,{"cache-control":"no-store"});return res.end();}
   return send(res,200,result);
  }catch(e){console.error("MCP error:",e.message);return send(res,500,{error:"Internal error"});}
-}).listen(port,host,()=>console.log("TinkerTunnel MCP listening on "+host+":"+port));
+}).listen(port,host,()=>console.log("Main{Create} MCP listening on "+host+":"+port));

@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Builders • TinkerTunnel</title><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/jobs.css"><link rel="stylesheet" href="/builder-actions.css"><script src="/builders.js" defer></script></head>
-<body data-theme="midnight"><aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders" aria-current="page">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside>
-<header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><span id="username">administrator</span></header>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Builders • Main{Create}</title><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/jobs.css"><link rel="stylesheet" href="/builder-actions.css"><script src="/builders.js" defer></script></head>
+<body data-theme="midnight"><aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders" aria-current="page">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside>
+<header class="tt-app-topbar"><span>GitHub organization</span><span id="username">administrator</span></header>
 <main class="main inventory-page">
  <p class="eyebrow">FLEET / BUILD MACHINES</p>
  <div class="setting-row"><div><h1>Builders</h1><p>Manage your distributed build fleet and its GitHub Actions runners.</p></div><button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
@@ -25,7 +25,7 @@
    </section>
    <section id="removeBuilderPasswordStep" class="tt-remove-confirm-step" aria-label="Administrator password confirmation" hidden>
     <p class="tt-removal-warning">Removing this builder unregisters the GitHub runner and revokes its controller access. This action cannot be undone.</p>
-    <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
+    <label for="removeBuilderPassword">Main{Create} administrator password</label>
     <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
    </section>
    <p id="removeBuilderFeedback" role="status" aria-live="polite"></p>
@@ -41,7 +41,7 @@
   <div class="tt-builder-content"><div class="tt-builder-header"><div><p class="eyebrow">BUILD HOST / MAINTENANCE</p><h2 id="upgradeBuilderTitle">Upgrade Host Service</h2></div><button type="button" id="closeUpgradeDialog" class="tt-builder-close" aria-label="Close upgrade instructions">×</button></div>
    <p id="upgradeBuilderDescription"></p>
    <p id="upgradeBuilderGuidance">The controller can queue verified upgrades for hosts running v0.5.0 or newer. Older versions require a one-time manual bootstrap.</p>
-   <div id="manualUpgradeSteps" class="tt-command-block"><pre class="tt-service-command"><code id="upgradeBuilderCommand">curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo bash</code></pre><button type="button" class="plain-button" id="copyUpgradeCommand">Copy</button></div>
+   <div id="manualUpgradeSteps" class="tt-command-block"><pre class="tt-service-command"><code id="upgradeBuilderCommand">curl -fsSL https://controller.example.com/install.sh | sudo env MAIN_CONTROLLER_URL=https://controller.example.com bash</code></pre><button type="button" class="plain-button" id="copyUpgradeCommand">Copy</button></div>
    <p id="upgradeBuilderFeedback" role="status"></p>
    <div class="button-row"><button type="button" class="plain-button" id="doneUpgradeDialog">Close</button><button type="button" class="action tt-cta" id="startRemoteUpgrade">Upgrade remotely</button></div>
   </div>
@@ -55,7 +55,7 @@
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle" aria-describedby="builderIntro">
  <div class="tt-builder-content">
   <div class="tt-builder-header"><div><p class="eyebrow">FLEET / NEW MACHINE</p><h2 id="addBuilderTitle">Add a build machine</h2></div><button type="button" id="closeBuilder" class="tt-builder-close" aria-label="Close dialog">×</button></div>
-  <p id="builderIntro" class="tt-builder-intro">Prepare a host once. TinkerTunnel pairs it and registers its shared GitHub Actions runner using the machine hostname.</p>
+  <p id="builderIntro" class="tt-builder-intro">Prepare a host once. Main{Create} pairs it and registers its shared GitHub Actions runner using the machine hostname.</p>
   <div class="tt-builder-progress" aria-label="Setup progress">
    <span data-step-indicator="1" aria-current="step">1 · Prepare</span><span data-step-indicator="2">2 · Connect</span><span data-step-indicator="3">3 · Confirm</span>
   </div>
@@ -80,7 +80,7 @@
     <div id="instructions-macos-x64" role="tabpanel" aria-labelledby="platform-macos-x64" hidden><p><strong>Coming soon.</strong> Intel Mac hosting, launchd and Xcode toolchain discovery are planned. No native installer is released for this platform.</p></div>
     <div id="instructions-windows-x64" role="tabpanel" aria-labelledby="platform-windows-x64" hidden><p><strong>Coming soon.</strong> Windows x64 service installation, Visual Studio tooling and GitHub runner lifecycle support are planned. No native installer is released for this platform.</p></div>
    </div>
-   <p class="tt-builder-more">Complete installation on the machine, then continue. <a href="https://tinkertunnel.com/docs/" target="_blank" rel="noopener noreferrer">Full setup instructions ↗</a></p>
+   <p class="tt-builder-more">Complete installation on the machine, then continue. <a href="https://maincreate.com/docs/" target="_blank" rel="noopener noreferrer">Full setup instructions ↗</a></p>
   </section>
 
   <section id="builderStep2" class="tt-builder-step" aria-label="Step 2: Connect to machine" hidden>
@@ -91,7 +91,7 @@
    </div>
    <div id="connectManual" role="tabpanel" aria-labelledby="method-manual" class="tt-connect-panel">
     <label for="hostAddress">Machine hostname or IP address</label>
-    <input id="hostAddress" type="text" autocomplete="off" spellcheck="false" placeholder="waymarker-lab.local or 192.168.100.25">
+    <input id="hostAddress" type="text" autocomplete="off" spellcheck="false" placeholder="builder-01.local or 192.0.2.25">
     <p class="tt-builder-footnote">Use the hostname configured during imaging or its IP address—this is an SSH endpoint, not a web URL.</p>
    </div>
    <div id="connectDiscovery" role="tabpanel" aria-labelledby="method-discovery" class="tt-connect-panel" hidden>
@@ -103,7 +103,7 @@
     <label for="hostUsername">Local Linux username</label><input id="hostUsername" type="text" autocomplete="username" placeholder="Pi Imager username">
     <label for="hostPassword">Local Linux password</label><input id="hostPassword" type="password" autocomplete="off" placeholder="Used only for pairing">
    </div>
-   <p class="tt-builder-footnote">Your password is sent only after you confirm the host's SSH fingerprint. It is not stored by TinkerTunnel.</p>
+   <p class="tt-builder-footnote">Your password is sent only after you confirm the host's SSH fingerprint. It is not stored by Main{Create}.</p>
   </section>
 
   <section id="builderStep3" class="tt-builder-step" aria-label="Step 3: Verify and add builder" hidden>

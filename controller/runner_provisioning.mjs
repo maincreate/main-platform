@@ -41,14 +41,14 @@ export async function queueRunnerProvisioning(runnerId,ctx,{permitPendingHeartbe
  try{
   response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/registration-token",{
    method:"POST",headers:{authorization:"Bearer "+unseal(gh.oauthToken),
-    accept:"application/vnd.github+json","x-github-api-version":"2022-11-28","user-agent":"TinkerTunnel"},
+    accept:"application/vnd.github+json","x-github-api-version":"2022-11-28","user-agent":"Main{Create}"},
    signal:AbortSignal.timeout(15000)});
  }catch{
   throw Object.assign(new Error("GitHub runner registration API unreachable."),{status:502});
  }
  if(!response.ok){
   const explanation=response.status===403?
-    "GitHub denied runner registration. Check organization administration access and the TinkerTunnel GitHub App's Self-hosted runners: write permission.":
+    "GitHub denied runner registration. Check organization administration access and the Main{Create} GitHub App's Self-hosted runners: write permission.":
     response.status===401?"GitHub authorization expired. Reconnect GitHub in Settings.":
     "GitHub runner registration API returned HTTP "+response.status+".";
   throw Object.assign(new Error(explanation),{status:response.status===401?409:response.status===403?403:502});
@@ -64,7 +64,7 @@ export async function queueRunnerProvisioning(runnerId,ctx,{permitPendingHeartbe
  if((next.hostActions||[]).some(a=>a.runnerId===runnerId&&["queued","claimed"].includes(a.status)))
   throw Object.assign(new Error("Runner provisioning was already started for this host."),{status:409});
  if(next.runners.some(r=>r.id!==runnerId&&r.githubRunnerName?.toLowerCase()===runnerName.toLowerCase()))
-  throw Object.assign(new Error("A TinkerTunnel-managed runner with that hostname already exists."),{status:409});
+  throw Object.assign(new Error("A Main{Create}-managed runner with that hostname already exists."),{status:409});
  const action={id:ctx.rnd(),runnerId,runnerName,organization:org,labels:runnerLabels(paired),
   secret:seal(issued.token),expiresAt:issued.expires_at,status:"queued",createdAt:new Date().toISOString()};
  next.hostActions=[...(next.hostActions||[]).slice(-99),action];

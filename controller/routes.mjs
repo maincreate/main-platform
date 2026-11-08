@@ -2,7 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
+import {HOST_RELEASE,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
@@ -22,7 +22,7 @@ const sessions = new Map();
 const failures = new Map();
 const githubDeviceFlows=new Map();
 // Public product identity. Instances can override this for private/enterprise GitHub Apps.
-const DEFAULT_GITHUB_CLIENT_ID="Iv23liAxFGcez9en0tY8";
+const DEFAULT_GITHUB_CLIENT_ID="Iv23li3oxxp1wVAadlN4";
 const githubClientId=()=>process.env.MAIN_GITHUB_CLIENT_ID||state().github.oauthClientId||DEFAULT_GITHUB_CLIENT_ID;
 const validGithubClientId=id=>/^[A-Za-z0-9._-]{8,100}$/.test(id);
 function githubIdentityCurrent(g) {
@@ -37,7 +37,7 @@ async function githubDevicePost(url,params) {
 }
 export async function githubInstallations(token) {
   const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
-    "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+    "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"};
   // Unlike classic OAuth tokens, GitHub App user access tokens return an empty
   // organization list from /user/orgs. Read installations of THIS app instead.
   const r=await fetch("https://api.github.com/user/installations?per_page=100",
@@ -59,7 +59,7 @@ export async function githubInstallations(token) {
 }
 async function githubUser(token) {
   const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
-    "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+    "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"};
   const r=await fetch("https://api.github.com/user",{headers,signal:AbortSignal.timeout(12000)});
   if(!r.ok)throw new Error("GitHub could not verify your account");
   const profile=await r.json();
@@ -139,7 +139,7 @@ function unseal(data) {
   return Buffer.concat([decipher.update(Buffer.from(data.ct,"base64")),decipher.final()]).toString("utf8");
 }
 function state() {
-  if(!existsSync(dataFile)) return {schema:1,config:{name:"TinkerTunnel",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
+  if(!existsSync(dataFile)) return {schema:1,config:{name:"Main{Create}",role:"all-in-one",tunnelHostname:""},github:{},runners:[],invites:[]};
   const s=JSON.parse(readFileSync(dataFile,"utf8"));
   if(s.schema!==1) throw new Error("Unsupported state schema");
   return s;
@@ -250,7 +250,7 @@ function requestRepositoryFromMcp(input){
  save(stored);
  return {requestId:request.id,repository:spec.organization+"/"+spec.name,
    visibility:spec.visibility,status:"awaiting_admin_approval",
-   instruction:"Open TinkerTunnel > Settings > GitHub to approve. An MCP client cannot approve its own request."};
+   instruction:"Open Main{Create} > Settings > GitHub to approve. An MCP client cannot approve its own request."};
 }
 
 function applyApprovalPreference(tool,args,context){
@@ -400,7 +400,7 @@ export async function localRoute(req) {
         const settings=state().approvalSettings||{};
         return reply({buildApproval:settings.buildApproval==="automatic"?"automatic":"review",
           flashApproval:"always",autoFlashAvailable:false,
-          note:"GitHub Actions workflow triggers operate independently. These settings govern only TinkerTunnel-created jobs; device flashing always requires separate approval."});
+          note:"GitHub Actions workflow triggers operate independently. These settings govern only Main{Create}-created jobs; device flashing always requires separate approval."});
       }
       if(path==="/api/local/approval-settings"&&method==="POST"){
         const b=await body(req);
@@ -661,7 +661,7 @@ export async function localRoute(req) {
           return reply({organization:gh.selectedOrganization,runs:[],connected:true,message:"Sync repositories in Projects to see GitHub Actions runs."});
         const headers={"accept":"application/vnd.github+json",
           "authorization":"Bearer "+unseal(gh.oauthToken),
-          "x-github-api-version":"2022-11-28","user-agent":"TinkerTunnel"};
+          "x-github-api-version":"2022-11-28","user-agent":"Main{Create}"};
         const repos=projects.repositories.filter(r=>!r.archived).slice(0,20),runs=[],errors=[];
         let next=0;
         async function worker(){
@@ -736,7 +736,7 @@ export async function localRoute(req) {
         const stored=state(),current=session(req);
         return reply({
           username:current.username,csrf:current.csrf,
-          workspace:{name:stored.config.name==="TinkerTunnel Local"?"TinkerTunnel":stored.config.name},
+          workspace:{name:["TinkerTunnel", "TinkerTunnel Local"].includes(stored.config.name)?"Main{Create}":stored.config.name},
           github:{
             identityConnected:githubIdentityCurrent(stored.github),
             authorizationExpired:!!stored.github.oauthUser&&!githubIdentityCurrent(stored.github),
@@ -753,11 +753,11 @@ export async function localRoute(req) {
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
               software:{
                version:r.hostVersion||null,
-               expectedVersion:"0.6.0",
-               upToDate:!!r.hostVersion&&r.hostVersion==="0.6.0",
+               expectedVersion:HOST_RELEASE,
+               upToDate:!!r.hostVersion&&r.hostVersion===HOST_RELEASE,
                updateAvailable:!!r.hostVersion&&r.hostVersion.split(".").length===3&&r.hostVersion.split(".").every(v=>v!==""&&String(Number(v))===v)&&
                 r.hostVersion.split(".").map(Number).some((n,i,a)=>{
-                 const expected=[0,6,0];return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
+                 const expected=HOST_RELEASE.split(".").map(Number);return n!==expected[i]&&a.slice(0,i).every((v,j)=>v===expected[j])&&n<expected[i];
                 }),
                error:null
               },
@@ -836,7 +836,7 @@ export async function localRoute(req) {
         if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
         try{
           const headers={authorization:"Bearer "+unseal(gh.oauthToken),accept:"application/vnd.github+json",
-            "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+            "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"};
           const prefix="https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners";
           const response=await fetch(prefix+"?per_page=100",{headers,signal:AbortSignal.timeout(15000)});
           if(!response.ok)return deny(response.status===403?403:502,"Unable to list organization runners; check Self-hosted runners: read permission");
@@ -883,11 +883,11 @@ export async function localRoute(req) {
           return deny(422,"Provide a runner ID and up to 15 valid labels");
         const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
         if(!managed||typeof input.runnerName!=="string"||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}$/.test(input.runnerName))
-          return deny(403,"Only enrolled TinkerTunnel-managed runner labels can be edited");
+          return deny(403,"Only enrolled Main{Create}-managed runner labels can be edited");
         // Match the claimed managed runner to the GitHub runner ID before mutating any labels.
         const remote=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId,{
           headers:{authorization:"Bearer "+unseal(gh.oauthToken),
-            accept:"application/vnd.github+json","user-agent":"TinkerTunnel",
+            accept:"application/vnd.github+json","user-agent":"Main{Create}",
             "x-github-api-version":"2022-11-28"},signal:AbortSignal.timeout(15000)});
         if(!remote.ok)return deny(502,"Unable to verify GitHub runner identity");
         const identity=await remote.json();
@@ -899,7 +899,7 @@ export async function localRoute(req) {
         const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId+"/labels",{
           method:"PUT",headers:{authorization:"Bearer "+unseal(gh.oauthToken),
             "content-type":"application/json",accept:"application/vnd.github+json",
-            "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"},
+            "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
           body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
         if(!response.ok)return deny(response.status===403?403:502,"Could not update GitHub runner labels");
         return reply({updated:true,labels});

@@ -1,12 +1,12 @@
-# TinkerTunnel MVP architecture — secure device gateway + firmware artifacts
+# Main{Create} MVP architecture — secure device gateway + firmware artifacts
 
 Status: Proposed architecture, not yet deployed
 Pilot: WaymarkerOS on `waymarker-build-01` (ARM64, USB-connected ESP32-S3 Dial)
-Second test node: `waymarker-lab-01` (TinkerTunnel gateway and distributed-node experiments)
+Second test node: `waymarker-lab-01` (Main{Create} gateway and distributed-node experiments)
 
 ## Product outcome
 
-From ChatGPT, a user can connect a trusted TinkerTunnel node with a short sign-in/authorization flow, discover allowed capabilities, request a job, and retrieve its status. The same node can build and deploy firmware while storing immutable binary artifacts in Cloudflare R2 rather than GitHub Actions storage. GitHub remains the source/release UI. MVP should work with one self-contained ARM64 node; splitting gateway and execution provider across nodes is a later, separately testable topology.
+From ChatGPT, a user can connect a trusted Main{Create} node with a short sign-in/authorization flow, discover allowed capabilities, request a job, and retrieve its status. The same node can build and deploy firmware while storing immutable binary artifacts in Cloudflare R2 rather than GitHub Actions storage. GitHub remains the source/release UI. MVP should work with one self-contained ARM64 node; splitting gateway and execution provider across nodes is a later, separately testable topology.
 
 ## Logical topology
 
@@ -15,11 +15,11 @@ ChatGPT MCP client
     |
     | authenticated HTTPS / MCP with explicit scoped tool permissions
     v
-TinkerTunnel control plane (Cloudflare Worker + registry / session state)
+Main{Create} control plane (Cloudflare Worker + registry / session state)
     |                           \
     | job routing + audit        \ artifact metadata & signed download mediation
     v                            v
-Outbound-only TinkerTunnel agent   Private R2 Standard bucket
+Outbound-only Main{Create} agent   Private R2 Standard bucket
 (on Build Pi for all-in-one pilot)    ^    |
     |                                 |    | versioned, checksum-verified downloads
     +--> GitHub Actions self-hosted    +----+
@@ -90,13 +90,13 @@ These are *initial policy defaults*, not currently configured bucket rules.
 
 ## MVP behavior and user experience
 
-1. Enroll Build Pi as a trusted TinkerTunnel agent via a guided sign-in/registration experience.
+1. Enroll Build Pi as a trusted Main{Create} agent via a guided sign-in/registration experience.
 2. Discover `waymarkeros` as a project and the connected `esp32s3` device without exposing host credentials.
 3. User/ChatGPT commits to GitHub. Existing self-hosted ARM64 runner automatically compiles and verifies.
 4. Build Pi uploads the immutable verified bundle to R2 and records the artifact locator, hash and build status.
 5. GitHub Actions appends Markdown download links in `GITHUB_STEP_SUMMARY`; versioned GitHub Releases include the same external links in descriptions. External R2 objects do **not** show up as native GitHub Release assets.
 6. Current WaymarkerOS pilot auto-flashes locally following successful build; reports status and bounded serial logs. Other capabilities remain policy gated.
-7. User can query TinkerTunnel for build/flash/connected-device status and open VictoriaLogs for near-real-time serial interactions.
+7. User can query Main{Create} for build/flash/connected-device status and open VictoriaLogs for near-real-time serial interactions.
 8. Future ESP32 HTTPS OTA can read authenticated immutable artifacts + channel manifest; requires OTA partition changes, firmware signature validation, health checks and rollback before enabling OTA deployment.
 
 ## MVP acceptance criteria
@@ -117,9 +117,9 @@ These are *initial policy defaults*, not currently configured bucket rules.
 
 **M2:** Configure 30-day dev lifecycle and an 8 GB headroom controller; pin rollback/stable releases. Then disable GitHub binary artifact upload and confirm external links work.
 
-**M3:** Deploy TinkerTunnel control plane + single Build Pi agent; implement secure enrollment, discovery, `job.submit` and `job.status` with explicit policy.
+**M3:** Deploy Main{Create} control plane + single Build Pi agent; implement secure enrollment, discovery, `job.submit` and `job.status` with explicit policy.
 
-**M4:** Repurpose Lab Pi as a second TinkerTunnel node and prove routing from gateway to a different ARM64 executor. Only then generalize to other architectures.
+**M4:** Repurpose Lab Pi as a second Main{Create} node and prove routing from gateway to a different ARM64 executor. Only then generalize to other architectures.
 
 **M5 (not MVP):** OTA partition scheme, signed firmware release manifests, HTTPS OTA, boot health validation and rollback; optional per-project automatic OTA policy.
 

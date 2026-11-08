@@ -21,6 +21,8 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
+export const HOST_RELEASE = "0.6.1";
+
 export function removalActivity(host,actions=[],now=Date.now()){
  const d=host?.decommission;
  if(!d)return null;
@@ -88,7 +90,7 @@ async function unregisterGithubRunner(host,actions,ctx){
  const actualOrg=actions.filter(a=>a.runnerId===host.id&&a.organization).at(-1)?.organization||null;
  if(!githubIdentityCurrent(gh)||!org||org!==actualOrg)throw Error('Reconnect the original GitHub organization to remove its runner.');
  const headers={authorization:'Bearer '+unseal(gh.oauthToken),accept:'application/vnd.github+json',
-   'user-agent':'TinkerTunnel','x-github-api-version':'2022-11-28'};
+   'user-agent':'Main{Create}','x-github-api-version':'2022-11-28'};
  const base='https://api.github.com/orgs/'+encodeURIComponent(org)+'/actions/runners';
  for(let attempt=0;attempt<4;attempt++){
   const response=await fetch(base+'?per_page=100',{headers,signal:AbortSignal.timeout(15000)});
@@ -250,7 +252,7 @@ export async function adminHostRoute(req,ctx){
     try{
      const url='https://api.github.com/orgs/'+encodeURIComponent(org)+'/actions/runners?per_page=100';
      const response=await fetch(url,{headers:{authorization:'Bearer '+unseal(gh.oauthToken),
-       accept:'application/vnd.github+json','user-agent':'TinkerTunnel',
+       accept:'application/vnd.github+json','user-agent':'Main{Create}',
        'x-github-api-version':'2022-11-28'},signal:AbortSignal.timeout(15000)});
      if(!response.ok)throw Error('GitHub API returned HTTP '+response.status);
      const data=await response.json();
@@ -361,7 +363,7 @@ export async function adminHostRoute(req,ctx){
    return deny(422,'Remote upgrades require a managed Linux ARM64 builder');
   if(!builderFresh(host))return deny(409,'Builder must be reachable before upgrading');
   if(host.decommission)return deny(409,'Finish or reconcile builder removal before upgrading');
-  const release='0.6.0';
+  const release=HOST_RELEASE;
   if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
   // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
   // bootstrap is required; never queue an instruction the host cannot execute.
@@ -428,7 +430,7 @@ export async function agentHostRoute(req,ctx){
    runner.decommission.failedStage=action.type==='github-runner.stop'?'stopping':'cleaning';
    runner.decommission.phase='failed';
    runner.decommission.error=action.message==='unsupported action'?
-     'Installed Host Service does not support removal. Upgrade using the current TinkerTunnel installer on this machine, then retry.':
+     'Installed Host Service does not support removal. Upgrade using the current Main{Create} installer on this machine, then retry.':
      action.message;
   }
   else runner.decommission.phase=action.type==='github-runner.stop'?'unregistering':'cleanup_scheduled';

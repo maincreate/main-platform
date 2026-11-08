@@ -1,4 +1,4 @@
-# TinkerTunnel interface directions
+# Main{Create} interface directions
 
 The product should feel like a professional developer tool, not a dark-green home-lab administration console. Do not couple themes to infrastructure or hosting vendors.
 
@@ -33,7 +33,7 @@ For the foundation release, use semantic HTML/CSS tokens and a small component v
 
 **GitHub connection (after account creation)**
 - GitHub device authorization link and displayed GitHub device code, analogous to HACS
-- Return to TinkerTunnel and select from organizations visible to the OAuth authorization
+- Return to Main{Create} and select from organizations visible to the OAuth authorization
 - State explicitly that selecting an organization is not permission to execute builds or install runners
 - No raw GitHub App private keys or personal access tokens pasted into the initial experience
 

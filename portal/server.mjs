@@ -72,6 +72,6 @@ const server = createServer(async (req, res) => {
     else res.end();
   }
 });
-server.listen(port, host, () => console.log("TinkerTunnel portal listening on " + host + ":" + port));
+server.listen(port, host, () => console.log("Main{Create} portal listening on " + host + ":" + port));
 process.on("SIGTERM", () => server.close(() => process.exit(0)));
 process.on("SIGINT", () => server.close(() => process.exit(0)));

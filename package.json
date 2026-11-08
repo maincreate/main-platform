@@ -1,8 +1,8 @@
 {
-  "name": "tinkertunnel-local",
+  "name": "maincreate-platform",
   "version": "0.4.0",
   "private": true,
-  "description": "TinkerTunnel capability registry, approved runner jobs and bounded artifacts",
+  "description": "Main{Create} capability registry, approved runner jobs and bounded artifacts",
   "type": "module",
   "engines": {
     "node": ">=22"

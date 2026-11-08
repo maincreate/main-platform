@@ -12,7 +12,7 @@ function syncRunnerPolicy(){
   $("saveOrg").disabled=!valid||!$("runnerPolicyConfirmed").checked;
   $("runnerPolicyState").textContent=confirmedForOrganization===org?
     "Operator-confirmed for "+org+". GitHub API verification is not available.":
-    "Pending your confirmation. TinkerTunnel cannot read or change this switch through the supported GitHub API.";
+    "Pending your confirmation. Main{Create} cannot read or change this switch through the supported GitHub API.";
 }
 const panels=["loading","unavailable","disconnected","authorizing","connected"];
 function show(panel){panels.forEach(id=>$(id).hidden=id!==panel);}
@@ -34,7 +34,7 @@ async function refresh(){
   csrf=overview.csrf;
   const ready=!!(overview.github?.identityConnected&&overview.github?.organization);
   $("githubStepLabel").textContent=ready?"CONNECTIONS / GITHUB":"SETUP / STEP 2 OF 2";
-  $("githubSetupNotice").textContent=ready?"Your GitHub organization is connected. You can switch organizations or update authorization here.":"Connect your GitHub account and select an organization to complete TinkerTunnel setup.";
+  $("githubSetupNotice").textContent=ready?"Your GitHub organization is connected. You can switch organizations or update authorization here.":"Connect your GitHub account and select an organization to complete Main{Create} setup.";
   if(status.connected){
     $("githubLogin").textContent=status.login;
     const select=$("org");select.replaceChildren();

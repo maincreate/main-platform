@@ -1,3 +1,3 @@
-module github.com/TinkerTunnel/tinkertunnel/host
+module github.com/maincreate/main-builders/host
 
 go 1.23

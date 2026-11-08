@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validHost,validUser,parseDnsPacket} from './hosts.mjs';
 test('host validation rejects shell and URL input',()=>{
- assert.equal(validHost('waymarker-lab.local'),true);
+ assert.equal(validHost('builder-01.local'),true);
  assert.equal(validHost('192.168.100.29'),true);
  for(const x of ['http://example.com','host -o ProxyCommand=bad','foo..local','user@local']) assert.equal(validHost(x),false);
  assert.equal(validUser('piadmin'),true);

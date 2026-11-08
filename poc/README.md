@@ -1,4 +1,4 @@
-# TinkerTunnel POC
+# Main{Create} POC
 
 This proof of concept checks the artifact packaging contract in GitHub Actions after a commit. Its sample binary is fake and must never be flashed.
 

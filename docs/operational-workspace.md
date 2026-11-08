@@ -10,7 +10,7 @@ Routes: `/` Overview, `/projects` GitHub inventory, `/jobs` builders and jobs, `
 
 A signed-in administrator selects a GitHub App installation under Settings → GitHub. On Projects, **Sync repositories** calls GitHub's user-installation repository metadata API with the existing encrypted GitHub user token, retaining a bounded snapshot of up to 500 repositories in `MAIN_DATA_DIR/projects.json`.
 
-The Projects page joins repository names with *actual TinkerTunnel job records* carrying an explicit source repository and pinned revision. A Git push is not recorded as a successful build. The snapshot is not continuously polled; it needs manual sync in this release. GitHub App user-token expiry currently requires reconnecting.
+The Projects page joins repository names with *actual Main{Create} job records* carrying an explicit source repository and pinned revision. A Git push is not recorded as a successful build. The snapshot is not continuously polled; it needs manual sync in this release. GitHub App user-token expiry currently requires reconnecting.
 
 ## Read-only device discovery
 
@@ -27,17 +27,17 @@ The controller keeps `MAIN_DATA_DIR/devices.json` with: opaque device ID, report
 
 Existing MCP tools expose the inventory read-only: `tt_discover({resource:"devices"})` lists visible reported devices and `tt_inspect({resource:"device",id:"..."})` returns a single sanitized device record. Neither tool opens a serial port or changes hardware. No seventh MCP tool is required.
 
-The runner opt-in does not grant execution capabilities. For a host installation: install Python 3 and `pyserial`, then run the current TinkerTunnel agent with `MAIN_RUNNER_DEVICE_DISCOVERY=1`. A containerized runner must have explicit access to USB host devices; Docker containers do not automatically see physical ports. Do not grant a Docker socket or privileged mode merely to enable discovery.
+The runner opt-in does not grant execution capabilities. For a host installation: install Python 3 and `pyserial`, then run the current Main{Create} agent with `MAIN_RUNNER_DEVICE_DISCOVERY=1`. A containerized runner must have explicit access to USB host devices; Docker containers do not automatically see physical ports. Do not grant a Docker socket or privileged mode merely to enable discovery.
 
 ## Topology correctness
 
-A GitHub App authorization links source identity to TinkerTunnel's controller directly. Its connecting line passes **above** the Secure Access and MCP tool gateway cards. It is not routed through MCP. Another lane represents attached USB serial devices; device edges originate from the enrolled builder that reported each device. Only actual recent observations are displayed as connected.
+A GitHub App authorization links source identity to Main{Create}'s controller directly. Its connecting line passes **above** the Secure Access and MCP tool gateway cards. It is not routed through MCP. Another lane represents attached USB serial devices; device edges originate from the enrolled builder that reported each device. Only actual recent observations are displayed as connected.
 
 ## Safe manual firmware flash — next controlled capability, NOT enabled
 
 The user-facing desired workflow is:
 
-1. Select an existing **successful** TinkerTunnel build job and its downloadable artifact.
+1. Select an existing **successful** Main{Create} build job and its downloadable artifact.
 2. Select one currently connected discovered device attached to an authorized runner.
 3. Verify artifact provenance: repo + exact commit SHA + builder + declared target chip + checksum + complete flash layout. A plain application binary is **not** a safe general replacement for a complete ESP-IDF image.
 4. Ask the target runner to re-enumerate ports and verify hardware identity, chip and port immediately before flashing. Reject missing or ambiguous serial identity or unsupported targets.
@@ -45,7 +45,7 @@ The user-facing desired workflow is:
 6. Execute one fixed, version-validated `esptool` adapter without a shell and stream logs/artifacts. Support safe failure, timeout and serialization per physical port.
 7. Persist flash history on the device record, including build SHA, image digest, operator, timestamp and outcome.
 
-Espressif's esptool supports creating a merged image and flashing it at its correct offset. TinkerTunnel must only accept flash layouts it can verify; it must not guess partition offsets or reuse firmware for a different board. This release does not expose a flash button that does nothing, and it does not enable the reserved `firmware.esp_idf.flash` capability.
+Espressif's esptool supports creating a merged image and flashing it at its correct offset. Main{Create} must only accept flash layouts it can verify; it must not guess partition offsets or reuse firmware for a different board. This release does not expose a flash button that does nothing, and it does not enable the reserved `firmware.esp_idf.flash` capability.
 
 ## Git-driven automation — design gate, NOT enabled
 

@@ -33,7 +33,7 @@ export async function syncProjects({organization,installationId,accessToken}){
   !Number.isSafeInteger(installationId)||installationId<=0||typeof accessToken!=="string"||
   accessToken.length<20)throw err(422,"Valid GitHub installation credentials required");
  const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+accessToken,
-  "x-github-api-version":"2022-11-28","user-agent":"TinkerTunnel"};
+  "x-github-api-version":"2022-11-28","user-agent":"Main{Create}"};
  const repos=[],seen=new Set();let truncated=false;
  for(let page=1;page<=5;page++){
   const u="https://api.github.com/user/installations/"+installationId+

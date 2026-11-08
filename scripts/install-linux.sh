@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# TinkerTunnel distributed Host Service for Linux ARM64. Pair from the controller UI afterward.
+# Main{Create} distributed Host Service for Linux ARM64. Pair from the controller UI afterward.
 set -Eeuo pipefail
-ORIGIN="${MAIN_CONTROLLER_URL:-https://tinkertunnel.home.ayusohaylock.com}"
+ORIGIN="${MAIN_CONTROLLER_URL:-}"
 ORIGIN="${ORIGIN%/}"
 # The one-time installer sets up the Host Service. Pairing and GitHub Actions
 # provisioning happen later, so those states must never be reported as success.
@@ -34,7 +34,7 @@ on_exit() {
     printf '\n'
     status FAIL "Installer stopped at: $CURRENT_STAGE (exit $exit_code). See the command output above."
   fi
-  printf '\n%b────────────────── TinkerTunnel setup summary ──────────────────%b\n' "$BOLD" "$RESET"
+  printf '\n%b────────────────── Main{Create} setup summary ──────────────────%b\n' "$BOLD" "$RESET"
   printf '  Machine: %s\n' "$(hostname)"
   for component in "${stages[@]}"; do
     state="${stage_result[$component]:-PENDING}"
@@ -46,7 +46,7 @@ on_exit() {
       printf 'Return to Builders and verify the reported software version.\\n'
     else
       printf '\\n%bHOST SERVICE INSTALLED • BUILDER NOT YET READY%b\\n' "$YELLOW$BOLD" "$RESET"
-      printf 'Next: TinkerTunnel > Builders > Add a Build Machine.\\n'
+      printf 'Next: Main{Create} > Builders > Add a Build Machine.\\n'
       printf 'Pair the host, then verify the GitHub Actions runner reports Online.\\n'
     fi
   else
@@ -107,7 +107,7 @@ configure_pairing() {
 install_service() {
   cat >/etc/systemd/system/tinkertunnel-host.service <<'UNIT'
 [Unit]
-Description=TinkerTunnel Host Service (discovery and controller-managed operations)
+Description=Main{Create} Host Service (discovery and controller-managed operations)
 After=network-online.target avahi-daemon.service
 Wants=network-online.target avahi-daemon.service
 [Service]
@@ -131,7 +131,7 @@ UNIT
 
 UPGRADING=false
 if [[ -s /var/lib/tinkertunnel/host.json ]]; then UPGRADING=true; fi
-printf '\\n%bTINKERTUNNEL  /  LINUX ARM64 HOST SETUP%b\\n' "$BOLD" "$RESET"
+printf '\\n%bMAIN{CREATE}  /  LINUX ARM64 HOST SETUP%b\\n' "$BOLD" "$RESET"
 printf 'Controller: %s\n' "$ORIGIN"
 printf 'The GitHub Actions runner will be installed only after host pairing.\n\n'
 run_stage "Preflight" preflight

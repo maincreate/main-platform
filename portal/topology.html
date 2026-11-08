@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Workspace topology • TinkerTunnel</title>
+  <title>Workspace topology • Main{Create}</title>
   <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
   <script src="/topology.js" defer></script>
 </head>
 <body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology" aria-current="page">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology" aria-current="page">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization</span><div class="tt-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
 <main class="main topology-page">
   <div class="topology-page-heading">
     <a class="back-link" href="/">← Dashboard</a>
@@ -31,7 +31,7 @@
            <span class="topology-label">GitHub</span><span class="topology-state" id="topoGithub">Not connected</span>
            <small id="topoGithubMeta">Code and repositories</small></div></div>
         <div class="tt-topology-stage"><h3>Workspace</h3><div class="topology-node hub" data-topology-node="workspace">
-           <span class="topology-label" id="topoWorkspace">TinkerTunnel</span>
+           <span class="topology-label" id="topoWorkspace">Main{Create}</span>
            <span class="topology-state">Controller</span><small>On-prem management</small></div></div>
         <div class="tt-topology-stage"><h3>Build machines</h3><div id="topologyRunners" class="topology-node-stack">
            <div class="topology-node empty" data-topology-node="runner-empty"><span class="topology-label">No build machines</span></div></div></div>
@@ -50,7 +50,7 @@
        <div class="tt-topology-stage"><h3>MCP gateway</h3><div class="topology-node empty" data-topology-node="mcp">
          <span class="topology-label">Tool gateway</span><span class="topology-state">Not verified</span></div></div>
        <div class="tt-topology-stage tt-topology-final"><h3>Control plane</h3><div class="topology-node hub">
-         <span class="topology-label">TinkerTunnel</span><span class="topology-state">Local management</span></div></div>
+         <span class="topology-label">Main{Create}</span><span class="topology-state">Local management</span></div></div>
       </div>
     </div>
     <div class="topology-foot">

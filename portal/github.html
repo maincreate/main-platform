@@ -1,20 +1,20 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Connect GitHub • TinkerTunnel</title>
+<title>Connect GitHub • Main{Create}</title>
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/github.css">
 <script src="/github.js" defer></script></head>
 <body data-theme="midnight">
-<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><div class="tt-account"><span id="username">administrator</span></div></header>
+<aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">M{}</span>Main{Create}</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization</span><div class="tt-account"><span id="username">administrator</span></div></header>
 <main class="main github-shell">
   <p class="eyebrow" id="githubStepLabel">SETUP / STEP 2 OF 2</p>
-  <h1>Connect GitHub</h1><p id="githubSetupNotice" class="intro-text">Select your GitHub organization to finish TinkerTunnel setup. Your workspace will open after this step.</p>
-  <p class="intro-text">Sign in with GitHub, then choose the organization whose repositories you want to work with. This happens after your TinkerTunnel account is created.</p>
+  <h1>Connect GitHub</h1><p id="githubSetupNotice" class="intro-text">Select your GitHub organization to finish Main{Create} setup. Your workspace will open after this step.</p>
+  <p class="intro-text">Sign in with GitHub, then choose the organization whose repositories you want to work with. This happens after your Main{Create} account is created.</p>
   <div id="notice" class="message" role="status" aria-live="polite"></div>
   <section class="github-panel" id="loading">Checking GitHub connection…</section>
   <section class="github-panel" id="unavailable" hidden>
     <h2>Set up the GitHub connection</h2>
-    <p>To connect, TinkerTunnel needs a dedicated <strong>GitHub App</strong> with <strong>Device Flow</strong> enabled. You can configure its public Client ID here once; no access token, password or private key is needed.</p>
+    <p>To connect, Main{Create} needs a dedicated <strong>GitHub App</strong> with <strong>Device Flow</strong> enabled. You can configure its public Client ID here once; no access token, password or private key is needed.</p>
     <form id="githubClientForm">
       <label for="githubClientId">GitHub App Client ID</label>
       <input id="githubClientId" type="text" autocomplete="off" spellcheck="false"
@@ -26,7 +26,7 @@
   </section>
   <section class="github-panel" id="disconnected" hidden>
     <h2>Authorize your GitHub account</h2>
-    <p>You'll approve TinkerTunnel on GitHub. No personal access token or private key needs to be pasted here.</p>
+    <p>You'll approve Main{Create} on GitHub. No personal access token or private key needs to be pasted here.</p>
     <button id="start" class="primary">Sign in with GitHub →</button>
   </section>
   <section class="github-panel" id="authorizing" hidden>
@@ -43,16 +43,16 @@
     <select id="org"><option value="">Choose an organization</option></select>
     <p class="muted" id="organizationHint"></p><div class="tt-org-help" id="orgEmptyHelp" hidden>
  <strong>No GitHub organizations available</strong>
- <p>Create an organization in GitHub, install the TinkerTunnel GitHub App in it, then come back and refresh this list.</p>
+ <p>Create an organization in GitHub, install the Main{Create} GitHub App in it, then come back and refresh this list.</p>
  <a class="plain-button" href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create a GitHub organization ↗</a>
 </div>
     <button id="refreshOrganizations" class="plain-button" type="button">Refresh organizations</button>
     <section id="runnerPolicy" class="tt-runner-policy" aria-labelledby="runnerPolicyTitle" hidden>
       <h3 id="runnerPolicyTitle">Self-hosted runner policy</h3>
-      <p>TinkerTunnel is designed to use your self-hosted builders. Before continuing, disable GitHub's <strong>standard hosted runners</strong> for this organization. This is a GitHub organization setting, not the self-hosted runner permission switch.</p>
+      <p>Main{Create} is designed to use your self-hosted builders. Before continuing, disable GitHub's <strong>standard hosted runners</strong> for this organization. This is a GitHub organization setting, not the self-hosted runner permission switch.</p>
       <p><a id="runnerPolicyLink" href="#" target="_blank" rel="noopener noreferrer">Open organization Actions settings ↗</a> and under <strong>Standard hosted runners</strong>, select <strong>Disable for all repositories</strong>, then save.</p>
       <label class="tt-runner-policy-check" for="runnerPolicyConfirmed"><input id="runnerPolicyConfirmed" type="checkbox"> I have saved this setting in GitHub for <strong id="runnerPolicyOrg"></strong>.</label>
-      <p id="runnerPolicyState" class="muted" role="status">This confirmation is recorded in TinkerTunnel, not verified by the GitHub API.</p>
+      <p id="runnerPolicyState" class="muted" role="status">This confirmation is recorded in Main{Create}, not verified by the GitHub API.</p>
       <p class="small">Disabling standard hosted runners is supported on GitHub Team and Enterprise. It blocks ordinary hosted runner labels; hosted runner groups may still be allowed. For strictly self-hosted execution, also restrict runner groups and workflow targets.</p>
     </section>
     <div class="button-row"><button id="saveOrg" class="primary" disabled>Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>

@@ -4,6 +4,7 @@ import (
  "archive/tar"
  "bytes"
  "compress/gzip"
+ "context"
  "crypto/sha256"
  "encoding/hex"
  "encoding/json"
@@ -39,7 +40,7 @@ func runCmd(user,dir,bin string,args ...string)error{
 func downloadRunner()([]byte,error){
  if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return nil,errors.New("only Linux ARM64 supported in this release")}
  req,e:=http.NewRequest("GET","https://api.github.com/repos/actions/runner/releases/latest",nil);if e!=nil{return nil,e}
- req.Header.Set("User-Agent","TinkerTunnel-Host/"+version)
+ req.Header.Set("User-Agent","Main{Create}-Host/"+version)
  res,e:=httpClient.Do(req);if e!=nil{return nil,e};defer res.Body.Close()
  if res.StatusCode!=200{return nil,fmt.Errorf("GitHub release API HTTP %d",res.StatusCode)}
  var r release;if e=json.NewDecoder(io.LimitReader(res.Body,1<<20)).Decode(&r);e!=nil{return nil,e}
@@ -48,10 +49,8 @@ func downloadRunner()([]byte,error){
   if a.Name!=name{continue}
   if !strings.HasPrefix(a.Digest,"sha256:")||len(a.Digest)!=71{return nil,errors.New("runner release missing sha256 digest")}
   if !strings.HasPrefix(a.BrowserDownloadURL,"https://github.com/actions/runner/releases/download/"){return nil,errors.New("unexpected GitHub runner asset URL")}
-  client:=&http.Client{Timeout:10*time.Minute}
-  resp,e:=client.Get(a.BrowserDownloadURL);if e!=nil{return nil,e};defer resp.Body.Close()
-  if resp.StatusCode!=200{return nil,fmt.Errorf("runner archive HTTP %d",resp.StatusCode)}
-  body,e:=io.ReadAll(io.LimitReader(resp.Body,(256<<20)+1));if e!=nil{return nil,e}
+  body,e:=fetchRunnerArchive(a.BrowserDownloadURL)
+  if e!=nil{return nil,e}
   if len(body)>256<<20{return nil,errors.New("runner archive too large")}
   hash:=sha256.Sum256(body)
   if !strings.EqualFold(hex.EncodeToString(hash[:]),strings.TrimPrefix(a.Digest,"sha256:")){return nil,errors.New("runner checksum mismatch")}
@@ -59,6 +58,41 @@ func downloadRunner()([]byte,error){
  }
  return nil,errors.New("no verified Linux ARM64 runner in latest release")
 }
+// Bound all attempts by the original archive download budget.
+func fetchRunnerArchive(url string) ([]byte, error) {
+ ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+ defer cancel()
+ for attempt := 1; ; attempt++ {
+  req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+  if err != nil {
+   return nil, err
+  }
+  resp, err := http.DefaultClient.Do(req)
+  if err != nil {
+   return nil, err
+  }
+  if resp.StatusCode == http.StatusOK {
+   defer resp.Body.Close()
+   return io.ReadAll(io.LimitReader(resp.Body, (256<<20)+1))
+  }
+  resp.Body.Close()
+  switch resp.StatusCode {
+  case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+   if attempt < 3 {
+    timer := time.NewTimer(time.Duration(attempt) * time.Second)
+    select {
+    case <-timer.C:
+     continue
+    case <-ctx.Done():
+     timer.Stop()
+     return nil, ctx.Err()
+    }
+   }
+  }
+  return nil, fmt.Errorf("runner archive HTTP %d (attempt %d)", resp.StatusCode, attempt)
+ }
+}
+
 func countRunnerMember(total,size int64)(int64,error){
  if size<0||size>maxRunnerMemberBytes{return total,errors.New("runner archive member too large")}
  if total<0||total>maxRunnerExpandedBytes||size>maxRunnerExpandedBytes-total{return total,errors.New("runner archive expands too large")}

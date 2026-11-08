@@ -256,8 +256,8 @@ let removeMode=null;
 const removeStageNames={stopping:"Stopping runner",unregistering:"Unregistering from GitHub",cleaning:"Removing Software",controller:"Removing from Controller"};
 const removalHelp={
  stopping:["Verify the GitHub runner has no active job.","Check the runner service on the host and stop it only when idle.","Retry removal after checking the host, or use Force remove if recovery is impossible."],
- unregistering:["Check the organization’s GitHub Actions runner inventory.","Reconnect the original GitHub organization to TinkerTunnel if authorization expired.","If the runner is offline and idle, unregister it through GitHub and retry removal."],
- cleaning:["Inspect the TinkerTunnel Host Service and runner on the machine.","If cleanup cannot finish, follow the documented uninstall procedure on the host.","Then use Force remove to revoke the controller enrollment; do not delete unrelated files."],
+ unregistering:["Check the organization’s GitHub Actions runner inventory.","Reconnect the original GitHub organization to Main{Create} if authorization expired.","If the runner is offline and idle, unregister it through GitHub and retry removal."],
+ cleaning:["Inspect the Main{Create} Host Service and runner on the machine.","If cleanup cannot finish, follow the documented uninstall procedure on the host.","Then use Force remove to revoke the controller enrollment; do not delete unrelated files."],
  controller:["Refresh the Builders list and inspect the removal audit.","Confirm the GitHub registration is absent.","If the builder still appears, reconcile or retry its removal."]
 };
 let removalTimer=null,removalSerial=0,removalBusy=false;
@@ -300,7 +300,7 @@ function renderRemovalProgress(result){
    details.append(el("p",stage.detail||result.error||"The operation failed."));
    const instructions=el("ol");
    const help=id==="cleaning"&&result.mode==="remote"?
-    ["The host was unreachable; local software was not removed.","When it becomes accessible, use the documented TinkerTunnel uninstall procedure or reimage it.","Verify GitHub registration is absent before re-enrolling."]:removalHelp[id];
+    ["The host was unreachable; local software was not removed.","When it becomes accessible, use the documented Main{Create} uninstall procedure or reimage it.","Verify GitHub registration is absent before re-enrolling."]:removalHelp[id];
    for(const step of help)instructions.append(el("li",step));
    details.append(instructions);row.append(details);
   }
@@ -347,12 +347,12 @@ function openRemoveDialog(host,mode){
   $("removeBuilderNameReference").value=host.name;
   $("removeBuilderExplanation").textContent=
     "Builder: "+host.name+". "+(live?
-      "Connected: TinkerTunnel will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
-      "Force removal: TinkerTunnel will unregister any idle GitHub runner and revoke controller access without uninstalling this machine. You must uninstall or reimage the host manually.")+
+      "Connected: Main{Create} will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
+      "Force removal: Main{Create} will unregister any idle GitHub runner and revoke controller access without uninstalling this machine. You must uninstall or reimage the host manually.")+
     " Active builds cannot be removed. This action cannot be undone.";
   $("removeBuilderFeedback").textContent=host.decommission?.error?.includes("unsupported action")||
     host.decommission?.error?.includes("upgrade")?
-    "The installed Host Service is outdated. Run the current TinkerTunnel installer on the host to upgrade it while keeping enrollment, then retry.":"";
+    "The installed Host Service is outdated. Run the current Main{Create} installer on the host to upgrade it while keeping enrollment, then retry.":"";
   $("confirmRemoveBuilder").disabled=true;
   removeDialog.showModal();
 }
@@ -402,7 +402,7 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
   if(result.removed){
     const output=$("builderRemovalInstructions");
     output.hidden=false;output.replaceChildren();
-    output.append(el("strong",host.name+" removed from TinkerTunnel"));
+    output.append(el("strong",host.name+" removed from Main{Create}"));
     output.append(el("p","GitHub and controller access were removed. Local cleanup or reimaging remains your responsibility."));
     status("Remote removal completed for "+host.name+". Local cleanup is still required.");
   }else{
@@ -432,13 +432,13 @@ function renderBuilders(){
   (!search||[host.name,host.os,host.arch,...(host.packages||[]).map(p=>p.name)].join(" ").toLowerCase().includes(search)));
  if(!shown.length){holder.append(el("p","No builders match this filter."));return}
  const table=el("table",undefined,"inventory-table"),head=el("tr");
- for(const label of ["Hostname","Platform","Build Host","TinkerTunnel Software","GitHub Registration","Toolchains","Status","Actions"])head.append(el("th",label));
+ for(const label of ["Hostname","Platform","Build Host","Main{Create} Software","GitHub Registration","Toolchains","Status","Actions"])head.append(el("th",label));
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
  for(const host of shown){
   const tr=el("tr");
   tr.append(el("td",host.name),el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")));
   const signals=builderSignals(host);
-  for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","TinkerTunnel Software",signals.software],["github","GitHub Runner Registration",signals.github]]){
+  for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","Main{Create} Software",signals.software],["github","GitHub Runner Registration",signals.github]]){
    const cell=el("td");cell.append(statusSignal(kind,label,signal));tr.append(cell);
   }
   const tools=el("td"),packages=host.packages||[];
@@ -584,7 +584,7 @@ const setupStageNames={
 };
 const setupRecovery={
  connection:["Check that the host is powered on and reachable over SSH.","Verify the hostname/IP, local Linux credentials and confirmed SSH fingerprint.","Correct the connection details and retry pairing."],
- enrollment:["Verify that the TinkerTunnel Host Service is installed and running.","Confirm the host can reach the controller over HTTPS.","Check Host Service logs, then retry enrollment only if no previous enrollment exists."],
+ enrollment:["Verify that the Main{Create} Host Service is installed and running.","Confirm the host can reach the controller over HTTPS.","Check Host Service logs, then retry enrollment only if no previous enrollment exists."],
  installation:["Inspect the Host Service logs and the latest provisioning action.","Verify the builder has network access to GitHub and sufficient disk space.","When the host is online, use Retry GitHub registration from the Builders menu."],
  registration:["Check the organization's GitHub Actions runner-management permission.","Verify the runner was registered under the intended organization.","Reconnect GitHub in Settings if authorization expired, then retry registration."],
  online:["In GitHub organization settings, inspect the registered runner's status.","Check the GitHub runner service on the build machine.","Wait for the runner to report online or restart its service; do not create a duplicate registration."]
@@ -843,8 +843,9 @@ function openDialog(){
  clearIdentity();hideDiscovery();scanLastHosts=new Map();
  $("hostAddress").value="";$("hostUsername").value="";$("hostPassword").value="";
  $("selectedHost").textContent="No host selected.";
- $("installCommand").textContent="curl -fsSLo /tmp/tinkertunnel-install.sh "+location.origin+
-  "/install.sh && sudo env MAIN_CONTROLLER_URL="+location.origin+" bash /tmp/tinkertunnel-install.sh";
+ $("installCommand").textContent="curl -fsSLo /tmp/maincreate-install.sh "+location.origin+
+  "/install.sh && sudo env MAIN_CONTROLLER_URL="+location.origin+" bash /tmp/maincreate-install.sh";
+ $("upgradeBuilderCommand").textContent=$("installCommand").textContent;
  activatePlatform(platform);activateMethod("manual");showStep(1);
  dialog.showModal();
  $("platform-linux-arm64").focus();
