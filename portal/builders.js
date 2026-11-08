@@ -147,6 +147,71 @@ $("copyUpgradeCommand").addEventListener("click",async()=>{
  }
 });
 let upgradeTarget=null;
+let upgradeWatchTimer=null,upgradeWatchBusy=false,upgradeWatchSerial=0,upgradeWatchStarted=0;
+let upgradeWatchExpected=null,upgradeWatchInitiallyCurrent=false,upgradeWatchInitialVersion=null;
+function stopUpgradeWatch(){
+ upgradeWatchSerial++;
+ if(upgradeWatchTimer!==null){clearInterval(upgradeWatchTimer);upgradeWatchTimer=null;}
+ upgradeWatchBusy=false;
+}
+upgradeDialog.addEventListener("close",()=>{
+ stopUpgradeWatch();
+ upgradeTarget=null;
+});
+async function checkUpgradeStatus(serial){
+ if(serial!==upgradeWatchSerial||upgradeWatchBusy||!upgradeDialog.open||!upgradeTarget)return;
+ upgradeWatchBusy=true;
+ try{
+  const data=await api("/api/local/overview");
+  if(serial!==upgradeWatchSerial||!upgradeDialog.open||!upgradeTarget)return;
+  const host=data.runners?.items?.find(item=>item.id===upgradeTarget.id);
+  if(!host){
+   $("upgradeBuilderFeedback").textContent="Builder is no longer enrolled. Check the Builders page.";
+   stopUpgradeWatch();return;
+  }
+  upgradeTarget=host;
+  const version=host.software?.version;
+  const expected=upgradeWatchExpected||host.software?.expectedVersion;
+  const confirmed=host.upgrade?.phase==="completed"&&host.upgrade.targetVersion===expected;
+  // For manual bootstrap, the first observed heartbeat must report a new target version.
+  const manualConfirmed=!upgradeWatchInitiallyCurrent&&
+   (!upgradeWatchInitialVersion||upgradeWatchInitialVersion!==expected)&&
+   version===expected&&currentState(host)==="online";
+  if(version===expected&&currentState(host)==="online"&&(confirmed||manualConfirmed)){
+   stopUpgradeWatch();
+   upgradeDialog.close();
+   await load();
+   status(host.name+" · Host Service upgraded successfully to v"+expected+".");
+   return;
+  }
+  if(host.upgrade?.phase==="failed"){
+   $("upgradeBuilderFeedback").textContent="Upgrade failed: "+(host.upgrade.error||"Check the builder logs.");
+   stopUpgradeWatch();return;
+  }
+  if(Date.now()-upgradeWatchStarted>10*60*1000){
+   $("upgradeBuilderFeedback").textContent="Upgrade verification timed out. The modal remains open; check builder heartbeat and service status.";
+   stopUpgradeWatch();return;
+  }
+  const phase=host.upgrade?.phase;
+  $("upgradeBuilderFeedback").textContent=phase==="queued"?"Upgrade queued · waiting for builder to claim the instruction…":
+   phase==="installing"?"Upgrade downloaded and staged · waiting for restart and confirmed heartbeat…":
+   upgradeWatchInitialVersion===version&&version!==expected?
+    "Waiting for builder to report v"+expected+" · currently "+(version||"unverified")+"…":
+    "Checking Host Service version and heartbeat…";
+ }catch(e){
+  if(serial===upgradeWatchSerial&&upgradeDialog.open)
+   $("upgradeBuilderFeedback").textContent="Unable to check upgrade status: "+e.message+" · retrying…";
+ }finally{upgradeWatchBusy=false;}
+}
+function startUpgradeWatch(host,expected){
+ stopUpgradeWatch();
+ upgradeTarget=host;upgradeWatchStarted=Date.now();
+ upgradeWatchExpected=expected||host.software?.expectedVersion||null;
+ upgradeWatchInitialVersion=host.software?.version||null;
+ upgradeWatchInitiallyCurrent=upgradeWatchInitialVersion===upgradeWatchExpected;
+ const serial=upgradeWatchSerial;
+ upgradeWatchTimer=setInterval(()=>checkUpgradeStatus(serial),3000);
+}
 function openUpgradeDialog(host){
  upgradeTarget=host;
  const installed=host.software?.version||null,expected=host.software?.expectedVersion||"current";
@@ -162,6 +227,7 @@ function openUpgradeDialog(host){
   !!host.upgrade&&["queued","installing"].includes(host.upgrade.phase);
  $("upgradeBuilderFeedback").textContent=host.upgrade?.phase==="failed"?(host.upgrade.error||"Previous upgrade failed"):"";
  upgradeDialog.showModal();
+ startUpgradeWatch(host,expected);
 }
 $("startRemoteUpgrade").addEventListener("click",async()=>{
  const host=upgradeTarget;if(!host)return;
@@ -172,6 +238,9 @@ $("startRemoteUpgrade").addEventListener("click",async()=>{
   $("upgradeBuilderFeedback").textContent="Upgrade queued for "+host.name+" to "+result.targetVersion+
    ". Progress will update when the host reports its new version.";
   await load();
+  const fresh=builders.find(item=>item.id===host.id)||host;
+  startUpgradeWatch(fresh,result.targetVersion);
+  $("upgradeBuilderFeedback").textContent="Upgrade queued · waiting for builder to claim the instruction…";
  }catch(e){
   $("upgradeBuilderFeedback").textContent=e.message;
   button.disabled=false;
