@@ -95,6 +95,104 @@ function renderDevices(inventory){
    device.lifecycle==="connected"?"Connected":"Last seen "+relative(device.lastSeen));
  }
 }
+
+/* Operational activity histogram; buckets and drilldowns use real ledger entries only. */
+let activityRange="7d",activityData=null,activitySelected=null;
+const svgNS="http://www.w3.org/2000/svg";
+function svgEl(name,attrs={}){
+ const node=document.createElementNS(svgNS,name);
+ for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));
+ return node;
+}
+function activityBuckets(data){
+ const hours=data.range==="24h",days=data.range==="7d"?7:30,count=hours?24:days;
+ const width=hours?3600000:86400000,now=Date.parse(data.generatedAt);
+ const ending=Math.floor(now/width)*width+width;
+ const start=ending-width*count;
+ const buckets=Array.from({length:count},(_,i)=>({start:start+i*width,end:start+(i+1)*width,build:[],job:[]}));
+ for(const event of data.events||[]){
+  const at=Date.parse(event.time),index=Math.floor((at-start)/width);
+  if(index>=0&&index<count&&["build","job"].includes(event.type))buckets[index][event.type].push(event);
+ }
+ return buckets;
+}
+function bucketLabel(bucket,range){
+ const d=new Date(bucket.start);
+ return range==="24h"?d.toLocaleTimeString([],{hour:"numeric"}):
+  d.toLocaleDateString([],{month:"short",day:"numeric"});
+}
+function renderActivityDetails(bucket){
+ const holder=$("activityDetails");holder.replaceChildren();
+ if(!bucket){holder.append(element("div","Select a time bar to inspect its operations.","tt-activity-empty"));return;}
+ const total=bucket.build.length+bucket.job.length;
+ holder.append(element("div",bucketLabel(bucket,activityRange)+" · "+total+" recorded operation"+(total===1?"":"s"),"tt-activity-detail-title"));
+ if(!total){holder.append(element("p","No recorded operations in this period.","tt-activity-empty"));return;}
+ for(const event of [...bucket.build,...bucket.job].sort((a,b)=>b.time.localeCompare(a.time))){
+  const row=element("div",undefined,"tt-activity-detail-row"),left=element("div");
+  const name=element("strong",(event.type==="build"?"Build: ":"Job: ")+event.title);
+  const runner=activityBuilders.find(b=>b.id===event.builderId);
+  left.append(name,element("small",(runner?.name||event.builderId||"Builder not recorded")+
+   " · "+event.status+" · "+new Date(event.time).toLocaleString()));
+  const link=element("a","View job");link.href=event.url;
+  row.append(left,link);holder.append(row);
+ }
+}
+let activityBuilders=[];
+function renderActivityChart(){
+ const holder=$("activityChart");holder.replaceChildren();
+ if(!activityData)return;
+ const buckets=activityBuckets(activityData),width=960,height=230,left=38,right=12,top=14,bottom=33;
+ const chartW=width-left-right,chartH=height-top-bottom;
+ const counts=buckets.map(x=>x.build.length+x.job.length);
+ const max=Math.max(1,...counts),scale=Math.max(1,Math.ceil(max/4))*4;
+ const svg=svgEl("svg",{viewBox:"0 0 "+width+" "+height,role:"img",
+  "aria-label":"Activity from "+new Date(buckets[0].start).toLocaleString()+" to "+new Date(buckets.at(-1).end).toLocaleString()});
+ svg.classList.add("tt-activity-svg");
+ for(let i=0;i<=4;i++){
+  const value=Math.round(scale*i/4),y=top+chartH*(1-i/4);
+  svg.append(svgEl("line",{x1:left,x2:width-right,y1:y,y2:y,class:"gridline"}));
+  const label=svgEl("text",{x:left-8,y:y+4,"text-anchor":"end",class:"chart-label"});label.textContent=value;svg.append(label);
+ }
+ const step=chartW/buckets.length;
+ buckets.forEach((bucket,i)=>{
+  const x=left+i*step+Math.max(2,step*.12),bw=Math.max(2,step*.76);
+  let y=top+chartH;
+  for(const type of ["build","job"]){
+   const n=bucket[type].length,h=n/scale*chartH;
+   if(h>0){y-=h;svg.append(svgEl("rect",{x,y,width:bw,height:h,rx:1,class:"bar-"+type}));}
+  }
+  if(i===0||i===buckets.length-1||i%Math.max(1,Math.floor(buckets.length/7))===0){
+   const label=svgEl("text",{x:x+bw/2,y:height-11,"text-anchor":"middle",class:"chart-label"});
+   label.textContent=bucketLabel(bucket,activityRange);svg.append(label);
+  }
+  const hit=svgEl("rect",{x:x-1,y:top,width:bw+2,height:chartH,tabindex:0,role:"button",
+   "aria-label":bucketLabel(bucket,activityRange)+": "+counts[i]+" operations",
+   "aria-pressed":activitySelected===i?"true":"false",class:"activity-hitbox"});
+  const tooltip=svgEl("title");tooltip.textContent=bucketLabel(bucket,activityRange)+
+   " · "+bucket.build.length+" builds · "+bucket.job.length+" jobs";hit.append(tooltip);
+  const select=()=>{activitySelected=i;renderActivityChart();};
+  hit.addEventListener("click",select);
+  hit.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();select();}});
+  svg.append(hit);
+ });
+ holder.append(svg);
+ renderActivityDetails(activitySelected===null?null:buckets[activitySelected]||null);
+}
+async function loadActivity(){
+ const data=await api("/api/local/activity?range="+encodeURIComponent(activityRange));
+ activityData=data;activitySelected=null;
+ $("activityCoverage").textContent=(data.coverage?.note||"")+
+  (data.retainedJobLimit?" · Retained history: last "+data.retainedJobLimit+" local jobs.":"");
+ renderActivityChart();
+}
+for(const button of document.querySelectorAll("[data-activity-range]")){
+ button.addEventListener("click",()=>{
+  activityRange=button.dataset.activityRange;
+  for(const other of document.querySelectorAll("[data-activity-range]"))other.setAttribute("aria-pressed",String(other===button));
+  loadActivity().catch(e=>$("activityChart").textContent="Unable to load activity: "+e.message);
+ });
+}
+
 let refreshing=false;
 async function load(){
  if(refreshing)return;
@@ -125,6 +223,8 @@ async function load(){
   statusText("aiStatus",overview.topology?.remoteMcpVerified?"Connected":"Not connected");
   statusText("tunnelCount",String(overview.topology?.verifiedTunnelCount??0));
   statusText("agentCount",String(overview.assistant?.connectedAgents??0));
+  activityBuilders=overview.runners?.items||[];
+  await loadActivity();
   renderJobs(overview.jobs?.recent||[]);
   renderProjects(projects);
   renderBuilders(overview);
