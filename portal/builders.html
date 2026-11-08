@@ -14,8 +14,17 @@
    <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
    <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
    <p id="removeBuilderFeedback" role="status" aria-live="polite"></p>
-   <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="submit" id="confirmRemoveBuilder" class="primary" disabled>Remove builder</button></div>
+   <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="submit" id="confirmRemoveBuilder" class="tt-danger-button" disabled>Remove builder</button></div>
   </form>
+ </dialog>
+ <dialog id="upgradeBuilderDialog" class="tt-builder-dialog" aria-labelledby="upgradeBuilderTitle">
+  <div class="tt-builder-content"><div class="tt-builder-header"><div><p class="eyebrow">BUILD HOST / MAINTENANCE</p><h2 id="upgradeBuilderTitle">Upgrade Host Service</h2></div><button type="button" id="closeUpgradeDialog" class="tt-builder-close" aria-label="Close upgrade instructions">×</button></div>
+   <p id="upgradeBuilderDescription"></p>
+   <p>Run this on the selected Linux ARM64 builder over SSH. This upgrades the Host Service in place, preserves enrollment and the GitHub runner, and restarts only the Host Service.</p>
+   <div class="tt-command-block"><pre class="tt-service-command"><code id="upgradeBuilderCommand">curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo bash</code></pre><button type="button" class="plain-button" id="copyUpgradeCommand">Copy</button></div>
+   <p id="upgradeBuilderFeedback" role="status"></p>
+   <div class="button-row"><button type="button" class="plain-button" id="doneUpgradeDialog">Close</button></div>
+  </div>
  </dialog>
  <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Host Service health and GitHub runner readiness are separate. Remove a builder to revoke its enrollment; registered GitHub runners must be offline and idle first. Local host cleanup is a separate step before re-adding.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
   <div class="inventory-toolbar"><input id="builderSearch" type="search" placeholder="Search builders or tools" aria-label="Search builders"><select id="builderStatus" aria-label="Filter builders"><option value="all">All builders</option><option value="online">Online</option><option value="offline">Offline</option></select></div>
