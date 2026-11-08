@@ -4,6 +4,13 @@ import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
 import {queueRunnerProvisioning,actionStatus} from './runner_provisioning.mjs';
 
 const builderFresh = r => !!(r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000);
+function failedInitialSetup(host,actions){
+ if(host.githubRunnerName)return false;
+ const items=actions.filter(a=>a.runnerId===host.id);
+ const last=items.at(-1);
+ return !!host.managedHost&&(!last||['failed','expired','completed'].includes(last.status));
+}
+
 const runnerForRemoval = (host, actions) => host.githubRunnerName||
   actions.filter(a=>a.runnerId===host.id&&a.runnerName===host.name&&a.organization).at(-1)?.runnerName||null;
 async function unregisterGithubRunner(host,actions,ctx){
@@ -146,6 +153,50 @@ export async function adminHostRoute(req,ctx){
     message:provisioning?'Host Service paired; GitHub runner installation and registration queued for '+runner.name+'. Builder not ready until GitHub confirms Online.':
       'Host Service paired; GitHub runner setup incomplete. Inspect the Builders error before retrying.'});
  }
+ if(path==='/api/local/builders/validate'&&method==='POST'){
+  const input=await body(req),s=state();
+  const host=s.runners.find(r=>r.id===input.runnerId);
+  if(!host)return deny(404,'Builder not found.');
+  const last=host.lastSeen?Date.parse(host.lastSeen):NaN;
+  const heartbeatFresh=Number.isFinite(last)&&Date.now()-last>=0&&Date.now()-last<120000;
+  const checks=[{label:'Host heartbeat',status:heartbeatFresh?'pass':'fail',
+    detail:heartbeatFresh?'Last seen '+Math.round((Date.now()-last)/1000)+'s ago':
+      host.lastSeen?'Last seen '+host.lastSeen:'No heartbeat received'}];
+  if(host.managedHost)checks.push({label:'Host enrollment',status:'pass',
+    detail:'Paired '+host.managedHost.host});
+  else checks.push({label:'Host enrollment',status:'fail',detail:'No paired Host Service'});
+  const actions=s.hostActions||[],name=runnerForRemoval(host,actions);
+  if(!name){
+   checks.push({label:'GitHub registration',status:'fail',detail:'Registration not completed'});
+  }else{
+   const gh=s.github||{},org=gh.selectedOrganization;
+   const provision=actions.filter(a=>a.runnerId===host.id&&a.organization).at(-1);
+   if(!githubIdentityCurrent(gh)||!org||provision?.organization!==org){
+    checks.push({label:'GitHub runner',status:'unknown',detail:'Original GitHub organization is not connected'});
+   }else{
+    try{
+     const url='https://api.github.com/orgs/'+encodeURIComponent(org)+'/actions/runners?per_page=100';
+     const response=await fetch(url,{headers:{authorization:'Bearer '+unseal(gh.oauthToken),
+       accept:'application/vnd.github+json','user-agent':'TinkerTunnel',
+       'x-github-api-version':'2022-11-28'},signal:AbortSignal.timeout(15000)});
+     if(!response.ok)throw Error('GitHub API returned HTTP '+response.status);
+     const data=await response.json();
+     if(!Array.isArray(data.runners)||Number(data.total_count)>data.runners.length)
+      throw Error('Runner list incomplete; validation unavailable');
+     const match=data.runners.filter(r=>r.name===name);
+     if(match.length!==1)checks.push({label:'GitHub runner',status:'fail',
+       detail:match.length?'Duplicate runner name':'Runner not found'});
+     else{
+      checks.push({label:'GitHub registration',status:'pass',detail:'Runner ID '+match[0].id});
+      checks.push({label:'GitHub runner online',status:match[0].status==='online'?'pass':'fail',
+       detail:match[0].status+(match[0].busy?' · busy':' · idle')});
+     }
+    }catch(e){checks.push({label:'GitHub API',status:'unknown',detail:String(e.message||e).slice(0,180)})}
+   }
+  }
+  const ready=checks.length>0&&checks.every(c=>c.status==='pass');
+  return reply({runnerId:host.id,name:host.name,ready,checkedAt:new Date().toISOString(),checks});
+ }
  if(path==='/api/local/builders/remove'&&method==='POST'){
   const input=await body(req),id=input.runnerId;
   if(typeof id!=='string'||!/^[a-f0-9]{24}$/.test(id))return deny(422,'Select a valid builder');
@@ -158,8 +209,8 @@ export async function adminHostRoute(req,ctx){
     return deny(401,'Administrator password confirmation failed.');
   const mode=input.mode;
   if(!['managed','remote'].includes(mode))return deny(422,'Select full cleanup or unreachable removal.');
-  if(mode==='remote'&&builderFresh(host))
-   return deny(409,'Host is still connected. Use managed removal or wait for it to become unreachable.');
+  if(mode==='remote'&&builderFresh(host)&&!failedInitialSetup(host,initial.hostActions||[]))
+   return deny(409,'Healthy connected builders require managed removal. Force removal is for failed setup or unreachable hosts.');
   if((initial.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
    return deny(409,'A host operation is in progress. Wait for it to finish.');
   if(mode==='managed'&&!builderFresh(host))return deny(409,'Host is unreachable. Choose unreachable removal.');

@@ -70,7 +70,7 @@ function openRemoveDialog(host,mode){
   $("removeBuilderExplanation").textContent=
     "Builder: "+host.name+". "+(live?
       "Connected: TinkerTunnel will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
-      "Unreachable: TinkerTunnel will unregister its idle GitHub runner and revoke controller access. You must uninstall or reimage the machine manually.")+
+      "Force removal: TinkerTunnel will unregister any idle GitHub runner and revoke controller access without uninstalling this machine. You must uninstall or reimage the host manually.")+
     " Active builds cannot be removed. This action cannot be undone.";
   $("removeBuilderFeedback").textContent="";
   $("confirmRemoveBuilder").disabled=true;
@@ -146,22 +146,6 @@ function renderBuilders(){
   else runnerCell.textContent="Not controller-managed";
   tr.append(runnerCell);
   const controls=el("td");
-  if(false&&host.managedHost&&!host.githubRunnerName){
-   if(state==="queued"||state==="claimed")controls.textContent="Setup in progress";
-   else{
-    const button=el("button",state==="failed"||state==="expired"?"Retry runner setup":"Install & register runner","plain-button");
-    button.type="button";button.disabled=currentState(host)!=="online";
-    button.addEventListener("click",async()=>{
-     button.disabled=true;status("Requesting GitHub runner setup for "+host.name);
-     try{const result=await api("/api/local/builders/provision",{runnerId:host.id});
-      status(result.action.existing?"Runner setup already in progress for "+host.name:"Controller queued GitHub runner setup for "+result.action.runnerName);
-      await load();
-     }catch(e){status(e.message)}finally{button.disabled=false}
-    });controls.append(button);
-   }
-  }else if(host.githubRunnerName)controls.textContent="Registered";
-  else controls.textContent="—";
-
   controls.replaceChildren();
   controls.classList.add("tt-builder-action-cell");
   const stage=builderStage(host);
