@@ -142,7 +142,11 @@ let activityBuilders=[];
 function renderActivityChart(){
  const holder=$("activityChart");holder.replaceChildren();
  if(!activityData)return;
- const buckets=activityBuckets(activityData),width=960,height=230,left=38,right=12,top=14,bottom=33;
+ // Match the actual plot width to the panel. A fixed 960px SVG viewBox
+ // was letterboxed by preserveAspectRatio on wide displays.
+ const measured=Math.floor(holder.getBoundingClientRect().width);
+ const buckets=activityBuckets(activityData),width=Math.max(480,measured||480),
+  height=230,left=38,right=12,top=14,bottom=33;
  const chartW=width-left-right,chartH=height-top-bottom;
  const counts=buckets.map(x=>x.build.length+x.job.length);
  const max=Math.max(1,...counts),scale=Math.max(1,Math.ceil(max/4))*4;
@@ -177,7 +181,25 @@ function renderActivityChart(){
   svg.append(hit);
  });
  holder.append(svg);
+ activityRenderedWidth=measured;
  renderActivityDetails(activitySelected===null?null:buckets[activitySelected]||null);
+}
+// Keep geometry in screen pixels as the dashboard resizes. Debounce with
+// animation frames so resize and sidebar changes do not cause redraw storms.
+let activityResizeFrame=0,activityRenderedWidth=0;
+const activityContainer=$("activityChart");
+if(typeof ResizeObserver!=="undefined"){
+ const activityResizeObserver=new ResizeObserver(entries=>{
+  const width=Math.floor(entries[0]?.contentRect.width||0);
+  if(!activityData||Math.abs(width-activityRenderedWidth)<2)return;
+  if(activityResizeFrame)cancelAnimationFrame(activityResizeFrame);
+  activityResizeFrame=requestAnimationFrame(()=>{
+   activityResizeFrame=0;
+   activityRenderedWidth=Math.floor(activityContainer.getBoundingClientRect().width);
+   renderActivityChart();
+  });
+ });
+ activityResizeObserver.observe(activityContainer);
 }
 async function loadActivity(){
  const local=await api("/api/local/activity?range="+encodeURIComponent(activityRange));
