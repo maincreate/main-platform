@@ -262,15 +262,24 @@ const removalHelp={
 };
 let removalTimer=null,removalSerial=0,removalBusy=false;
 function stopRemovalPoll(){removalSerial++;if(removalTimer!==null)clearInterval(removalTimer);removalTimer=null;removalBusy=false;}
-function progressMode(enabled){
- $("removeBuilderProgress").hidden=!enabled;
- for(const id of ["removeBuilderName","removeBuilderPassword"]){
-  $(id).hidden=enabled;const label=removeDialog.querySelector('label[for="'+id+'"]');
-  if(label)label.hidden=enabled;
+let removalConfirmationStep=1;
+function setRemovalStep(step){
+ removalConfirmationStep=step;
+ $("removeBuilderIdentityStep").hidden=step!==1;
+ $("removeBuilderPasswordStep").hidden=step!==2;
+ $("removeBuilderProgress").hidden=step!==3;
+ $("removeBuilderStepIndicator").hidden=false;
+ for(const [index,id] of [[1,"removeBuilderStepOneLabel"],[2,"removeBuilderStepTwoLabel"],[3,"removeBuilderStepThreeLabel"]]){
+  if(step===index)$(id).setAttribute("aria-current","step");
+  else $(id).removeAttribute("aria-current");
  }
- $("confirmRemoveBuilder").hidden=enabled;
- $("cancelRemoveBuilder").textContent=enabled?"Close":"Cancel";
+ $("continueRemoveBuilder").hidden=step!==1;
+ $("backRemoveBuilder").hidden=step!==2;
+ $("confirmRemoveBuilder").hidden=step!==2;
+ $("cancelRemoveBuilder").textContent=step===3?"Close":"Cancel";
+ syncRemoveConfirmation();
 }
+function progressMode(enabled){setRemovalStep(enabled?3:1);}
 function renderRemovalProgress(result){
  if(result.stalled&&result.phase!=="failed"){
   const current=result.stages?.find(s=>s.status==="active");
@@ -335,6 +344,7 @@ function openRemoveDialog(host,mode){
   removeTarget=host;removeMode=mode;
   const live=mode==="managed";
   $("removeBuilderName").value="";$("removeBuilderPassword").value="";
+  $("removeBuilderNameReference").value=host.name;
   $("removeBuilderExplanation").textContent=
     "Builder: "+host.name+". "+(live?
       "Connected: TinkerTunnel will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
@@ -347,17 +357,40 @@ function openRemoveDialog(host,mode){
   removeDialog.showModal();
 }
 function syncRemoveConfirmation(){
-  $("confirmRemoveBuilder").disabled=!removeTarget||
-   $("removeBuilderName").value!==removeTarget.name||
-   !$("removeBuilderPassword").value;
+ const named=!!removeTarget&&$("removeBuilderName").value===removeTarget.name;
+ $("continueRemoveBuilder").disabled=!named;
+ $("confirmRemoveBuilder").disabled=!named||!$("removeBuilderPassword").value||removalConfirmationStep!==2;
 }
+$("copyRemoveBuilderName").addEventListener("click",async()=>{
+ if(!removeTarget)return;
+ try{
+  await navigator.clipboard.writeText(removeTarget.name);
+  $("removeBuilderFeedback").textContent="Machine name copied.";
+ }catch{
+  $("removeBuilderFeedback").textContent="Clipboard unavailable. Select the name and copy it.";
+ }
+});
+$("continueRemoveBuilder").addEventListener("click",()=>{
+ if(removalConfirmationStep!==1||!removeTarget||
+    $("removeBuilderName").value!==removeTarget.name)return;
+ $("removeBuilderFeedback").textContent="";
+ setRemovalStep(2);
+ $("removeBuilderPassword").focus();
+});
+$("backRemoveBuilder").addEventListener("click",()=>{
+ if(removalConfirmationStep!==2)return;
+ $("removeBuilderPassword").value="";
+ $("removeBuilderFeedback").textContent="";
+ setRemovalStep(1);
+ $("removeBuilderName").focus();
+});
 $("removeBuilderName").addEventListener("input",syncRemoveConfirmation);
 $("removeBuilderPassword").addEventListener("input",syncRemoveConfirmation);
 $("cancelRemoveBuilder").addEventListener("click",()=>removeDialog.close());
 $("removeBuilderForm").addEventListener("submit",async(event)=>{
- event.preventDefault();if(!removeTarget)return;
+ event.preventDefault();if(!removeTarget||removalConfirmationStep!==2)return;
  const host=removeTarget,mode=removeMode;
- if($("removeBuilderName").value!==host.name)return;
+ if($("removeBuilderName").value!==host.name||!$("removeBuilderPassword").value)return;
  const password=$("removeBuilderPassword").value;
  $("confirmRemoveBuilder").disabled=true;
  $("removeBuilderFeedback").textContent="Starting "+mode+" removal…";
