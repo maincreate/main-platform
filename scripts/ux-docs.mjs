@@ -5,7 +5,7 @@
  * No API calls, browser inference or running controller required.
  */
 import {readFileSync,writeFileSync,mkdirSync} from "node:fs";
-import {join,dirname} from "node:path";
+import {join,dirname,resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 const root=join(dirname(fileURLToPath(import.meta.url)),"..");
 export const contract=JSON.parse(readFileSync(join(root,"registry/ux-flows.json"),"utf8"));
@@ -63,7 +63,7 @@ export function documents(data=contract){
  validateFlows(data);
  return new Map(data.flows.map(flow=>["docs/support/"+flow.id+".md",renderFlow(flow)]));
 }
-if(process.argv[1]&&fileURLToPath(import.meta.url)===join(root,"scripts/ux-docs.mjs")){
+if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
  const mode=process.argv[2];if(!["--write","--check"].includes(mode))throw Error("Use --write or --check");
  for(const [path,content] of documents()){
   const absolute=join(root,path);

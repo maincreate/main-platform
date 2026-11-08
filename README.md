@@ -86,3 +86,15 @@ Login behavior can also be checked from a trusted client using `scripts/smoke-lo
 This release supports password-based administration, persistent settings, encrypted GitHub credentials, runner enrollment, versioned capability discovery, approval-pending jobs and an opt-in runner execution engine. It **does not** support arbitrary shell execution, automatic SDK installation, firmware flashing, production OAuth-protected ChatGPT access, or unmanaged deployments. Execution is explicitly disabled by default.
 
 For deeper architecture and deployment details, see [architecture](docs/mvp-architecture.md), [portal API](portal/README.md), [appearance choices](docs/design-directions.md) and [a provider-specific deployment example](docs/coolify-deployment.md).
+
+## Main{Create} repository boundaries
+
+This is the management repository for Main{Create}. The controller, portal, MCP gateway, optional tunnel, capability policy, and deployment configuration live here.
+
+- [main-builders](https://github.com/maincreate/main-builders) owns the distributed host service, runner adapters, installer scripts, and OS/architecture targets.
+- [main-marketplace](https://github.com/maincreate/main-marketplace) owns the SDK, toolkit, and hardware catalog.
+- [main-create](https://github.com/maincreate/main-create) owns the public website.
+
+The deployment build uses checked-in copies of the builder and catalog files recorded in `vendor-lock.json`. This keeps local and Coolify builds independent of GitHub credentials and keeps existing install URLs, configuration, and management API contracts intact.
+
+Update the source repository first. For each entry in the lock, archive the listed paths from its reviewed commit into this checkout. Remove any files deleted in the source, update the pinned revision, commit, and verify with `node scripts/verify-vendor.mjs ../main-builders ../main-marketplace`. Run the platform tests before releasing.
