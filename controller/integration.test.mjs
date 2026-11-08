@@ -264,7 +264,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const authorized={...headersMcp,authorization:"Bearer "+mcpToken};
    const init=await json(mcp,"/mcp",{jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2025-11-25"}},authorized);
    assert.equal(init.status,200);
-   assert.equal(init.data.result.serverInfo.name,"tinkertunnel");
+   assert.equal(init.data.result.serverInfo.name,"maincreate");
    const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
    assert.deepEqual(list.data.result.tools.map(t=>t.name),["tt_discover","tt_inspect","tt_plan","tt_execute","tt_jobs","tt_github_repository_request","tt_assets"]);
    const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"tinkertunnel_list_runners",arguments:{}}},authorized);

@@ -195,7 +195,7 @@ async function handle(request){
    if(path==="/"||path==="/index.html")return respond(PORTAL_HTML,200,"text/html; charset=utf-8");
    if(path==="/portal.css")return respond(PORTAL_CSS,200,"text/css; charset=utf-8");
    if(path==="/portal.js")return respond(PORTAL_JS,200,"text/javascript; charset=utf-8");
-   if(path==="/healthz")return json({service:"tinkertunnel-portal",state:"preview",healthy:true});
+   if(path==="/healthz")return json({service:"maincreate-portal",state:"preview",healthy:true});
    if(path==="/api/v1/catalog")return json({schema_version:1,frameworks:CATALOG},200,false);
    if(path==="/api/v1/status")return json({schema_version:1,mode:"preview",connections:{
       github:{verified:false,label:"Not connected"},agent:{verified:false,label:"Not enrolled"},mcp:{verified:false,label:"Not verified"}

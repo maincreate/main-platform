@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       RUNNER_SCOPE: org
-      ORG_NAME: Main{Create}
+      ORG_NAME: maincreate
       RUNNER_NAME: ci-linux-01
       RUNNER_GROUP: Default
       LABELS: ci,linux-x64

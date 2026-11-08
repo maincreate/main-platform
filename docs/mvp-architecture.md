@@ -49,7 +49,7 @@ The agent maintains an outbound authenticated connection or secure polling to th
 
 ## Storage key and manifest contract
 
-Use a **private** R2 bucket (proposed `tinkertunnel-artifacts`) and Standard storage class. Names are examples, not deployed URLs.
+Use a **private** R2 bucket (proposed `maincreate-artifacts`) and Standard storage class. Names are examples, not deployed URLs.
 
 ```text
 waymarkeros/dev/esp32s3/<sha40>/manifest.json

@@ -82,7 +82,7 @@ async function processMessage(message){
  const id=message.id;
  switch(message.method){
   case "initialize":return ok(id,{protocolVersion:version,
-   capabilities:{tools:{listChanged:false}},serverInfo:{name:"tinkertunnel",version:"0.2.0"}});
+   capabilities:{tools:{listChanged:false}},serverInfo:{name:"maincreate",version:"0.2.0"}});
   case "ping":return ok(id,{});
   case "tools/list":return ok(id,{tools});
   case "tools/call":{
@@ -110,7 +110,7 @@ createServer(async(req,res)=>{
   if(origin&&!allowedOrigins.includes(origin))return send(res,403,{error:"Origin rejected"});
   if(bearer.length<32||serviceToken.length<32)return send(res,503,{error:"MCP gateway not configured"});
   if(!equal(req.headers.authorization||"","Bearer "+bearer))
-   return send(res,401,{error:"Unauthorized"},{"www-authenticate":'Bearer realm="tinkertunnel-mcp"'});
+   return send(res,401,{error:"Unauthorized"},{"www-authenticate":'Bearer realm="maincreate-mcp"'});
   const accept=req.headers.accept||"";
   if(!accept.includes("application/json")||!accept.includes("text/event-stream"))
    return send(res,406,{error:"Accept must include application/json and text/event-stream"});

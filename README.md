@@ -20,10 +20,10 @@ No environment-provided administrator token, one-time setup code, workspace role
 The root `Dockerfile` builds the portal/controller and listens on port `3000`. It needs a **persistent, writable** `/data` volume owned or writable by the Node user (UID 1000). It stores the password hash and a generated encryption key. Back this volume up.
 
 ```sh
-docker build -t tinkertunnel .
-docker volume create tinkertunnel-data
-docker run --rm --name tinkertunnel -p 127.0.0.1:13000:3000 \
-  -v tinkertunnel-data:/data tinkertunnel
+docker build -t maincreate-platform .
+docker volume create maincreate-data
+docker run --rm --name maincreate-platform -p 127.0.0.1:13000:3000 \
+  -v maincreate-data:/data maincreate-platform
 ```
 
 If your Docker platform creates the volume with root ownership, set ownership on an empty volume before first launch; do not run the portal as root. For a fresh named volume, Docker may initialize the volume from the image's writable `/data` directory.
@@ -106,3 +106,11 @@ Before deploying this revision, rename configured environment keys with the form
 ### Upgrading Compose storage
 
 New Compose projects create `main_data` and `main_runner` volumes. When upgrading a Compose project with existing state, keep its existing volumes attached by mapping them explicitly in Compose or Coolify before redeploying. Mount controller state at `/data` and runner container state at `/var/lib/maincreate`. Standalone Linux Host Service storage is separate from the Compose runner volume.
+
+### Compatibility identifiers
+
+Main{Create} owns this platform. A connected GitHub organization such as TinkerTunnel is an independent workspace for projects and runners.
+
+Existing Host Service installs still use the `tinkertunnel-host.service` systemd unit, the matching executable and sudo rule, and enrollment and runner data under the legacy paths. The controller also retains the download URL and mDNS service type used by installed hosts. Changing these together requires a host migration that preserves enrollment and runner registration.
+
+The project manifest path and MCP tool IDs remain compatible with existing repositories and clients. Historical source and CI records can show the former product name.
