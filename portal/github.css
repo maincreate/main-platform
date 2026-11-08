@@ -11,3 +11,11 @@ body>.main.github-shell{margin-left:var(--tt-sidebar-width);width:calc(100% - va
 .github-panel{min-width:0}
 .github-panel label,.github-panel .muted,.github-panel .small{overflow-wrap:anywhere}
 @media(max-width:760px){body>.main.github-shell{width:100%;margin-left:0;padding:25px 18px 60px}}
+
+/* Explicit org-hosted-runner check. Not an API-verified policy state. */
+.tt-runner-policy{margin:22px 0;padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.tt-runner-policy h3{font-size:16px;margin:0 0 10px}
+.tt-runner-policy p{line-height:1.55;margin:9px 0}
+.tt-runner-policy a{color:var(--accent);text-decoration:underline}
+.tt-runner-policy .tt-runner-policy-check{display:flex;align-items:flex-start;gap:12px;line-height:1.5;margin:15px 0}
+.tt-runner-policy-check input{width:18px;height:18px;flex:none;margin-top:2px;accent-color:var(--accent)}

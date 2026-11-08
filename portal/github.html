@@ -47,7 +47,15 @@
  <a class="plain-button" href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create a GitHub organization ↗</a>
 </div>
     <button id="refreshOrganizations" class="plain-button" type="button">Refresh organizations</button>
-    <div class="button-row"><button id="saveOrg" class="primary">Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>
+    <section id="runnerPolicy" class="tt-runner-policy" aria-labelledby="runnerPolicyTitle" hidden>
+      <h3 id="runnerPolicyTitle">Self-hosted runner policy</h3>
+      <p>TinkerTunnel is designed to use your self-hosted builders. Before continuing, disable GitHub's <strong>standard hosted runners</strong> for this organization. This is a GitHub organization setting, not the self-hosted runner permission switch.</p>
+      <p><a id="runnerPolicyLink" href="#" target="_blank" rel="noopener noreferrer">Open organization Actions settings ↗</a> and under <strong>Standard hosted runners</strong>, select <strong>Disable for all repositories</strong>, then save.</p>
+      <label class="tt-runner-policy-check" for="runnerPolicyConfirmed"><input id="runnerPolicyConfirmed" type="checkbox"> I have saved this setting in GitHub for <strong id="runnerPolicyOrg"></strong>.</label>
+      <p id="runnerPolicyState" class="muted" role="status">This confirmation is recorded in TinkerTunnel, not verified by the GitHub API.</p>
+      <p class="small">Disabling standard hosted runners is supported on GitHub Team and Enterprise. It blocks ordinary hosted runner labels; hosted runner groups may still be allowed. For strictly self-hosted execution, also restrict runner groups and workflow targets.</p>
+    </section>
+    <div class="button-row"><button id="saveOrg" class="primary" disabled>Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>
     <p class="small">To select an organization, first install this GitHub App on that organization in GitHub. Then return and choose Refresh organizations. <a href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create an organization</a> if you don't have one. Selecting an organization does not install or grant runners access.</p>
   </section>
 </main>
