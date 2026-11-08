@@ -180,3 +180,11 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-builder-dialog #builderProgress{min-height:20px;color:var(--accent)}
 .tt-builder-dialog .tt-builder-footnote{font-size:11px}
 .inventory-table details ul{padding-left:16px;margin:8px 0;font-size:12px}
+
+/* Outbound Host Service enrollment — no legacy SSH pairing fields. */
+.tt-builder-content{display:grid;gap:11px}
+.tt-builder-dialog{max-height:min(90vh,780px);overflow-y:auto}
+.tt-builder-dialog .tt-command-block{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:7px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px}
+.tt-builder-dialog .tt-service-command{align-self:stretch;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;margin:0;font-size:12px;line-height:1.7;color:var(--text);user-select:text}
+.tt-builder-dialog .tt-builder-copy-status{min-height:1em;margin:0}
+.tt-builder-dialog #controllerAddress{overflow-wrap:anywhere}
