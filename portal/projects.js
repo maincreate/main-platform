@@ -189,8 +189,57 @@ function openRouting(repository){
   $("routeAutoFlash").checked=!!policy?.autoFlashRequested;
   $("routeRemove").disabled=!policy;
   $("routeNotice").textContent=policy?.note||"";
+  $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName;
+  $("routeGenerateWorkflow").disabled=!policy||policy.buildTrigger!=="github-actions";
+  $("routeCopyWorkflow").hidden=true;
+  $("routeWorkflowYaml").hidden=true;
+  $("routeWorkflowPath").hidden=true;
+  $("routeWorkflowYaml").value="";
+  $("routeWorkflowState").textContent=policy?.githubRunnerLabel?
+    "Runner label "+policy.githubRunnerLabel+" saved. Generate the workflow and commit it to the selected repository.":
+    "Save a GitHub Actions route first. A managed, online runner and a private repository are required.";
   $("routeDialog").showModal();
 }
+$("routeProvisionLabel").addEventListener("click",async()=>{
+  if(!activeRouteRepo)return;
+  const button=$("routeProvisionLabel");button.disabled=true;
+  $("routeWorkflowState").textContent="Verifying GitHub runner identity and provisioning a unique label…";
+  try{
+    const result=await api("/api/local/projects/routes/runner-label",{repository:activeRouteRepo});
+    $("routeWorkflowState").textContent="Runner "+result.runnerName+" verified. Label "+result.label+" configured. Now generate workflow.";
+    await load();
+  }catch(e){$("routeWorkflowState").textContent=e.message;}
+  finally{button.disabled=false;}
+});
+$("routeGenerateWorkflow").addEventListener("click",async()=>{
+  if(!activeRouteRepo)return;
+  const button=$("routeGenerateWorkflow");button.disabled=true;
+  try{
+    const result=await api("/api/local/projects/routes/workflow?repository="+encodeURIComponent(activeRouteRepo));
+    if(!result.ready){
+      $("routeWorkflowState").textContent=result.reason||"Builder routing not ready";
+      return;
+    }
+    $("routeWorkflowYaml").value=result.workflow;
+    $("routeWorkflowYaml").hidden=false;
+    $("routeWorkflowPath").textContent="Commit as "+result.filePath;
+    $("routeWorkflowPath").hidden=false;
+    $("routeCopyWorkflow").hidden=false;
+    $("routeWorkflowState").textContent="Build-only workflow ready for "+result.runnerLabel+
+      ". Commit to the private repo: "+result.filePath+". Flash is NOT enabled.";
+  }catch(e){$("routeWorkflowState").textContent=e.message;}
+  finally{button.disabled=false;}
+});
+$("routeCopyWorkflow").addEventListener("click",async()=>{
+  if(!$("routeWorkflowYaml").value)return;
+  try{
+    await navigator.clipboard.writeText($("routeWorkflowYaml").value);
+    $("routeWorkflowState").textContent="Workflow YAML copied. Commit the file in GitHub or your IDE to activate builds.";
+  }catch{
+    $("routeWorkflowYaml").select();
+    $("routeWorkflowState").textContent="Clipboard unavailable. Select and copy the YAML manually.";
+  }
+});
 $("routeFlashBuilder").addEventListener("change",()=>refreshRouteDeviceOptions());
 $("routeCancel").addEventListener("click",()=>$("routeDialog").close());
 $("routeDialog").addEventListener("close",()=>{activeRouteRepo=null;});

@@ -56,6 +56,10 @@ The gateway exposes **six stable MCP tools**: `maincreate_discover`, `maincreate
 
 **The controller does not execute jobs by default.** Live job dispatch requires `MAIN_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `MAIN_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
 
+## GitHub Actions project-specific build routing
+
+Projects can save a repository-to-builder route and generate a build-only GitHub Actions workflow for private ESP-IDF 5.5.6 Linux ARM64 repositories. The workflow uses a unique GitHub runner label for exact host placement, triggered by normal IDE pushes or ChatGPT changes merged into the repository. Runner-label provisioning is explicit; the generated workflow must be reviewed and committed to the project. **No firmware flashing occurs.** See [GitHub firmware build routing](docs/github-firmware-build-routing.md).
+
 ## Operational workspace v0.3
 
 After account creation, the **homepage is the workspace's real operational state**, not a repeated setup flow. It shows projects, recent jobs, enrolled builders, connected hardware and pending approvals. The main areas are:
