@@ -845,7 +845,7 @@ export async function localRoute(req) {
       }
       return deny(404,"Unknown management endpoint");
     }
-    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal});
+    const agentHostResponse=await agentHostRoute(req,{state,save,body,reply,deny,digest,equal,unseal,rnd,githubIdentityCurrent});
      if(agentHostResponse)return agentHostResponse;
      if(path==="/api/agent/enroll"&&method==="POST"){
       const b=await body(req),s=state();

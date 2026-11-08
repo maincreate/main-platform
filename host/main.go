@@ -153,7 +153,14 @@ func cleanupManagedHost()error{
  // The delayed one-shot is independent of this service; it stops and removes
  // the Host Service only after the completed action has been acknowledged.
  script:="/run/tinkertunnel-finalize.sh"
- contents:="#!/bin/sh\\nset -eu\\nsystemctl disable --now tinkertunnel-host.service\\nrm -f /etc/systemd/system/tinkertunnel-host.service /usr/local/bin/tinkertunnel-host /etc/sudoers.d/90-tinkertunnel-pair\\nsystemctl daemon-reload\\nrm -rf /var/lib/tinkertunnel\\nrm -f /run/tinkertunnel-finalize.sh\\n"
+ contents:`#!/bin/sh
+set -eu
+systemctl disable --now tinkertunnel-host.service
+rm -f /etc/systemd/system/tinkertunnel-host.service /usr/local/bin/tinkertunnel-host /etc/sudoers.d/90-tinkertunnel-pair
+systemctl daemon-reload
+rm -rf /var/lib/tinkertunnel
+rm -f /run/tinkertunnel-finalize.sh
+`
  if e:=os.WriteFile(script,[]byte(contents),0700);e!=nil{return e}
  return runCmd("","","systemd-run","--unit=tinkertunnel-finalize","--on-active=8s",
   "--property=Type=oneshot","/bin/sh",script)
