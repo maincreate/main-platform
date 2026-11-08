@@ -36,6 +36,41 @@ export function removalActivity(host,actions=[],now=Date.now()){
   actionStatus:relevant?.status||null,expiresAt:relevant?.expiresAt||null,
   reason:active||recentControllerStep?null:'No active removal action; previous step may have stopped'};
 }
+// A durable, ordered view of the four removal phases. The source of truth is
+// controller state and completed action acknowledgements, never a timer.
+const REMOVAL_STEPS=['stopping','unregistering','cleaning','controller'];
+function removalStage(phase){
+ if(['requested','stopping'].includes(phase))return 'stopping';
+ if(phase==='unregistering')return 'unregistering';
+ if(['unregistered','cleaning'].includes(phase))return 'cleaning';
+ return 'controller';
+}
+export function removalTimeline(host,actions=[],audit=null){
+ const d=host?.decommission;
+ if(!d&&!audit)return null;
+ const done=!!audit,mode=d?.mode||(audit?.localResult==='not_reachable'?'remote':'managed');
+ const phase=d?.phase||'completed';
+ const failed=phase==='failed',failedAt=d?.failedStage||'stopping';
+ const current=done?'controller':failed?failedAt:removalStage(phase);
+ const activeIndex=REMOVAL_STEPS.indexOf(current);
+ const stop=actions.filter(a=>a.runnerId===(host?.id||audit?.id)&&a.type==='github-runner.stop').at(-1);
+ const cleanup=actions.filter(a=>a.runnerId===(host?.id||audit?.id)&&a.type==='host.cleanup').at(-1);
+ const hasRunner=!!(host?.githubRunnerName||audit?.githubRunnerName);
+ return {removed:done,phase,mode,error:d?.error||null,
+  stages:REMOVAL_STEPS.map((id,index)=>{
+   let status=done?'completed':index<activeIndex?'completed':index===activeIndex?(failed?'failed':'active'):'pending';
+   if(mode==='remote'&&(id==='stopping'||id==='cleaning'))status='skipped';
+   if(!hasRunner&&id==='stopping')status='skipped';
+   if(id==='stopping'&&stop?.status==='completed')status='completed';
+   if(id==='cleaning'&&cleanup?.status==='completed')status='completed';
+   if(done&&Array.isArray(audit?.completedStages)){
+    const saved=audit.completedStages.find(s=>s.id===id);
+    if(saved?.status==='skipped')status='skipped';
+   }
+   if(failed&&id===failedAt)status='failed';
+   return {id,status,detail:id===failedAt&&failed?d.error||'Removal failed':null};
+  })};
+}
 function failedInitialSetup(host,actions){
  if(host.githubRunnerName)return false;
  const items=actions.filter(a=>a.runnerId===host.id);
@@ -85,6 +120,7 @@ function finishBuilderRemoval(id,ctx,localResult){
  s.hostActions=(s.hostActions||[]).map(a=>a.runnerId===id?{...a,secret:undefined}:a);
  s.builderRemovalAudit=[...(s.builderRemovalAudit||[]).slice(-49),{
   id,name:host.name,githubRunnerName:runnerForRemoval(host,s.hostActions||[]),
+  completedStages:removalTimeline(host,s.hostActions||[])?.stages||[],
   githubResult:lifecycle.githubResult||'not_registered',localResult,
   removedAt:new Date().toISOString(),actor:lifecycle.actor||'controller'
  }];
@@ -123,7 +159,7 @@ async function progressBuilderDecommission(id,ctx){
   return {queued:true,phase:'cleaning'};
  }catch(error){
   const s=ctx.state(),current=s.runners.find(r=>r.id===id);
-  if(current?.decommission){current.decommission.phase='failed';current.decommission.error=String(error.message||error).slice(0,300);ctx.save(s);}
+  if(current?.decommission){current.decommission.failedStage=removalStage(current.decommission.phase);current.decommission.phase='failed';current.decommission.error=String(error.message||error).slice(0,300);ctx.save(s);}
   return {error:String(error.message||error)};
  }
 }
@@ -258,6 +294,7 @@ export async function adminHostRoute(req,ctx){
     action.status='expired';action.completedAt=new Date().toISOString();delete action.secret;
    }
   }
+  host.decommission.failedStage=removalStage(host.decommission.phase);
   host.decommission.phase='failed';
   host.decommission.error='Removal stopped: no active action. Inspect the host and GitHub state before retrying.';
   save(s);return reply({status:'stalled',activity:removalActivity(host,s.hostActions||[])});
@@ -300,10 +337,14 @@ export async function adminHostRoute(req,ctx){
  if(path==='/api/local/builders/remove/status'&&method==='GET'){
   const id=new URL(req.url).searchParams.get('id');
   const current=state(),host=current.runners.find(r=>r.id===id);
-  if(host)return reply({removed:false,phase:host.decommission?.phase||null,error:host.decommission?.error||null,
-   mode:host.decommission?.mode||null});
+  if(host){
+   if(!host.decommission)return reply({removed:false,phase:null,error:null,mode:null,stages:[]});
+   const activity=removalActivity(host,current.hostActions||[]);
+   const timeline=removalTimeline(host,current.hostActions||[]);
+   return reply({...timeline,stalled:activity?.stalled||false});
+  }
   const audit=(current.builderRemovalAudit||[]).findLast(r=>r.id===id);
-  return audit?reply({...audit,removed:true}):deny(404,'Builder not found');
+  return audit?reply({...audit,...removalTimeline(null,[],audit)}):deny(404,'Builder not found');
  }
   if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
  if(path==='/api/local/builders/upgrade'&&method==='POST'){
@@ -377,6 +418,7 @@ export async function agentHostRoute(req,ctx){
  }
  if(action.type&&runner.decommission){
   if(!input.success){
+   runner.decommission.failedStage=action.type==='github-runner.stop'?'stopping':'cleaning';
    runner.decommission.phase='failed';
    runner.decommission.error=action.message==='unsupported action'?
      'Installed Host Service does not support removal. Upgrade using the current TinkerTunnel installer on this machine, then retry.':
