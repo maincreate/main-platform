@@ -25,7 +25,7 @@ export function validateArchiveEntry(name){
   return !name.startsWith('/')&&!name.includes('\\')&&!name.split('/').includes('..')&&p.startsWith('/stage/');
 }
 export function isExactArduinoVersion(output){
-  return typeof output==='string'&&/arduino-cli(?: version)?\s+1\.5\.1(?:\s|$)/i.test(output);
+  return typeof output==='string'&&/\barduino-cli\s+(?:Version:\s*)?v?1\.5\.1(?:\s|$)/i.test(output);
 }
 export async function download(url){
   const allowed=new Set(['github.com','objects.githubusercontent.com','release-assets.githubusercontent.com']);
