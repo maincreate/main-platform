@@ -194,3 +194,16 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-builder-dialog select{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--bg);color:var(--text);font:inherit}
 .tt-builder-dialog .tt-platform-description{margin:0}
 @media(max-width:530px){.tt-builder-dialog .tt-platform-grid{grid-template-columns:1fr}}
+
+/* Stepped, URL-based Host Service onboarding (mDNS intentionally deferred). */
+.tt-builder-dialog .tt-builder-step{display:grid;gap:11px}
+.tt-builder-dialog .tt-builder-step[hidden],.tt-builder-dialog #hostPairDetails[hidden]{display:none}
+.tt-builder-dialog .tt-step-indicator{display:flex;flex-wrap:wrap;gap:8px}
+.tt-builder-dialog .tt-step-indicator span{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:var(--muted)}
+.tt-builder-dialog .tt-step-indicator span.active{border-color:var(--accent);color:var(--text)}
+.tt-builder-dialog .tt-host-pair-details{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px}
+.tt-builder-dialog .tt-host-pair-details p{margin:0}
+.tt-builder-dialog .tt-fingerprint{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);padding:12px;border:1px solid var(--line);border-radius:8px;user-select:text;font-size:12px}
+.tt-builder-dialog .tt-fingerprint-confirm{display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+.tt-builder-dialog .tt-fingerprint-confirm input{width:auto;flex:none;margin-top:3px}
+.tt-builder-dialog #approveHostPair:disabled{opacity:.45;cursor:not-allowed}
