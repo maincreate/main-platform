@@ -41,9 +41,14 @@ on_exit() {
     status "$state" "$component"
   done
   if (( exit_code == 0 )); then
-    printf '\n%bHOST SERVICE INSTALLED • BUILDER NOT YET READY%b\n' "$YELLOW$BOLD" "$RESET"
-    printf 'Next: TinkerTunnel > Builders > Add a Build Machine.\n'
-    printf 'Pair the host, then verify the GitHub Actions runner reports Online.\n'
+    if [[ "${UPGRADING:-false}" == true ]]; then
+      printf '\\n%bHOST SERVICE UPGRADED • ENROLLMENT PRESERVED%b\\n' "$GREEN$BOLD" "$RESET"
+      printf 'Return to Builders and verify the reported software version.\\n'
+    else
+      printf '\\n%bHOST SERVICE INSTALLED • BUILDER NOT YET READY%b\\n' "$YELLOW$BOLD" "$RESET"
+      printf 'Next: TinkerTunnel > Builders > Add a Build Machine.\\n'
+      printf 'Pair the host, then verify the GitHub Actions runner reports Online.\\n'
+    fi
   else
     printf '\n%bSETUP INCOMPLETE — DO NOT CONSIDER THIS BUILDER READY%b\n' "$RED$BOLD" "$RESET"
     printf 'Fix the failed step above before proceeding to pairing.\n'
@@ -87,7 +92,9 @@ download_host() {
   (cd "$TEMP" && sha256sum --check "$bin.sha256")
 }
 install_host() {
-  install -m 0755 "$TEMP/tinkertunnel-host-linux-arm64" /usr/local/bin/tinkertunnel-host
+  # Install through a same-directory rename: overwriting a running executable in-place can fail with ETXTBSY.
+  install -m 0755 "$TEMP/tinkertunnel-host-linux-arm64" /usr/local/bin/tinkertunnel-host.new
+  mv -f /usr/local/bin/tinkertunnel-host.new /usr/local/bin/tinkertunnel-host
   id -u tt-runner >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/tt-runner --shell /usr/sbin/nologin tt-runner
   install -d -m 0700 -o root -g root /var/lib/tinkertunnel
 }
@@ -122,7 +129,9 @@ UNIT
   systemctl is-active --quiet tinkertunnel-host.service
 }
 
-printf '\n%bTINKERTUNNEL  /  LINUX ARM64 HOST SETUP%b\n' "$BOLD" "$RESET"
+UPGRADING=false
+if [[ -s /var/lib/tinkertunnel/host.json ]]; then UPGRADING=true; fi
+printf '\\n%bTINKERTUNNEL  /  LINUX ARM64 HOST SETUP%b\\n' "$BOLD" "$RESET"
 printf 'Controller: %s\n' "$ORIGIN"
 printf 'The GitHub Actions runner will be installed only after host pairing.\n\n'
 run_stage "Preflight" preflight
