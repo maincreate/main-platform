@@ -1,5 +1,16 @@
 [
   {
+    "id": "sdk.arduino_cli.install",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "available",
+    "description": "Install Arduino CLI 1.5.1 from an immutable official GitHub release tarball with an architecture-specific SHA-256 pin. Explicit runner opt-in and portal approval are required; installation is per-user and never flashes devices.",
+    "platforms": ["linux"],
+    "parameters": {"type":"object","properties":{},"required":[],"additionalProperties":false},
+    "steps": [{"capability":"sdk.arduino_cli.install"}]
+  },
+  {
     "id": "host.snapshot",
     "version": "1.0.0",
     "kind": "action",

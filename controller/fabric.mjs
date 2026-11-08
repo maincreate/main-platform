@@ -10,7 +10,7 @@ const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
 const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
 const CAPS=readManifest("capabilities.json");
 const TOOLKITS=readManifest("toolkits.json");
-const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build"]);
+const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install"]);
 function validateRegistry(){
  const ids=new Set();
  for(const c of CAPS){

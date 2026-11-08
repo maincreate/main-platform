@@ -373,13 +373,35 @@ export async function localRoute(req) {
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
       if(path==="/api/local/marketplace/plans"&&method==="GET")
-        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse()});
+        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse().map(p=>({...p,job_statuses:(p.job_ids||[]).map(id=>{try{return fabricCall('maincreate_jobs',{action:'get',job_id:id}).job.status}catch{return 'unknown'}})}))});
       if(path==="/api/local/marketplace/plan"&&method==="POST"){
         try{
           const input=await body(req),s=state();
           const plan=makeInstallationPlan(input,s.runners,session(req).username);
           s.marketplacePlans=[...(s.marketplacePlans||[]).slice(-99),plan];save(s);
           return reply({plan},201);
+        }catch(e){return deny(e.status||422,e.message)}
+      }
+      if(path==="/api/local/marketplace/request"&&method==="POST"){
+        try{
+          const input=await body(req),s=state(),plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
+          if(!plan)return deny(404,"Installation plan not found");
+          if(plan.family!=="arduino-cli"||plan.version!=="1.5.1")return deny(422,"This plan has no enabled installer");
+          if(!Array.isArray(plan.targets)||!plan.targets.length)return deny(422,"Installation plan has no targets");
+          const jobs=plan.job_ids||[],statuses=jobs.map(id=>{try{return fabricCall("maincreate_jobs",{action:"get",job_id:id}).job.status}catch{return "unknown"}});
+          if(statuses.some(x=>["awaiting_approval","queued","running","completed"].includes(x)))return deny(409,"This plan already has requested or completed builder jobs");
+          plan.job_ids=[];const failures=[];
+          for(const target of plan.targets){
+            const runner=s.runners.find(r=>r.id===target.builderId);
+            if(!runner||runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)){target.status="failed";target.error="Runner is not a supported Linux Arduino CLI target";failures.push(target.builderId);continue;}
+            try{
+              const fabricPlan=fabricCall("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}},{runners:s.runners});
+              const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
+              plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
+            }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
+          }
+          plan.execution=plan.job_ids.length?"awaiting_approval":"failed";plan.requestedAt=new Date().toISOString();save(s);
+          return reply({plan,partial:failures.length>0,failed_builders:failures},plan.job_ids.length?202:422);
         }catch(e){return deny(e.status||422,e.message)}
       }
       if(path==="/api/local/builders/assignment"&&method==="POST"){
