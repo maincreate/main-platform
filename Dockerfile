@@ -12,7 +12,7 @@ COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html port
 COPY --chown=node:node controller/routes.mjs controller/host_routes.mjs controller/hosts.mjs controller/runner_provisioning.mjs controller/project_monitor.mjs controller/fabric.mjs controller/devices.mjs controller/microcontrollers.mjs controller/projects.mjs controller/repository_creation.mjs controller/marketplace_planning.mjs controller/build_flash_routing.mjs ./controller/
 COPY --chown=node:node controller/builder_decommission.test.mjs controller/marketplace_planning.test.mjs ./controller/
 RUN node --test ./controller/builder_decommission.test.mjs ./controller/marketplace_planning.test.mjs
-COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
+COPY --chown=node:node runner/agent.mjs runner/sdk_install.mjs runner/scan_devices.py ./runner/
 COPY --chown=node:node registry/capabilities.json registry/toolkits.json registry/microcontrollers.json registry/ux-flows.json ./registry/
 # Fail image builds immediately if the portal has any missing static ESM dependencies.
 RUN node -e "import('./controller/routes.mjs').then(() => console.log('Portal runtime modules resolved'))"
