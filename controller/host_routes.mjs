@@ -76,6 +76,10 @@ async function progressBuilderDecommission(id,ctx){
  const saved=ctx.state(),host=saved.runners.find(r=>r.id===id);
  if(!host?.decommission)return null;
  try{
+  if(!host.decommission.githubResult){
+   const pending=ctx.state(),entry=pending.runners.find(r=>r.id===id);
+   if(entry?.decommission){entry.decommission.phase='unregistering';ctx.save(pending);}
+  }
   const githubResult=host.decommission.githubResult||await unregisterGithubRunner(host,saved.hostActions||[],ctx);
   const s=ctx.state(),current=s.runners.find(r=>r.id===id);
   if(!current?.decommission)return null;
@@ -301,6 +305,8 @@ export async function agentHostRoute(req,ctx){
   return reply({ok:true,status:action.status,progress:result});
  }
  if(input.success&&action.type==='host.cleanup'){
+  const beforeFinish=state(),finishing=beforeFinish.runners.find(r=>r.id===runner.id);
+  if(finishing?.decommission){finishing.decommission.phase='controller';save(beforeFinish);}
   const result=finishBuilderRemoval(runner.id,{state,save},'cleanup_scheduled');
   return reply({ok:true,status:action.status,progress:result});
  }
