@@ -1,85 +1,118 @@
 #!/usr/bin/env node
 /**
- * TinkerTunnel Host Service — local-first enrollment and outbound management.
+ * Outbound Host Service pairing.
  *
- * Pair from the host with: node runner/service.mjs pair
- * Run after pairing:     node runner/service.mjs run
- *
- * No inbound SSH listener, no server-admin password retained, and no remote
- * arbitrary-command interface. The existing bounded agent performs polling.
+ * The host connects to the HTTPS controller, announces a persistent Ed25519
+ * public key, and shows its fingerprint and a pairing URL. A logged-in controller
+ * administrator compares the same fingerprint and explicitly approves the host.
+ * No local HTTP listener, network scanning, SSH or host password is required.
  */
 import {spawn} from "node:child_process";
 import {createInterface} from "node:readline/promises";
-import {Writable} from "node:stream";
-import {readFileSync,existsSync} from "node:fs";
+import {generateKeyPairSync,createPublicKey,createPrivateKey,createHash,sign} from "node:crypto";
+import {readFileSync,writeFileSync,mkdirSync,chmodSync,existsSync} from "node:fs";
 import {join} from "node:path";
-import {homedir} from "node:os";
+import {homedir,hostname,platform,arch} from "node:os";
 import {fileURLToPath} from "node:url";
 
 const stateDir=process.env.TT_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
 const statePath=join(stateDir,"runner.json");
+const identityPath=join(stateDir,"host-identity.json");
 const agent=fileURLToPath(new URL("./agent.mjs",import.meta.url));
-const error=(message)=>Object.assign(new Error(message),{code:"PAIRING_FAILED"});
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const error=message=>Object.assign(new Error(message),{code:"PAIRING_FAILED"});
+const os={win32:"windows",darwin:"macos",linux:"linux"}[platform()];
+const architecture={x64:"x64",arm64:"arm64"}[arch()];
 
 export function controllerAddress(input){
  let url;
  try{url=new URL(String(input||"").trim());}catch{throw error("Enter a valid controller URL");}
  if(url.protocol!=="https:"||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
-  throw error("Use the HTTPS controller origin (without a path or embedded credentials)");
+  throw error("Use the HTTPS controller origin without a path or embedded credentials");
  return url.origin;
 }
-export function identityName(username){
- if(typeof username!=="string"||!/^[a-zA-Z0-9_.-]{1,64}$/.test(username))throw error("Enter a valid administrator username");
- return username;
+function identity(){
+ mkdirSync(stateDir,{recursive:true,mode:0o700});
+ let value;
+ if(existsSync(identityPath)){
+  value=JSON.parse(readFileSync(identityPath,"utf8"));
+ }else{
+  const {privateKey,publicKey}=generateKeyPairSync("ed25519");
+  value={
+   privateKey:privateKey.export({format:"der",type:"pkcs8"}).toString("base64"),
+   publicKey:publicKey.export({format:"der",type:"spki"}).toString("base64")
+  };
+  writeFileSync(identityPath,JSON.stringify(value),{mode:0o600,flag:"wx"});
+ }
+ const privateKey=createPrivateKey({key:Buffer.from(value.privateKey,"base64"),format:"der",type:"pkcs8"});
+ const publicKey=createPublicKey(privateKey).export({format:"der",type:"spki"}).toString("base64");
+ if(publicKey!==value.publicKey)throw error("Stored host identity does not match its public key");
+ chmodSync(identityPath,0o600);
+ return {privateKey,publicKey,fingerprint:"SHA256:"+createHash("sha256")
+  .update(Buffer.from(publicKey,"base64")).digest("base64").replace(/=+$/,"")};
 }
-async function request(url,method,body,sessionCookie,csrf){
- const response=await fetch(url,{method,
-  headers:{"content-type":"application/json",...(sessionCookie?{cookie:sessionCookie}:{ }),
-   ...(csrf?{"x-tt-csrf":csrf}:{})},
-  ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});
+function signature(key,phase,values){
+ return sign(null,Buffer.from("tinkertunnel-host-"+phase+"-v1\n"+values.join("\n")),key).toString("base64");
+}
+async function request(origin,route,data){
+ const response=await fetch(origin+route,{method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify(data),signal:AbortSignal.timeout(15000)});
  const result=await response.json().catch(()=>({}));
  if(!response.ok)throw error("Controller rejected pairing: "+(result.error||"HTTP "+response.status));
- return {response,result};
+ return result;
 }
-export async function requestInvitation(origin,username,password,transport=request){
- const user=identityName(username);
- if(typeof password!=="string"||password.length<1)throw error("Administrator password is required");
- // The password is sent only over the validated HTTPS origin, then discarded.
- const login=await transport(origin+"/api/local/login","POST",{username:user,password});
- const cookie=(login.response.headers.get("set-cookie")||"").split(";")[0];
- if(!/^ttsid=[a-f0-9]{64}$/.test(cookie)||typeof login.result.csrf!=="string")
-  throw error("Controller login did not issue a pairing session");
- const invite=await transport(origin+"/api/local/runners/invite","POST",{},cookie,login.result.csrf);
- if(typeof invite.result.token!=="string"||invite.result.token.length<32)
-  throw error("Controller did not issue a valid one-time enrollment token");
- try{await transport(origin+"/api/local/logout","POST",{},cookie,login.result.csrf);}catch{}
- return invite.result.token;
-}
-async function prompts(){
- let conceal=false;
- const output=new Writable({write(chunk,encoding,callback){if(!conceal)process.stdout.write(chunk);callback();}});
- const rl=createInterface({input:process.stdin,output,terminal:true});
- try{
-  const address=await rl.question("Controller URL (https://...): ");
-  const username=await rl.question("TinkerTunnel administrator username: ");
-  process.stdout.write("Password: ");conceal=true;
-  const password=await rl.question("");
-  conceal=false;process.stdout.write("\n");
-  return {address,username,password};
- }finally{rl.close();}
+export function pairingLink(origin,id){
+ if(!/^[a-f0-9]{32}$/.test(id))throw error("Invalid pairing ID");
+ return controllerAddress(origin)+"/builders?add=1&pair="+id;
 }
 async function pair(){
- if(!process.stdin.isTTY)throw error("Pairing requires an interactive terminal; credentials cannot be passed as arguments");
- const {address,username,password}=await prompts();
- const origin=controllerAddress(address);
- const token=await requestInvitation(origin,username,password);
+ if(!process.stdin.isTTY)throw error("Pairing needs an interactive terminal");
+ if(!os||!architecture)throw error("Unsupported host OS or CPU architecture");
+ if(existsSync(statePath))throw error("This host is already enrolled. Run 'node runner/service.mjs run'.");
+ const rl=createInterface({input:process.stdin,output:process.stdout});
+ let origin;
+ try{origin=controllerAddress(await rl.question("Controller HTTPS URL: "));}
+ finally{rl.close();}
+ const host=identity(),name=hostname().slice(0,64).replace(/[^A-Za-z0-9_.-]/g,"-");
+ const announce=await request(origin,"/api/host/pair/announce",
+  {name,os,arch:architecture,publicKey:host.publicKey});
+ let nonce=announce.nonce;
+ console.log("\nHost:",name,"("+os+"/"+architecture+")");
+ console.log("Host identity fingerprint:",host.fingerprint);
+ console.log("Open this URL in an authenticated controller browser:");
+ console.log(pairingLink(origin,announce.id));
+ console.log("Pairing ID:",announce.id);
+ console.log("Verify the fingerprint shown on the controller matches this terminal before approving.");
+ console.log("Waiting for controller approval (up to 10 minutes)...");
+ const expires=Date.now()+Math.min(600,Number(announce.expiresInSeconds)||600)*1000;
+ let invitation;
+ while(Date.now()<expires){
+  await pause(3000);
+  let status;
+  try{
+   status=await request(origin,"/api/host/pair/poll",{
+    id:announce.id,signature:signature(host.privateKey,"poll",[announce.id,nonce])
+   });
+  }catch(e){
+   // Network errors are transient. Authentication or expired pairing stops.
+   if(e.code==="PAIRING_FAILED"&&e.message.includes("Controller rejected"))throw e;
+   console.error("Controller connection unavailable; retrying...");
+   continue;
+  }
+  nonce=status.nonce;
+  if(status.state==="approved"){invitation=status.enrollmentToken;break;}
+  if(status.state!=="pending"||typeof nonce!=="string")throw error("Invalid pairing state");
+ }
+ if(typeof invitation!=="string"||invitation.length<32)throw error("Pairing expired. Run pair again.");
+ const enrollmentSignature=signature(host.privateKey,"enroll",[invitation,name,os,architecture]);
  const child=spawn(process.execPath,[agent,"enroll"],{
-  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin,TT_ENROLLMENT_TOKEN:token}});
+  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin,TT_ENROLLMENT_TOKEN:invitation,
+   TT_PAIRING_PUBLIC_KEY:host.publicKey,TT_PAIRING_ENROLL_SIGNATURE:enrollmentSignature}});
  const exitCode=await new Promise((resolve,reject)=>{
   child.once("error",reject);child.once("exit",code=>resolve(code??1));
  });
  if(exitCode!==0)throw error("Host agent enrollment failed");
- process.stdout.write("Paired successfully. Run 'node runner/service.mjs run' or install it as an OS service.\n");
+ console.log("Paired successfully. Start with: node runner/service.mjs run");
 }
 function run(){
  if(!existsSync(statePath))throw error("Host is not paired. Run the 'pair' command first.");
