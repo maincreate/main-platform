@@ -41,7 +41,7 @@ function execute(conn,command,input="",ms=120000){
    stream.stderr.on("data",d=>{errors+=String(d);if(errors.length>16000)conn.end();});
    stream.once("close",code=>{
     if(done)return;done=true;clearTimeout(timer);
-    if(code!==0)return reject(fail(502,"Remote setup failed ("+code+"): "+errors.slice(-260)));
+    if(code!==0)return reject(fail(502,"Remote setup failed (exit "+code+"). Confirm the host prerequisites and service permissions."));
     resolve(output.trim());
    });
    stream.end(input);

@@ -1,9 +1,10 @@
 FROM node:22-alpine
 WORKDIR /app
+COPY package.json ./
 COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html portal/setup.js portal/setup.css portal/dashboard.html portal/dashboard.js portal/dashboard.css portal/github.html portal/github.js portal/github.css portal/topology.html portal/topology.js portal/jobs.html portal/jobs.js portal/jobs.css portal/settings.html portal/settings.js portal/projects.html portal/projects.js portal/devices.html portal/devices.js portal/builders.html portal/builders.js portal/marketplace.html portal/marketplace.js portal/actions.js portal/workspace.css ./portal/
 COPY --chown=node:node controller/routes.mjs controller/fabric.mjs controller/devices.mjs controller/projects.mjs controller/repository_creation.mjs controller/host_adoption.mjs ./controller/
 COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/\nCOPY --chown=node:node registry/capabilities.json registry/toolkits.json ./registry/
-RUN npm install --omit=dev --no-audit --no-fund --ignore-scripts ssh2@1.17.0\nRUN mkdir -p /data && chown node:node /data
+RUN npm install --omit=dev --no-audit --no-fund --ignore-scripts\nRUN mkdir -p /data && chown node:node /data
 USER node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 TT_DATA_DIR=/data
 EXPOSE 3000
