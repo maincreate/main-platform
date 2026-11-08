@@ -146,12 +146,37 @@ $("copyUpgradeCommand").addEventListener("click",async()=>{
   $("upgradeBuilderFeedback").textContent="Clipboard unavailable. Select and copy the command.";
  }
 });
+let upgradeTarget=null;
 function openUpgradeDialog(host){
+ upgradeTarget=host;
+ const installed=host.software?.version||null,expected=host.software?.expectedVersion||"current";
  $("upgradeBuilderDescription").textContent=host.name+" · Installed: "+
-  (host.software?.version||"unverified")+" · Available: "+(host.software?.expectedVersion||"current");
- $("upgradeBuilderFeedback").textContent="";
+  (installed||"unverified")+" · Available: "+expected;
+ const bootstrap=!installed||installed==="0.4.0";
+ $("manualUpgradeSteps").hidden=!bootstrap;
+ $("upgradeBuilderGuidance").textContent=bootstrap?
+  "One-time bootstrap required: this host predates the authenticated remote-upgrade protocol. Install v0.5.0 once over SSH; later versions can be installed from this page.":
+  installed===expected?"Host Service is already at the current version.":
+  "Queue a checksum-pinned update from the controller. The host downloads it over its existing HTTPS connection, stages it, restarts, and confirms the new version through heartbeat.";
+ $("startRemoteUpgrade").disabled=bootstrap||installed===expected||currentState(host)!=="online"||!!host.decommission||
+  !!host.upgrade&&["queued","installing"].includes(host.upgrade.phase);
+ $("upgradeBuilderFeedback").textContent=host.upgrade?.phase==="failed"?(host.upgrade.error||"Previous upgrade failed"):"";
  upgradeDialog.showModal();
 }
+$("startRemoteUpgrade").addEventListener("click",async()=>{
+ const host=upgradeTarget;if(!host)return;
+ const button=$("startRemoteUpgrade");button.disabled=true;
+ $("upgradeBuilderFeedback").textContent="Requesting remote upgrade…";
+ try{
+  const result=await api("/api/local/builders/upgrade",{runnerId:host.id});
+  $("upgradeBuilderFeedback").textContent="Upgrade queued for "+host.name+" to "+result.targetVersion+
+   ". Progress will update when the host reports its new version.";
+  await load();
+ }catch(e){
+  $("upgradeBuilderFeedback").textContent=e.message;
+  button.disabled=false;
+ }
+});
 let removeTarget=null;
 let removeMode=null;
 function openRemoveDialog(host,mode){
@@ -228,6 +253,9 @@ function renderBuilders(){
   tr.append(tools);
   const action=recentAction(host),state=action?.status,runnerCell=el("td");
   if(host.decommission)runnerCell.textContent=removalStatus(host);
+  else if(host.upgrade&&["queued","installing","failed"].includes(host.upgrade.phase))
+   runnerCell.textContent="Host upgrade "+host.upgrade.phase+
+    (host.upgrade.error?" · "+host.upgrade.error:"");
   else if(host.githubRunnerName){
    const known=githubRunners.find(r=>r.name===host.githubRunnerName);
    const runnerOnline=String(known?.status||"").toLowerCase()==="online";
