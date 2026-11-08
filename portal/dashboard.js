@@ -131,9 +131,10 @@ function renderActivityDetails(bucket){
   const row=element("div",undefined,"tt-activity-detail-row"),left=element("div");
   const name=element("strong",(event.type==="build"?"Build: ":"Job: ")+event.title);
   const runner=activityBuilders.find(b=>b.id===event.builderId);
-  left.append(name,element("small",(runner?.name||event.builderId||"Builder not recorded")+
+  left.append(name,element("small",(runner?.name||event.repository||event.builderId||"Builder not recorded")+
    " · "+event.status+" · "+new Date(event.time).toLocaleString()));
-  const link=element("a","View job");link.href=event.url;
+  const link=element("a",event.source==="github"?"Open GitHub run":"View job");link.href=event.url;
+  if(event.source==="github"){link.target="_blank";link.rel="noopener noreferrer";}
   row.append(left,link);holder.append(row);
  }
 }
@@ -179,10 +180,28 @@ function renderActivityChart(){
  renderActivityDetails(activitySelected===null?null:buckets[activitySelected]||null);
 }
 async function loadActivity(){
- const data=await api("/api/local/activity?range="+encodeURIComponent(activityRange));
- activityData=data;activitySelected=null;
- $("activityCoverage").textContent=(data.coverage?.note||"")+
-  (data.retainedJobLimit?" · Retained history: last "+data.retainedJobLimit+" local jobs.":"");
+ const local=await api("/api/local/activity?range="+encodeURIComponent(activityRange));
+ const events=[...(local.events||[])];
+ let coverage="Local operations";
+ try{
+  const github=await api("/api/local/actions/runs");
+  if(github.connected){
+   for(const run of github.runs||[]){
+    const at=Date.parse(run.created_at||"");
+    if(!Number.isFinite(at)||at<Date.parse(local.generatedAt)-{"24h":86400000,"7d":604800000,"30d":2592000000}[activityRange])continue;
+    events.push({id:"github-"+run.id,type:"build",source:"github",title:run.name||"GitHub Actions",
+     builderId:null,repository:run.repository,status:run.conclusion||run.status,
+     time:new Date(at).toISOString(),url:run.url});
+   }
+   coverage+=" + GitHub Actions ("+(github.repositoriesScanned||0)+" repositories scanned)";
+   if(github.partial)coverage+=" · GitHub history incomplete";
+  }else coverage+=" · GitHub Actions not connected";
+ }catch(e){coverage+=" · GitHub Actions unavailable";}
+ activityData={...local,events};
+ activitySelected=null;
+ $("activityCoverage").textContent=coverage+
+  " · Deployments and device flashes not yet tracked · Recent history only (up to "+
+  local.retainedJobLimit+" local jobs and 50 GitHub runs).";
  renderActivityChart();
 }
 for(const button of document.querySelectorAll("[data-activity-range]")){
