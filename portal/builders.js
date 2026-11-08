@@ -24,6 +24,7 @@ function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.las
 function removalStatus(host){
  const phase=host.decommission?.phase;
  if(phase==="failed")return "Removal failed: "+(host.decommission.error||"Unknown error");
+ if(host.decommission?.stalled)return "Removal stalled · no active removal action";
  const names={requested:"Stopping runner",stopping:"Stopping runner",unregistering:"Unregistering from Github",unregistered:"Removing Software",cleaning:"Removing Software",cleanup_scheduled:"Removing from Controller",controller:"Removing from Controller"};
  return "Removal in Progress: "+(names[phase]||"Preparing removal");
 }
@@ -60,6 +61,7 @@ function statusSignal(kind,label,signal){
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
 function builderStage(host){
  if(host.decommission?.phase==="failed")return "removal-failed";
+ if(host.decommission?.stalled)return "removal-stalled";
  if(host.decommission)return "removing";
  const action=recentAction(host),connected=currentState(host)==="online";
  if(!host.githubRunnerName){
@@ -68,6 +70,25 @@ function builderStage(host){
  }
  return connected?"healthy":"unreachable";
 }
+async function reconcileRemoval(host){
+ status("Checking removal activity for "+host.name+"…");
+ try{
+  const result=await api("/api/local/builders/removal/reconcile",{runnerId:host.id});
+  await load();
+  status(result.status==="stalled"?"Removal confirmed stalled. Validate or retry removal after checking the runner.":"Removal state: "+result.status);
+ }catch(e){status("Removal reconciliation failed: "+e.message);}
+}
+function closeBuilderMenus(except=null){
+ for(const menu of document.querySelectorAll(".tt-builder-action-menu")){
+  if(menu!==except)menu.open=false;
+ }
+}
+document.addEventListener("pointerdown",event=>{
+ if(!event.target.closest(".tt-builder-action-menu"))closeBuilderMenus();
+});
+document.addEventListener("keydown",event=>{
+ if(event.key==="Escape")closeBuilderMenus();
+});
 function menuAction(text,callback,disabled=false){
  const b=el("button",text,"tt-builder-menu-action");
  b.type="button";b.disabled=disabled;b.setAttribute("role","menuitem");
@@ -191,6 +212,7 @@ function renderBuilders(){
   controls.classList.add("tt-builder-action-cell");
   const stage=builderStage(host);
   const menu=el("details",undefined,"tt-builder-action-menu");
+  menu.addEventListener("toggle",()=>{if(menu.open)closeBuilderMenus(menu);});
   const trigger=el("summary","⋮","tt-builder-menu-trigger");
   trigger.setAttribute("aria-label","Actions for "+host.name);
   trigger.setAttribute("title","Builder actions");
@@ -207,6 +229,9 @@ function renderBuilders(){
   }else if(stage==="unreachable"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
+  }else if(stage==="removal-stalled"){
+   panel.append(menuAction("Reconcile stalled removal",()=>reconcileRemoval(host)));
+   panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
   }else if(stage==="removal-failed"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
