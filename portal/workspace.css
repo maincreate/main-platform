@@ -188,3 +188,25 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-builder-dialog .tt-service-command{align-self:stretch;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;margin:0;font-size:12px;line-height:1.7;color:var(--text);user-select:text}
 .tt-builder-dialog .tt-builder-copy-status{min-height:1em;margin:0}
 .tt-builder-dialog #controllerAddress{overflow-wrap:anywhere}
+
+/* Controller-led first-run builder enrollment. */
+.tt-builder-dialog{width:min(690px,calc(100% - 28px));max-width:690px}
+.tt-builder-dialog .tt-pair-step{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:17px}
+.tt-builder-dialog .tt-pair-step h3{font-size:17px;margin:0}
+.tt-builder-dialog .tt-pair-step p{margin:0}
+.tt-builder-dialog .tt-discovered-hosts{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.tt-builder-dialog .tt-discovered-hosts button{white-space:normal;text-align:left;overflow-wrap:anywhere}
+.tt-builder-dialog .tt-pair-confirm{display:flex;gap:10px;align-items:center;font-size:12px;line-height:1.5}
+.tt-builder-dialog .tt-pair-confirm input{width:17px;height:17px;flex:none;margin:0}
+.tt-builder-dialog #hostVerification{display:grid;gap:11px}
+.tt-builder-dialog #hostVerification[hidden]{display:none}
+.tt-builder-dialog #pairProgress{min-height:22px;color:var(--accent)}
+.tt-builder-dialog #hostFingerprint{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.tt-builder-dialog button:disabled{opacity:.5;cursor:not-allowed}
+.tt-builder-dialog .tt-toolbar-actions{justify-content:flex-start;flex-wrap:wrap}
+.tt-builder-dialog .tt-cta{justify-self:start;padding:10px 16px}
+@media(max-width:650px){
+ .tt-builder-dialog{padding:18px}
+ .tt-builder-dialog .tt-cta{width:100%;justify-self:stretch}
+ .tt-builder-dialog .tt-command-block{align-items:stretch}
+}
