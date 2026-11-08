@@ -14,6 +14,27 @@
 <div class="maincreate-toolbar-actions"><button class="plain-button" id="sync" type="button">Sync repositories</button><button class="action" id="newRepo" type="button">+ New Project</button></div></div>
 <div class="inventory-toolbar"><input id="projectSearch" type="search" placeholder="Search repositories" aria-label="Search repositories"><select id="projectFilter" aria-label="Filter repositories"><option value="all">All repositories</option><option value="active">Active</option><option value="archived">Archived</option><option value="private">Private</option><option value="public">Public</option><option value="missing">Needs a compatible builder</option><option value="unknown">Requirements unknown</option><option value="ignored">Ignored alerts</option></select></div><div id="projectRows" class="project-list">Loading projects…</div>
 </section>
+<dialog id="routeDialog" class="maincreate-repo-dialog" aria-labelledby="routeHeading">
+ <form id="routeForm">
+  <h2 id="routeHeading">Build &amp; flash routing</h2>
+  <p>Assign a repository to a managed build machine and optionally a connected device. Saving a route does not start a build or flash.</p>
+  <p>Project: <strong id="routeRepository">—</strong></p>
+  <label for="routeBuild">Build machine</label>
+  <select id="routeBuild" required></select>
+  <label for="routeTrigger">Build trigger</label>
+  <select id="routeTrigger"><option value="manual">Manual / AI-initiated</option><option value="github-actions">GitHub Actions (IDE or AI commits)</option></select>
+  <label for="routeSdk">SDK + exact version</label>
+  <select id="routeSdk"><option value="">Not assigned yet</option></select>
+  <label for="routeFlashBuilder">Flash machine (optional)</label>
+  <select id="routeFlashBuilder"><option value="">No flash machine</option></select>
+  <label for="routeDevice">Device on selected flash machine</label>
+  <select id="routeDevice"><option value="">No device selected</option></select>
+  <label for="routeAutoFlash"><input id="routeAutoFlash" type="checkbox"> Request auto-flash after a verified build</label>
+  <p class="home-empty">Auto-flash is a saved preference only. Execution requires a fresh chip probe, verified artifact, reviewed flashing adapter and authorization. No GitHub trigger or USB write is installed by saving this route.</p>
+  <p id="routeNotice" role="status" class="home-error" aria-live="polite"></p>
+  <div class="maincreate-toolbar-actions"><button type="button" class="plain-button" id="routeRemove">Remove route</button><button type="button" class="plain-button" id="routeCancel">Cancel</button><button type="submit" class="action" id="routeSave">Save routing policy</button></div>
+ </form>
+</dialog>
 <dialog id="newRepoDialog" class="maincreate-repo-dialog" aria-labelledby="newRepoHeading">
  <form id="newRepoForm">
   <h2 id="newRepoHeading">Create new project</h2>
