@@ -105,13 +105,21 @@ function newSession(req,username) {
   sessions.set(id,{username,csrf,expires:Date.now()+8*3600*1000});
   return reply({authenticated:true,username,csrf},200,{"set-cookie":sessionCookie(req,id)});
 }
+let automaticProjectSync=null;
 export function refreshProjectMonitoring(){
-  const stored=state(),gh=stored.github||{};
-  if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)return;
+  const stored=state(),gh=stored.github||{},org=gh.selectedOrganization;
+  if(!githubIdentityCurrent(gh)||!org)return;
   try{
-    const inventory=listProjects(gh.selectedOrganization);
-    requestRequirementRefresh({organization:gh.selectedOrganization,
-      accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
+    const inventory=listProjects(org),token=unseal(gh.oauthToken);
+    requestRequirementRefresh({organization:org,accessToken:token,repositories:inventory.repositories});
+    if(automaticProjectSync)return;
+    if(inventory.updatedAt&&Date.now()-Date.parse(inventory.updatedAt)<60*60*1000)return;
+    const selection=gh.oauthOrganizations?.find(o=>o.login===org);
+    if(!Number.isSafeInteger(selection?.installationId))return;
+    automaticProjectSync=syncProjects({organization:org,installationId:selection.installationId,accessToken:token})
+      .then(result=>requestRequirementRefresh({organization:org,accessToken:token,repositories:result.repositories}))
+      .catch(e=>console.error("Automatic project sync unavailable: "+String(e.message||"unknown").slice(0,120)))
+      .finally(()=>{automaticProjectSync=null});
   }catch(e){console.error("Project monitoring refresh unavailable: "+String(e.message||"unknown").slice(0,120));}
 }
 export function initializeFirstRun() {
