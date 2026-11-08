@@ -287,7 +287,7 @@ export async function localRoute(req) {
     if(privateApp&&!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal"+path+".html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
-  if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css","/builder-actions.css","/marketplace-planning.css"].includes(path)&&method==="GET"){
+  if(["/settings.js","/devices.js","/projects.js","/builders.js","/marketplace.js","/actions.js","/workspace.css","/builder-actions.css","/activity.css","/marketplace-planning.css"].includes(path)&&method==="GET"){
     if(privateApp&&!session(req))return deny(401,"Sign in required");
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{
       "content-type":(path.endsWith(".css")?"text/css":"text/javascript")+"; charset=utf-8","cache-control":"no-store"}});
