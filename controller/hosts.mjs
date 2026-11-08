@@ -50,10 +50,10 @@ export function parseDnsPacket(b){
 export async function discoverHosts({timeoutMs=2200}={}){
  const socket=dgram.createSocket({type:'udp4',reuseAddr:true});const records=[];
  try{
-  await new Promise((resolve,reject)=>{socket.once('error',reject);socket.bind(5353,'0.0.0.0',resolve)});
+  await new Promise((resolve,reject)=>{socket.once('error',reject);socket.bind(0,'0.0.0.0',resolve)});
   socket.on('message',packet=>records.push(...parseDnsPacket(packet)));
   try{socket.addMembership('224.0.0.251')}catch{}
-  const query=Buffer.concat([Buffer.from([0,0,0,0,0,1,0,0,0,0,0,0]),qname(service),Buffer.from([0,12,0,1])]);
+  const query=Buffer.concat([Buffer.from([0,0,0,0,0,1,0,0,0,0,0,0]),qname(service),Buffer.from([0,12,0x80,1])]);
   await new Promise((resolve,reject)=>socket.send(query,5353,'224.0.0.251',err=>err?reject(err):resolve()));
   await new Promise(resolve=>setTimeout(resolve,Math.max(500,Math.min(5000,timeoutMs))));
   const instances=[...new Set(records.filter(r=>r.owner===service&&r.type===12).map(r=>r.value))];
