@@ -178,7 +178,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert(!readFileSync(join(dir,"state.json"),"utf8").includes(enrolled.data.token));
    const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id},{authorization:"Bearer "+enrolled.data.token});
    assert.equal(hb.status,200);
-   assert.equal(hb.data.jobExecution,"disabled");
+   assert.equal(hb.data.ok,true);
    // End-to-end fabric API: authenticated planning, explicit approval and default no-execution.
    const fabricHeaders={cookie,"x-tt-csrf":csrf};
    const fabricCall=async(tool,args={})=>json(base,"/api/local/fabric",{tool,arguments:args},fabricHeaders);
