@@ -16,19 +16,28 @@
   <div class="panel-heading"><div><h2>GitHub Actions runners</h2><p>Registered runners from the selected organization and their managed labels.</p></div></div>
   <div id="githubRunners" aria-live="polite"></div>
  </section>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>Host provisioning activity</h2><p>Controller-issued GitHub runner actions.</p></div></div><div id="hostActions"></div></section>
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle">
   <form id="addBuilderForm">
    <h2 id="addBuilderTitle">Add a build machine</h2>
    <p>Install the lightweight Host Service on the machine to connect outbound to this controller.</p>
    <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
-   <p>Install Node.js 22+ and obtain the TinkerTunnel repository on your machine.</p>
-   <p>From a terminal in the repository directory, run:</p>
-   <pre class="tt-service-command"><code>node runner/service.mjs pair</code></pre>
-   <p>The Host Service asks for controller URL, local TinkerTunnel username and password, then exchanges them for per-host credentials. It doesn't store your password.</p>
-   <p>Start the host connection:</p>
-   <pre class="tt-service-command"><code>node runner/service.mjs run</code></pre>
-   <p>The service connects outbound without requiring SSH or an inbound port.</p>
-   <p class="tt-builder-footnote">Pairing supports Linux, Windows and macOS with Node.js 22+. Native installers and automatic GitHub Actions runner registration are not yet available through this service.</p>
+   <p><strong>Linux ARM64 / Raspberry Pi OS Lite:</strong> after imaging and enabling SSH, run this one command on the Pi:</p>
+   <pre class="tt-service-command"><code id="installCommand"></code></pre>
+   <p>The installer installs and starts the Host Service. It does not register a GitHub runner; the controller does that after you pair.</p>
+   <div class="tt-toolbar-actions"><button type="button" id="discoverHosts" class="plain-button">Find nearby hosts (mDNS)</button></div>
+   <div id="discoveredHosts" aria-live="polite"></div>
+   <label for="hostAddress">Hostname or IPv4 address (manual fallback)</label>
+   <input id="hostAddress" type="text" autocomplete="off" placeholder="waymarker-lab.local or 192.168.100.25">
+   <div class="tt-toolbar-actions"><button type="button" id="readFingerprint" class="plain-button">Read SSH fingerprint</button></div>
+   <p id="hostFingerprint" aria-live="polite"></p>
+   <label><input id="confirmFingerprint" type="checkbox"> I confirm this SSH fingerprint belongs to my Pi</label>
+   <label for="hostUsername">Linux username</label>
+   <input id="hostUsername" type="text" autocomplete="username" placeholder="Pi Imager username">
+   <label for="hostPassword">Linux password (one-time SSH pairing)</label>
+   <input id="hostPassword" type="password" autocomplete="off">
+   <div class="tt-toolbar-actions"><button type="button" id="pairHost" class="action tt-cta">Pair this host</button></div>
+   <p class="tt-builder-footnote">The host password is used for this SSH connection only and is not retained. The controller stores a unique host credential; GitHub runner provisioning is a separate controller action. mDNS may not cross VLANs or container bridges.</p>
    <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">Open project</a>
    <button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
   </form>
