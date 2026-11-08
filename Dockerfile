@@ -13,7 +13,7 @@ COPY --chown=node:node controller/routes.mjs controller/host_routes.mjs controll
 COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
 COPY --chown=node:node registry/capabilities.json registry/toolkits.json ./registry/
 COPY --from=host-build /out/tinkertunnel-host-linux-arm64 ./downloads/tinkertunnel-host-linux-arm64
-COPY --chown=node:node scripts/install-linux.sh ./scripts/install-linux.sh
+COPY --chown=node:node scripts/install-linux.sh scripts/uninstall-linux.sh ./scripts/
 RUN mkdir -p /data && chown node:node /data
 USER node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 TT_DATA_DIR=/data TT_REQUIRE_LOGIN=1
