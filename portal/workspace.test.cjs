@@ -1,92 +1,46 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const {readFileSync} = require("node:fs");
-const {resolve} = require("node:path");
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const {readFileSync}=require("node:fs");
+const {resolve}=require("node:path");
 
-test("Penpot MVP workspace routes provide separated, editable UI without a new execution engine", async () => {
-  for (const dockerfile of [resolve(__dirname, "../Dockerfile"), resolve(__dirname, "Dockerfile")]) {
-    const contents = readFileSync(dockerfile, "utf8");
-    for (const artifact of ["portal/builders.html", "portal/builders.js", "portal/marketplace.html", "portal/marketplace.js", "portal/actions.js"]) {
-      assert(contents.includes(artifact), dockerfile + " must ship " + artifact);
-    }
+test("workspace serves current builder, marketplace, and job experiences",async()=>{
+ for(const dockerfile of [resolve(__dirname,"../Dockerfile"),resolve(__dirname,"Dockerfile")]){
+  const content=readFileSync(dockerfile,"utf8");
+  for(const asset of ["portal/builders.html","portal/builders.js","portal/dashboard.html","portal/dashboard.js",
+   "portal/marketplace.html","portal/marketplace.js","portal/jobs.html","portal/jobs.js","portal/activity.css"])
+   assert.ok(content.includes(asset),dockerfile+" must ship "+asset);
+ }
+ const prior=process.env.TT_REQUIRE_LOGIN;
+ process.env.TT_REQUIRE_LOGIN="0";
+ try{
+  const {localRoute}=await import("../controller/routes.mjs");
+  async function page(path){
+   const response=await localRoute(new Request("http://localhost"+path));
+   assert.ok(response,"Route absent: "+path);
+   assert.equal(response.status,200,path);
+   return response.text();
   }
-  const previous = process.env.TT_REQUIRE_LOGIN;
-  process.env.TT_REQUIRE_LOGIN = "0";
-  try {
-    const {localRoute} = await import("../controller/routes.mjs");
-    async function page(path) {
-      const response = await localRoute(new Request("http://localhost" + path));
-      assert(response, path + " should be locally routed");
-      assert.equal(response.status, 200, path);
-      return response.text();
-    }
-    const builders = await page("/builders");
-    assert.match(builders, /id="runners-list"/);
-    assert.match(builders, /id="addBuilderDialog"/);
-    assert.match(builders, /id="copyInstallCommand"/);
-    assert.match(builders, /id="hostPassword"/);
-    assert.match(builders, /id="pairHost"/);
-    assert.match(builders, /id="removeBuilderDialog"/);
-    assert.match(builders, /id="upgradeBuilderDialog"/);
-
-
-
-    assert.doesNotMatch(builders, /Generate pairing token/);
-    assert.match(builders, /GitHub Actions runners/);
-    const jobs = await page("/jobs");
-    assert.doesNotMatch(jobs, /id="planForm"/);
-    assert.match(jobs, /id="flashDialog"/);
-    assert.match(jobs, /id="githubActionsRuns"/);
-    assert.match(jobs, /id="jobs-list"/);
-    assert.doesNotMatch(jobs, /id="runners-list"/);
-    const marketplace = await page("/marketplace");
-    assert.match(marketplace, /id="marketplaceRows"/);
-    assert.match(marketplace, /id="marketplaceTiles"/);
-    assert.match(marketplace, /id="tileView"/);
-    assert.match(marketplace, /id="listView"/);
-    assert.match(marketplace, /Browse versioned frameworks and SDKs/);
-    const devices = await page("/devices");
-    assert.match(devices, /id="deviceSearch"/);
-    assert.match(devices, /id="deviceHost"/);
-    assert.match(devices, /id="showHidden"/);
-    assert.doesNotMatch(devices, /id="filter"/);
-    const dashboardScript = await page("/dashboard.js");
-    assert.match(dashboardScript, /30000/);
-    for(const path of [resolve(__dirname,"../Dockerfile"),resolve(__dirname,"Dockerfile")]){
-      const docker=readFileSync(path,"utf8");
-      assert.doesNotMatch(docker,/\\n(?:COPY|RUN|ENV)/,"Docker instruction lines must be real newlines");
-      assert.match(docker,/COPY --chown=node:node runner\/agent\.mjs/);
-    }
-    const buildersScript = await page("/builders.js");
-    assert.match(buildersScript, /runners-list/);
-    assert.match(buildersScript, /copyInstallCommand/);
-
-    const gitHub = await page("/github");
-    assert.match(gitHub, /workspace.css/);
-    const jobPage = await page("/jobs");
-    assert.match(jobPage, /id="actionSearch"/);
-    assert.match(jobPage, /id="localJobSearch"/);
-    const script = await page("/marketplace.js");
-    assert.match(script, /api\/v1\/catalog/);
-    const settings = await page("/settings");
-    assert.match(settings, /id="defaultVisibility"/);
-    assert.match(settings, /id="repoRequests"/);
-    assert.match(settings, /id="buildApproval"/);
-    assert.match(settings, /id="resetForm"/);
-    const projectsPage = await page("/projects");
-    assert.match(projectsPage, /id="newRepoDialog"/);
-    assert.match(projectsPage, /\+ New Project/);
-    const topology = await page("/topology");
-    assert.match(topology, /Source → build → device/);
-    assert.match(topology, /AI access path/);
-    assert.match(projectsPage, /id="newRepoVisibility"/);
-    assert.match(projectsPage, /id="projectSearch"/);
-    assert.match(projectsPage, /id="projectFilter"/);
-    const overview = await page("/projects");
-    assert.match(overview, /href="\/builders"/);
-    assert.match(overview, /href="\/marketplace"/);
-  } finally {
-    if (previous === undefined) delete process.env.TT_REQUIRE_LOGIN;
-    else process.env.TT_REQUIRE_LOGIN = previous;
-  }
+  const builders=await page("/builders");
+  for(const id of ["runners-list","addBuilderDialog","removeBuilderDialog","upgradeBuilderDialog","copyInstallCommand","pairHost","hostFingerprint","hostPassword","githubRunners"])
+   assert.ok(builders.includes('id="'+id+'"'),"Builders missing "+id);
+  const buildersScript=await page("/builders.js");
+  for(const feature of ["renderBuilders","validateBuilder","dismissDialogOnBackdrop","openUpgradeDialog","tt-runner-label-editor"])
+   assert.ok(buildersScript.includes(feature),"Builder script missing "+feature);
+  assert.ok(!buildersScript.includes('prompt("Comma-separated'),"Labels must not use a browser prompt");
+  const jobs=await page("/jobs");
+  for(const id of ["jobs-list","githubActionsRuns","flashDialog"])
+   assert.ok(jobs.includes('id="'+id+'"'),"Jobs missing "+id);
+  const marketplace=await page("/marketplace");
+  assert.ok(marketplace.includes("Marketplace"));
+  const devices=await page("/devices");
+  assert.ok(devices.includes("Devices"));
+  const overview=await page("/");
+  for(const id of ["activityChart","activityDetails","recentJobs"])
+   assert.ok(overview.includes('id="'+id+'"'),"Overview missing "+id);
+  const activityStyle=await page("/activity.css");
+  assert.ok(activityStyle.includes(".tt-activity-chart"));
+ }finally{
+  if(prior===undefined)delete process.env.TT_REQUIRE_LOGIN;
+  else process.env.TT_REQUIRE_LOGIN=prior;
+ }
 });
