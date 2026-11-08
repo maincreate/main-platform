@@ -99,7 +99,7 @@ export function hostDistributionRoute(req){
 }
 export async function adminHostRoute(req,ctx){
  const path=new URL(req.url).pathname,method=req.method;
- const {state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited}=ctx;
+ const {state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword}=ctx;
  if(path==='/api/local/builders/discover'&&method==='GET'){
   try{return reply({hosts:await discoverHosts()})}catch{return reply({hosts:[],warning:'mDNS not reachable from controller. Use hostname or IP.'})}
  }
@@ -152,7 +152,10 @@ export async function adminHostRoute(req,ctx){
   const initial=state(),host=initial.runners.find(r=>r.id===id);
   if(!host)return deny(404,'Builder already removed. Refresh the list.');
   if(input.confirmName!==host.name)return deny(422,'Type the exact hostname to confirm.');
-  if(limited('builder-remove:'+session(req).username,10))return deny(429,'Too many removal attempts.');
+  if(limited('builder-remove:'+session(req).username,5))return deny(429,'Too many removal attempts.');
+  if(typeof input.password!=='string'||input.password.length>256||
+     !(await verifyPassword(input.password,initial.admin?.password)))
+    return deny(401,'Administrator password confirmation failed.');
   const mode=input.mode;
   if(!['managed','remote'].includes(mode))return deny(422,'Select full cleanup or unreachable removal.');
   if(mode==='remote'&&builderFresh(host))

@@ -21,6 +21,56 @@ function status(message){$("notification").textContent=message||"";}
 function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
+
+const removeDialog=$("removeBuilderDialog");
+let removeTarget=null;
+function openRemoveDialog(host){
+  removeTarget=host;
+  const live=currentState(host)==="online";
+  $("removeBuilderName").value="";$("removeBuilderPassword").value="";
+  $("removeBuilderExplanation").textContent=
+    "Builder: "+host.name+". "+(live?
+      "Connected: TinkerTunnel will stop the idle GitHub runner, unregister it, uninstall its managed software, and revoke this builder's enrollment.":
+      "Unreachable: TinkerTunnel will unregister its idle GitHub runner and revoke controller access. You must uninstall or reimage the machine manually.")+
+    " Active builds cannot be removed. This action cannot be undone.";
+  $("removeBuilderFeedback").textContent="";
+  $("confirmRemoveBuilder").disabled=true;
+  removeDialog.showModal();
+}
+function syncRemoveConfirmation(){
+  $("confirmRemoveBuilder").disabled=!removeTarget||
+   $("removeBuilderName").value!==removeTarget.name||
+   !$("removeBuilderPassword").value;
+}
+$("removeBuilderName").addEventListener("input",syncRemoveConfirmation);
+$("removeBuilderPassword").addEventListener("input",syncRemoveConfirmation);
+$("cancelRemoveBuilder").addEventListener("click",()=>removeDialog.close());
+$("removeBuilderForm").addEventListener("submit",async(event)=>{
+ event.preventDefault();if(!removeTarget)return;
+ const host=removeTarget,mode=currentState(host)==="online"?"managed":"remote";
+ if($("removeBuilderName").value!==host.name)return;
+ const password=$("removeBuilderPassword").value;
+ $("confirmRemoveBuilder").disabled=true;
+ $("removeBuilderFeedback").textContent="Starting "+mode+" removal…";
+ try{
+  const result=await api("/api/local/builders/remove",{
+    runnerId:host.id,confirmName:host.name,password,mode
+  });
+  $("removeBuilderPassword").value="";removeDialog.close();removeTarget=null;
+  if(result.removed){
+    const output=$("builderRemovalInstructions");
+    output.hidden=false;output.replaceChildren();
+    output.append(el("strong",host.name+" removed from TinkerTunnel"));
+    output.append(el("p","This machine was unreachable. GitHub and controller access were removed. Uninstall or reimage the host before reuse."));
+    status("Remote removal completed for "+host.name+". Local cleanup is still required.");
+  }else{
+    status(host.name+": decommissioning "+(result.phase||"started")+". Follow status in the Builders table.");
+  }
+  await load();
+ }catch(e){$("removeBuilderFeedback").textContent=e.message;}
+ finally{syncRemoveConfirmation()}
+});
+
 function renderBuilders(){
  const holder=$("runners-list");holder.replaceChildren();
  const search=$("builderSearch").value.toLowerCase().trim(),filter=$("builderStatus").value;
@@ -42,7 +92,10 @@ function renderBuilders(){
   }else tools.textContent="Not yet reported";
   tr.append(tools);
   const action=recentAction(host),state=action?.status,runnerCell=el("td");
-  if(host.githubRunnerName){
+  if(host.decommission){
+   runnerCell.textContent="Removal: "+host.decommission.phase+
+    (host.decommission.error?" · "+host.decommission.error:"");
+  }else if(host.githubRunnerName){
    const known=githubRunners.find(r=>r.name===host.githubRunnerName);
    const runnerOnline=String(known?.status||"").toLowerCase()==="online";
    runnerCell.textContent=(runnerOnline&&currentState(host)==="online"?"Ready":"Registered · not verified online")+
@@ -69,31 +122,10 @@ function renderBuilders(){
    }
   }else if(host.githubRunnerName)controls.textContent="Registered";
   else controls.textContent="—";
-  const remove=el("button","Remove builder","plain-button");
-  remove.type="button";
-  remove.addEventListener("click",async()=>{
-    const hasRunner=!!host.githubRunnerName;
-    const message="Remove "+host.name+" from TinkerTunnel?\\n\\n"+
-      (hasRunner?"A registered GitHub runner will be removed too, but only if it is offline and idle.\\n":"")+
-      "This revokes the host's TinkerTunnel credential. You must clean up old local enrollment on the machine before pairing again.\\n\\nType the exact hostname to confirm:";
-    const confirmName=prompt(message);
-    if(confirmName===null)return;
-    if(confirmName!==host.name){status("Hostname did not match. Nothing was removed.");return;}
-    remove.disabled=true;
-    try{
-      const result=await api("/api/local/builders/remove",{runnerId:host.id,confirmName});
-      await load();
-      const command='curl -fsSLo /tmp/tinkertunnel-uninstall.sh '+location.origin+
-        '/uninstall.sh && sudo bash /tmp/tinkertunnel-uninstall.sh --yes --purge-state --purge-unregistered-runner'+
-        (["removed","already_removed","not_found"].includes(result.githubResult)?' --github-removed="$(hostname)"':'');
-      const output=$("builderRemovalInstructions");
-      output.hidden=false;output.replaceChildren();
-      output.append(el("strong",result.name+" removed from TinkerTunnel · GitHub: "+result.githubResult));
-      output.append(el("p","Run this on the removed machine to clear its old local identity and runner files, then reinstall and pair again. Confirm GitHub removal before any local registered-runner cleanup."));
-      const pre=el("pre"),code=el("code",command);pre.append(code);output.append(pre);
-      status("Builder removed. Cleanup on the former builder is still required before re-adding.");
-    }catch(e){status("Remove failed: "+e.message)}finally{remove.disabled=false}
-  });
+
+  const remove=el("button",host.decommission?"Removal in progress":"Remove builder","plain-button");
+  remove.type="button";remove.disabled=!!host.decommission;
+  remove.addEventListener("click",()=>openRemoveDialog(host));
   controls.append(remove);
   tr.append(controls);tbody.append(tr);
  }

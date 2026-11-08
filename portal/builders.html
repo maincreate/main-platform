@@ -5,6 +5,18 @@
  <p class="eyebrow">FLEET / BUILD MACHINES</p>
  <div class="setting-row"><div><h1>Builders</h1><p>Manage your distributed build fleet and its GitHub Actions runners.</p></div><button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
  <p id="notification" class="home-error" role="status" aria-live="polite"></p><section id="builderRemovalInstructions" class="inventory-panel" role="status" aria-live="polite" hidden></section>
+ <dialog id="removeBuilderDialog" class="tt-builder-dialog" aria-labelledby="removeBuilderTitle">
+  <form id="removeBuilderForm" class="tt-builder-content">
+   <div class="tt-builder-header"><div><p class="eyebrow">DANGER ZONE / BUILDERS</p><h2 id="removeBuilderTitle">Remove build machine</h2></div></div>
+   <p id="removeBuilderExplanation"></p>
+   <label for="removeBuilderName">Type the exact hostname to confirm</label>
+   <input id="removeBuilderName" type="text" autocomplete="off" spellcheck="false" required>
+   <label for="removeBuilderPassword">TinkerTunnel administrator password</label>
+   <input id="removeBuilderPassword" type="password" autocomplete="current-password" required>
+   <p id="removeBuilderFeedback" role="status" aria-live="polite"></p>
+   <div class="button-row"><button type="button" id="cancelRemoveBuilder" class="plain-button">Cancel</button><button type="submit" id="confirmRemoveBuilder" class="primary" disabled>Remove builder</button></div>
+  </form>
+ </dialog>
  <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Host Service health and GitHub runner readiness are separate. Remove a builder to revoke its enrollment; registered GitHub runners must be offline and idle first. Local host cleanup is a separate step before re-adding.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
   <div class="inventory-toolbar"><input id="builderSearch" type="search" placeholder="Search builders or tools" aria-label="Search builders"><select id="builderStatus" aria-label="Filter builders"><option value="all">All builders</option><option value="online">Online</option><option value="offline">Offline</option></select></div>
   <div id="runners-list" aria-live="polite"></div></section>
