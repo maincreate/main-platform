@@ -191,7 +191,7 @@ test('Remote upgrade requires a managed, reachable, protocol-capable host',async
  assert.equal(legacy.status,409);
  assert.match(legacy.data.error,/once/i);
  assert.equal(h.state().hostActions.length,0);
- const fresh=h.state();fresh.runners[0].hostVersion='0.5.0';h.setState(fresh);
+ const fresh=h.state();fresh.runners[0].hostVersion='0.6.0';h.setState(fresh);
  assert.equal((await h.call('/api/local/builders/upgrade',{runnerId:ID})).status,409);
 });
 test('Successful staged upgrade acknowledgement requires a new heartbeat for completion',async()=>{
