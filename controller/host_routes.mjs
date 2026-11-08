@@ -195,9 +195,9 @@ export async function adminHostRoute(req,ctx){
    return deny(422,'Confirm the SSH fingerprint and enter valid host details');
   if(limited('builder-pair:'+session(req).username,15))return deny(429,'Too many pairing attempts');
   const forwarded=(req.headers.get('x-forwarded-host')||req.headers.get('host')||'').split(',')[0].trim();
-  const controller=process.env.TT_PUBLIC_URL||'https://'+forwarded;
+  const controller=process.env.MAIN_PUBLIC_URL||'https://'+forwarded;
   if(!/^https:\/\/[a-z0-9.-]+(:[0-9]{1,5})?$/i.test(controller))
-   return deny(422,'Configure TT_PUBLIC_URL with the HTTPS controller origin');
+   return deny(422,'Configure MAIN_PUBLIC_URL with the HTTPS controller origin');
   const before=state();
   if(before.runners.some(r=>r.managedHost?.host===host))
    return deny(409,'This address is already paired. If you re-imaged the host, reconcile its previous enrollment first.');

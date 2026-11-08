@@ -11,7 +11,7 @@ import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./proj
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
 
-const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
+const dataDir = process.env.MAIN_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
 const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
@@ -23,7 +23,7 @@ const failures = new Map();
 const githubDeviceFlows=new Map();
 // Public product identity. Instances can override this for private/enterprise GitHub Apps.
 const DEFAULT_GITHUB_CLIENT_ID="Iv23liAxFGcez9en0tY8";
-const githubClientId=()=>process.env.TT_GITHUB_CLIENT_ID||state().github.oauthClientId||DEFAULT_GITHUB_CLIENT_ID;
+const githubClientId=()=>process.env.MAIN_GITHUB_CLIENT_ID||state().github.oauthClientId||DEFAULT_GITHUB_CLIENT_ID;
 const validGithubClientId=id=>/^[A-Za-z0-9._-]{8,100}$/.test(id);
 function githubIdentityCurrent(g) {
   // A saved profile/organization alone is not proof of a usable authorization.
@@ -72,9 +72,9 @@ function digest(s) { return createHash("sha256").update(String(s)).digest("hex")
 function equal(a,b) { const x=Buffer.from(digest(a),"hex"), y=Buffer.from(digest(b),"hex"); return timingSafeEqual(x,y); }
 function rnd() { return randomBytes(32).toString("hex"); }
 function key() {
-  const external=process.env.TT_MASTER_KEY || "";
+  const external=process.env.MAIN_MASTER_KEY || "";
   if(external) {
-    if(!/^[a-f0-9]{64}$/i.test(external)) throw new Error("Invalid legacy TT_MASTER_KEY");
+    if(!/^[a-f0-9]{64}$/i.test(external)) throw new Error("Invalid legacy MAIN_MASTER_KEY");
     return Buffer.from(external,"hex");
   }
   mkdirSync(dataDir,{recursive:true,mode:0o700});
@@ -185,7 +185,7 @@ function bounded(s,max=100) {return typeof s==="string"&&s.length>0&&s.length<=m
 function publicSummary() {
   const s=state();
   return {configured:!!s.admin,claimed:!!s.admin,
-    encryptionReady:existsSync(masterKeyFile)||/^[0-9a-f]{64}$/i.test(process.env.TT_MASTER_KEY||""),
+    encryptionReady:existsSync(masterKeyFile)||/^[0-9a-f]{64}$/i.test(process.env.MAIN_MASTER_KEY||""),
     name:s.config.name,role:s.config.role,
     githubVerified:!!s.github.verifiedAt,
     runners:s.runners.length,
@@ -268,7 +268,7 @@ function githubOnboardingReady(g){
 }
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
-  const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
+  const privateApp=process.env.MAIN_REQUIRE_LOGIN!=="0";
   const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
   const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
@@ -452,8 +452,8 @@ export async function localRoute(req) {
         const g=state().github,configured=validGithubClientId(githubClientId());
         return reply({available:configured,connected:githubIdentityCurrent(g),
           login:githubIdentityCurrent(g)?g.oauthUser.login:null,
-          clientId:githubClientId(),configuredByEnvironment:!!process.env.TT_GITHUB_CLIENT_ID,
-          usingDefaultApp:!process.env.TT_GITHUB_CLIENT_ID&&!g.oauthClientId,
+          clientId:githubClientId(),configuredByEnvironment:!!process.env.MAIN_GITHUB_CLIENT_ID,
+          usingDefaultApp:!process.env.MAIN_GITHUB_CLIENT_ID&&!g.oauthClientId,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
           selectedOrganization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
           hostedRunnerPolicyConfirmation:g.hostedRunnerPolicyConfirmation&&g.hostedRunnerPolicyConfirmation.organization===g.selectedOrganization?
@@ -464,7 +464,7 @@ export async function localRoute(req) {
           note:configured?null:"Enter the public Client ID of your GitHub App to enable authorization."});
       }
       if(path==="/api/local/github/device/config"&&method==="POST"){
-        if(process.env.TT_GITHUB_CLIENT_ID)return deny(409,"GitHub App Client ID is managed by the hosting environment");
+        if(process.env.MAIN_GITHUB_CLIENT_ID)return deny(409,"GitHub App Client ID is managed by the hosting environment");
         if(githubIdentityCurrent(state().github))return deny(409,"Disconnect GitHub before changing its application");
         const input=await body(req),clientId=typeof input.clientId==="string"?input.clientId.trim():"";
         if(!validGithubClientId(clientId))return deny(422,"Enter a valid GitHub App Client ID");
@@ -765,7 +765,7 @@ export async function localRoute(req) {
               decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null,...removalActivity(r,stored.hostActions||[])}:null
             })),
             truncated:stored.runners.length>24,
-            executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
+            executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION==="1"
           },
           devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
           projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
@@ -787,7 +787,7 @@ export async function localRoute(req) {
         });
       }
       if(path==="/api/local/config"&&method==="GET"){
-        const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.TT_MCP_TOKEN||"").length>=32});
+        const s=state();return reply({config:s.config,github:{appId:s.github.appId||"",installationId:s.github.installationId||"",repository:s.github.repository||"",hasPrivateKey:!!s.github.privateKey,verifiedAt:s.github.verifiedAt||null},runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null})),mcpConfigured:(process.env.MAIN_MCP_TOKEN||"").length>=32});
       }
       if(path==="/api/local/config"&&method==="POST"){
         const b=await body(req),s=state();
@@ -959,23 +959,23 @@ export async function localRoute(req) {
       try{
         if(path==="/api/agent/jobs/claim"){
           runner.lastSeen=new Date().toISOString();save(s);
-          if(process.env.TT_ENABLE_FABRIC_EXECUTION!=="1")return reply({job:null,executionEnabled:false});
+          if(process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="1")return reply({job:null,executionEnabled:false});
           return reply({...claimJob(runner),executionEnabled:true});
         }
-        if(process.env.TT_ENABLE_FABRIC_EXECUTION!=="1")return deny(403,"Runner execution disabled");
+        if(process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="1")return deny(403,"Runner execution disabled");
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
         return reply(agentAsset(runner,b));
       }catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/github/repository/request"&&method==="POST"){
-      const service=process.env.TT_SERVICE_TOKEN||"";
+      const service=process.env.MAIN_SERVICE_TOKEN||"";
       if(service.length<32)return deny(503,"Internal service unavailable");
       if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
       try{return reply(requestRepositoryFromMcp(await body(req)),202);}
       catch(e){return deny(e.status||422,e.message||"Request rejected");}
     }
     if(path==="/api/internal/fabric"&&method==="POST"){
-      const service=process.env.TT_SERVICE_TOKEN||"";
+      const service=process.env.MAIN_SERVICE_TOKEN||"";
       if(service.length<32)return deny(503,"Internal service unavailable");
       if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
       const b=await body(req),s=state();
@@ -986,10 +986,10 @@ export async function localRoute(req) {
       catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/status"&&method==="GET"){
-      const token=process.env.TT_SERVICE_TOKEN||"";
+      const token=process.env.MAIN_SERVICE_TOKEN||"";
       if(token.length<32)return deny(503,"Internal service token not configured");
       if(!equal(req.headers.get("authorization")||"","Bearer "+token))return deny(401,"Unauthorized");
-      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1",fabric:fabricStats()});
+      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION==="1",fabric:fabricStats()});
     }
     return deny(404,"Not found");
   } catch(e) {

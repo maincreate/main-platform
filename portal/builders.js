@@ -844,7 +844,7 @@ function openDialog(){
  $("hostAddress").value="";$("hostUsername").value="";$("hostPassword").value="";
  $("selectedHost").textContent="No host selected.";
  $("installCommand").textContent="curl -fsSLo /tmp/tinkertunnel-install.sh "+location.origin+
-  "/install.sh && sudo env TT_CONTROLLER_URL="+location.origin+" bash /tmp/tinkertunnel-install.sh";
+  "/install.sh && sudo env MAIN_CONTROLLER_URL="+location.origin+" bash /tmp/tinkertunnel-install.sh";
  activatePlatform(platform);activateMethod("manual");showStep(1);
  dialog.showModal();
  $("platform-linux-arm64").focus();

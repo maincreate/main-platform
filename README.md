@@ -30,7 +30,7 @@ If your Docker platform creates the volume with root ownership, set ownership on
 
 Open `http://127.0.0.1:13000/setup` from the host, or use a trusted SSH forwarding/private HTTPS route from another machine. Use your own container management system or the optional repository-root `compose.yaml`; **the user-facing account flow is identical regardless of hosting provider**.
 
-The initial portal can be started without `TT_SERVICE_TOKEN`, `TT_MCP_TOKEN` or `TT_GITHUB_CLIENT_ID`. Those relate to features connected later.
+The initial portal can be started without `MAIN_SERVICE_TOKEN`, `MAIN_MCP_TOKEN` or `MAIN_GITHUB_CLIENT_ID`. Those relate to features connected later.
 
 ## Dashboard — subsequent choices
 
@@ -48,7 +48,7 @@ The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Pape
 
 The gateway exposes **six stable MCP tools**: `tt_discover`, `tt_inspect`, `tt_plan`, `tt_execute`, `tt_jobs`, and `tt_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
 
-**The controller does not execute jobs by default.** Live job dispatch requires `TT_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `TT_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
+**The controller does not execute jobs by default.** Live job dispatch requires `MAIN_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `MAIN_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
 
 ## Operational workspace v0.3
 
@@ -61,7 +61,7 @@ After account creation, the **homepage is the workspace's real operational state
 - **Topology** (`/topology`): correctly connects GitHub directly to the workspace, and devices to their reporting builder.
 - **Settings** (`/settings`): GitHub, optional AI, appearance, account and execution policy.
 
-For the managed **Go Host Service v0.6.0** on Linux ARM64, USB serial discovery is read-only and built in (startup and every 60 seconds); no Python dependency or USB port access is required. `TT_HOST_DEVICE_DISCOVERY=0` disables it. The legacy Node runner can still use `TT_RUNNER_DEVICE_DISCOVERY=1` with Python + `pyserial` on Linux, macOS, or Windows. Existing builders without this opt-in continue heartbeat and jobs but report no devices. Physical USB access is not automatically available inside containers.
+For the managed **Go Host Service v0.6.0** on Linux ARM64, USB serial discovery is read-only and built in (startup and every 60 seconds); no Python dependency or USB port access is required. `MAIN_HOST_DEVICE_DISCOVERY=0` disables it. The legacy Node runner can still use `MAIN_RUNNER_DEVICE_DISCOVERY=1` with Python + `pyserial` on Linux, macOS, or Windows. Existing builders without this opt-in continue heartbeat and jobs but report no devices. Physical USB access is not automatically available inside containers.
 
 The Devices page now suggests candidate microcontroller families and related SDK versions using sourced `registry/microcontrollers.json` references. USB VID/PID never proves the exact chip; chip verification and artifact compatibility are separate gates. See [device discovery and SDK catalog](docs/device-discovery-and-sdk-catalog.md).\n\n**Manual flashing and Git-triggered build/flash automation are not enabled yet.** A discovered serial port is not sufficient proof of a safe flash target. The future flow is verified image → exact target device → fresh identity/chip check → explicit approval → audited adapter; automation additionally requires an authenticated event source and rule. See [Operational workspace and device-aware release architecture](docs/operational-workspace.md).
 
@@ -71,7 +71,7 @@ After account creation, choose **Connect GitHub** on the dashboard. TinkerTunnel
 
 For a fresh installation, create a **dedicated GitHub App** for TinkerTunnel, separate from any GitHub App your hosting system uses to deploy the portal. In GitHub App settings, enable **Device Flow**. Keep permissions minimal (repository Metadata read-only is sufficient for initial identity and installation discovery); disable unneeded webhooks and do not enable user authorization during installation solely for this device flow. Install the App on the organization you want to connect.
 
-The public GitHub Client ID for **TinkerTunnel Connect** (`Iv23liAxFGcez9en0tY8`) is included in the product as the default GitHub identity. After the administrator signs in, open `/github` and choose **Sign in with GitHub**. **End users do not need to create GitHub Apps or enter Client IDs.** A deployment operator can optionally use `TT_GITHUB_CLIENT_ID` to override the app identity, or a self-hosting admin can supply a different Client ID on the connection page for a private installation. The Client ID is public; never put a GitHub App private-key PEM into source control or into the OAuth device-authorization form.
+The public GitHub Client ID for **TinkerTunnel Connect** (`Iv23liAxFGcez9en0tY8`) is included in the product as the default GitHub identity. After the administrator signs in, open `/github` and choose **Sign in with GitHub**. **End users do not need to create GitHub Apps or enter Client IDs.** A deployment operator can optionally use `MAIN_GITHUB_CLIENT_ID` to override the app identity, or a self-hosting admin can supply a different Client ID on the connection page for a private installation. The Client ID is public; never put a GitHub App private-key PEM into source control or into the OAuth device-authorization form.
 
 Click **Sign in with GitHub**, approve GitHub's device authorization, and select an organization where this particular App is installed. GitHub App user tokens obtain eligible organizations from `GET /user/installations` (not `GET /user/orgs`). If the installation was added after authorization, click **Refresh organizations**. Selecting an organization records the preferred connection; it does **not** grant runner permissions, create runners, or authorize arbitrary repository builds. GitHub App user tokens may expire and require reauthorization until token refresh is implemented.
 
@@ -98,3 +98,7 @@ This is the management repository for Main{Create}. The controller, portal, MCP 
 The deployment build uses checked-in copies of the builder and catalog files recorded in `vendor-lock.json`. This keeps local and Coolify builds independent of GitHub credentials and keeps existing install URLs, configuration, and management API contracts intact.
 
 Update the source repository first. For each entry in the lock, archive the listed paths from its reviewed commit into this checkout. Remove any files deleted in the source, update the pinned revision, commit, and verify with `node scripts/verify-vendor.mjs ../main-builders ../main-marketplace`. Run the platform tests before releasing.
+
+### Upgrading environment configuration
+
+Before deploying this revision, rename configured environment keys with the former `TT_` prefix to `MAIN_`, preserving their values. Apply the change to the controller, MCP gateway, and any separately configured builders or runner services as each component upgrades. Keep the existing data mount. If you use an external master key, preserve its value under `MAIN_MASTER_KEY`. Rollbacks need the environment key names expected by the rolled-back revision.

@@ -2,7 +2,7 @@ import {randomBytes,createHash} from "node:crypto";
 import {mkdirSync,existsSync,readFileSync,writeFileSync,renameSync,chmodSync,openSync,writeSync,readSync,closeSync,statSync,rmSync} from "node:fs";
 import {join} from "node:path";
 
-const root=process.env.TT_DATA_DIR||"./.tinkertunnel-data";
+const root=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
 const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
 // The MCP surface is stable. These versioned, curated files define what it can discover.

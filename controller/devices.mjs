@@ -2,7 +2,7 @@ import {createHash,randomBytes} from "node:crypto";
 import {readFileSync,writeFileSync,mkdirSync,renameSync,chmodSync,existsSync} from "node:fs";
 import {join} from "node:path";
 
-const dir=process.env.TT_DATA_DIR||"./.tinkertunnel-data";
+const dir=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data";
 const file=join(dir,"devices.json");
 const DAY=24*60*60*1000;
 const MAX_DEVICES=500,MAX_REPORTED=48;

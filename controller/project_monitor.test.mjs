@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 
 const dir=mkdtempSync(join(tmpdir(),"tt-monitor-"));
-process.env.TT_DATA_DIR=dir;
+process.env.MAIN_DATA_DIR=dir;
 const {parseRequirements,inferRequirementsFromWorkflows,evaluateProject,versionSatisfied,projectSummary,setProjectIgnored,detectProjectRequirements}=await import("./project_monitor.mjs");
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
 const manifests={

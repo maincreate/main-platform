@@ -22,7 +22,7 @@ import (
 )
 
 const version="0.6.0"
-var dataDir=getenv("TT_HOST_DATA_DIR","/var/lib/tinkertunnel")
+var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/tinkertunnel")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
 
@@ -108,7 +108,7 @@ func run()error{
   }
   // Read-only discovery occurs on startup and every minute. An unreadable
   // sysfs is NOT an empty inventory: preserve the previous observations.
-  if os.Getenv("TT_HOST_DEVICE_DISCOVERY")!="0"&&time.Since(lastDevices)>60*time.Second{
+  if os.Getenv("MAIN_HOST_DEVICE_DISCOVERY")!="0"&&time.Since(lastDevices)>60*time.Second{
    devices,scanErr:=scanUSBSerial()
    if scanErr!=nil{log.Printf("USB discovery: %v",scanErr)}else{
     if postErr:=post(c.Controller,"/api/agent/devices",c.Token,

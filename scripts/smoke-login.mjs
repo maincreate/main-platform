@@ -3,10 +3,10 @@
 // Login credentials are not configured as server environment variables.
 import assert from "node:assert/strict";
 
-const url = new URL(process.env.TT_PORTAL_URL || "http://127.0.0.1:13000");
-const username = process.env.TT_LOGIN_USERNAME || "";
-const password = process.env.TT_LOGIN_PASSWORD || "";
-if (!username || !password) throw new Error("Set TT_LOGIN_USERNAME and TT_LOGIN_PASSWORD for this one-off client-side smoke check");
+const url = new URL(process.env.MAIN_PORTAL_URL || "http://127.0.0.1:13000");
+const username = process.env.MAIN_LOGIN_USERNAME || "";
+const password = process.env.MAIN_LOGIN_PASSWORD || "";
+if (!username || !password) throw new Error("Set MAIN_LOGIN_USERNAME and MAIN_LOGIN_PASSWORD for this one-off client-side smoke check");
 if (url.username || url.password) throw new Error("Credentials must not be embedded in the URL");
 if (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "::1"].includes(url.hostname))) {
   throw new Error("Refusing to send password over non-loopback HTTP");

@@ -2,9 +2,9 @@
 
 ## Current milestone: discovery and reference catalog
 
-The managed **Go** Host Service v0.6.0 discovers connected USB serial adapters on Linux using `/sys/class/tty`; it does not open a serial port or execute a chip-probe command. It reports the observed descriptor to `POST /api/agent/devices` using the enrolled host's own credential. Discovery runs at boot and every 60 seconds unless `TT_HOST_DEVICE_DISCOVERY=0`. An unavailable sysfs is an error, **not** an empty device report.
+The managed **Go** Host Service v0.6.0 discovers connected USB serial adapters on Linux using `/sys/class/tty`; it does not open a serial port or execute a chip-probe command. It reports the observed descriptor to `POST /api/agent/devices` using the enrolled host's own credential. Discovery runs at boot and every 60 seconds unless `MAIN_HOST_DEVICE_DISCOVERY=0`. An unavailable sysfs is an error, **not** an empty device report.
 
-The controller stores observations in `TT_DATA_DIR/devices.json`. The Devices page lists the reporting builder, connection status, USB ID, port and possible microcontroller/SDK associations. The Marketplace page reads the source-linked `registry/microcontrollers.json` catalog.
+The controller stores observations in `MAIN_DATA_DIR/devices.json`. The Devices page lists the reporting builder, connection status, USB ID, port and possible microcontroller/SDK associations. The Marketplace page reads the source-linked `registry/microcontrollers.json` catalog.
 
 **Important**: USB VID/PID identifies a USB interface, not necessarily the MCU behind a USB-UART bridge. Espressif `303a:1001` means USB Serial/JTAG, **not** proof of ESP32-S3 or a particular Waveshare display. A generic CP210x or CH34x converter cannot establish the target MCU. The compatibility catalog always sets `verifiedChip:null` and `flashReady:false`.
 

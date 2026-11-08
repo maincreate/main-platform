@@ -24,7 +24,7 @@ function reject(res, status, message) {
   res.end(JSON.stringify({error: message}));
 }
 // A private admin deployment must not expose the unauthenticated dashboard by default.
-const requireLogin = process.env.TT_REQUIRE_LOGIN !== "0";
+const requireLogin = process.env.MAIN_REQUIRE_LOGIN !== "0";
 if (requireLogin) initializeFirstRun();
 // Incremental, authenticated project compatibility checks continue without a browser open.
 // Work is bounded and coalesced in project_monitor.mjs.

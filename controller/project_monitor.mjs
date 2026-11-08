@@ -7,7 +7,7 @@ import {readFileSync,writeFileSync,renameSync,mkdirSync,existsSync} from "node:f
 import {join} from "node:path";
 import {randomBytes} from "node:crypto";
 
-const dir=process.env.TT_DATA_DIR||"./.tinkertunnel-data", location=join(dir,"project-monitor.json");
+const dir=process.env.MAIN_DATA_DIR||"./.tinkertunnel-data", location=join(dir,"project-monitor.json");
 const pending=new Map();
 const osNames=new Set(["linux","macos","windows"]);
 const toolNames=new Set(["esp-idf","xcode","ios-sdk","node","cmake","gcc","python3","swift","git"]);

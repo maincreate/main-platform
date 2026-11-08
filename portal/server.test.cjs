@@ -18,7 +18,7 @@ test("local Node portal serves marketplace and denies execution", {timeout: 1200
   const port = await freePort();
   const child = spawn(process.execPath, ["server.mjs"], {
     cwd: __dirname,
-    env: {...process.env, PORT:String(port), TT_REQUIRE_LOGIN:"0"},
+    env: {...process.env, PORT:String(port), MAIN_REQUIRE_LOGIN:"0"},
     stdio:"ignore"
   });
   const base = "http://127.0.0.1:" + port;

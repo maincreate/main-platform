@@ -7,7 +7,7 @@ The Host Service prepares a fresh Raspberry Pi to be discovered and paired; it d
 1. Flash **Raspberry Pi OS Lite 64-bit** using Raspberry Pi Imager. Choose a hostname, Linux user and password, and enable SSH password login.
 2. SSH into the freshly imaged Pi. Run **one command** (replace the URL with your own HTTPS TinkerTunnel controller):
 
-   `curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo env TT_CONTROLLER_URL=https://tinkertunnel.home.ayusohaylock.com bash`
+   `curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo env MAIN_CONTROLLER_URL=https://tinkertunnel.home.ayusohaylock.com bash`
 
 3. The installer obtains a separately built Linux ARM64 Host Service executable from the controller, verifies its SHA-256 checksum, installs Avahi and OpenSSH if needed, enables `tinkertunnel-host.service`, and advertises `_tinkertunnel._tcp.local` on mDNS, pointing to SSH port 22. **No GitHub runner is registered during installation.** The installer must be run with sudo from the Linux user configured in Imager so it can authorize that specific user for the fixed one-time `join` command.
 4. In the portal, open **Builders → Add a Build Machine**. Discover the Pi by mDNS, or enter the hostname/IP manually. Select **Read SSH fingerprint**. Verify the fingerprint against the Pi's actual SSH host key before confirming: on the Pi, `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.

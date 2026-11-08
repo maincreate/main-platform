@@ -2,9 +2,9 @@ import {createServer} from "node:http";
 import {createHash,timingSafeEqual} from "node:crypto";
 
 const host=process.env.HOST||"0.0.0.0",port=Number(process.env.PORT||"3001");
-const controller=process.env.TT_CONTROLLER_URL||"http://portal:3000";
-const serviceToken=process.env.TT_SERVICE_TOKEN||"",bearer=process.env.TT_MCP_TOKEN||"";
-const allowedOrigins=(process.env.TT_MCP_ALLOWED_ORIGINS||"").split(",").map(s=>s.trim()).filter(Boolean);
+const controller=process.env.MAIN_CONTROLLER_URL||"http://portal:3000";
+const serviceToken=process.env.MAIN_SERVICE_TOKEN||"",bearer=process.env.MAIN_MCP_TOKEN||"";
+const allowedOrigins=(process.env.MAIN_MCP_ALLOWED_ORIGINS||"").split(",").map(s=>s.trim()).filter(Boolean);
 const version="2025-11-25";
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error("Bad PORT");
 function equal(a,b){const x=createHash("sha256").update(a).digest(),y=createHash("sha256").update(b).digest();return timingSafeEqual(x,y);}

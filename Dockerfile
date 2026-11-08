@@ -18,7 +18,7 @@ COPY --from=host-build /out/tinkertunnel-host-linux-arm64 ./downloads/tinkertunn
 COPY --chown=node:node scripts/install-linux.sh scripts/uninstall-linux.sh ./scripts/
 RUN mkdir -p /data && chown node:node /data
 USER node
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 TT_DATA_DIR=/data TT_REQUIRE_LOGIN=1
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 MAIN_DATA_DIR=/data MAIN_REQUIRE_LOGIN=1
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node","portal/server.mjs"]

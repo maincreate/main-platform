@@ -17,7 +17,7 @@ The authenticated `/mcp` gateway now advertises six tools. Capability IDs are ar
 
 The four prototype tool names remain callable as legacy aliases but are no longer advertised.
 
-The MCP server uses protocol version `2025-11-25`, returns `structuredContent` as well as text, and supports the HTTP POST path. **Remote OAuth, resource metadata and ChatGPT-facing authentication are not implemented yet**. The current gateway requires an operator-provisioned `TT_MCP_TOKEN` bearer secret and must remain private.
+The MCP server uses protocol version `2025-11-25`, returns `structuredContent` as well as text, and supports the HTTP POST path. **Remote OAuth, resource metadata and ChatGPT-facing authentication are not implemented yet**. The current gateway requires an operator-provisioned `MAIN_MCP_TOKEN` bearer secret and must remain private.
 
 ## Curated registry and workflows
 
@@ -47,26 +47,26 @@ Use that result's `plan_id` in `tt_execute`; it creates a job awaiting approval.
 
 ## Machine opt-in
 
-The operator must set `TT_ENABLE_FABRIC_EXECUTION=1` on the **controller** after testing. Its default is **off**, even after a job is approved.
+The operator must set `MAIN_ENABLE_FABRIC_EXECUTION=1` on the **controller** after testing. Its default is **off**, even after a job is approved.
 
 To enroll a machine, open **Jobs & Builders**, generate an expiring pairing token, and run the shown enrollment command from the trusted machine. Then start `node runner/agent.mjs run` using the same controller URL and saved enrollment state.
 
 For ESP-IDF builds, the **runner** independently requires:
 
 ```sh
-TT_RUNNER_ENABLE_BUILDS=1 \
-TT_RUNNER_PROJECTS_JSON='{"MainCreate/WaymarkerOS":"/home/builder/WaymarkerOS"}' \
-TT_CONTROLLER_URL=https://your-private-controller.example \
+MAIN_RUNNER_ENABLE_BUILDS=1 \
+MAIN_RUNNER_PROJECTS_JSON='{"MainCreate/WaymarkerOS":"/home/builder/WaymarkerOS"}' \
+MAIN_CONTROLLER_URL=https://your-private-controller.example \
 node runner/agent.mjs run
 ```
 
-The runner checks the explicit local checkout allowlist, the planned 40-character Git commit, and clean working tree. It then runs `idf.py -C <allowlisted-path> build` with `shell:false`. An operator may set `TT_RUNNER_IDF_CMD` to the trusted executable. No MCP argument controls the binary, flags, directory or shell. **ESP-IDF builds run CMake/project code**; use an unprivileged isolated host and only trusted repositories.
+The runner checks the explicit local checkout allowlist, the planned 40-character Git commit, and clean working tree. It then runs `idf.py -C <allowlisted-path> build` with `shell:false`. An operator may set `MAIN_RUNNER_IDF_CMD` to the trusted executable. No MCP argument controls the binary, flags, directory or shell. **ESP-IDF builds run CMake/project code**; use an unprivileged isolated host and only trusted repositories.
 
 ## Jobs and files
 
 Job statuses include approval pending, queued, running, completed, failed, rejected and cancelled. Running jobs cannot yet be interrupted; crashed runners can leave a job `running` and require operator reconciliation. There is no automatic redispatch.
 
-Artifacts use random IDs under `TT_DATA_DIR/assets`, with upload/download chunks no larger than **48 KiB**, a per-file limit of **8 MiB**, and **80 MiB** aggregate quota. Uploads support optional SHA-256 verification. The runner may upload only for its own claimed job. Incomplete uploads count toward quota; automated garbage collection is future work. Logs are bounded. Data persists in `TT_DATA_DIR/fabric.json` and `assets` and needs backup.
+Artifacts use random IDs under `MAIN_DATA_DIR/assets`, with upload/download chunks no larger than **48 KiB**, a per-file limit of **8 MiB**, and **80 MiB** aggregate quota. Uploads support optional SHA-256 verification. The runner may upload only for its own claimed job. Incomplete uploads count toward quota; automated garbage collection is future work. Logs are bounded. Data persists in `MAIN_DATA_DIR/fabric.json` and `assets` and needs backup.
 
 The state store is deliberately single-controller. Do not share its writable directory between active-active instances.
 

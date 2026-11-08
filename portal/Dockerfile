@@ -6,7 +6,7 @@ COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
 COPY --chown=node:node registry/capabilities.json registry/toolkits.json registry/microcontrollers.json registry/ux-flows.json ./registry/
 RUN mkdir -p /data && chown node:node /data
 USER node
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 TT_DATA_DIR=/data
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 MAIN_DATA_DIR=/data
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node","portal/server.mjs"]

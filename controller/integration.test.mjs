@@ -32,7 +32,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
  const p=await freePort(),g=await freePort();
  const base="http://127.0.0.1:"+p, mcp="http://127.0.0.1:"+g;
  const adminUsername="admin",password="secure-user-created-password-123",service=token(),mcpToken=token();
- const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_GITHUB_CLIENT_ID:"",TT_MASTER_KEY:"",TT_SERVICE_TOKEN:service,TT_MCP_TOKEN:mcpToken,TT_REQUIRE_LOGIN:"1",TT_ENABLE_FABRIC_EXECUTION:"0"},stdio:"ignore"});
+ const portal=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(p),MAIN_DATA_DIR:dir,MAIN_GITHUB_CLIENT_ID:"",MAIN_MASTER_KEY:"",MAIN_SERVICE_TOKEN:service,MAIN_MCP_TOKEN:mcpToken,MAIN_REQUIRE_LOGIN:"1",MAIN_ENABLE_FABRIC_EXECUTION:"0"},stdio:"ignore"});
  let gateway;
  try{
    await ready(base);
@@ -257,7 +257,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    writeFileSync(statePath,originalState,{mode:0o600});
 
    assert(!("token" in cfg.runners[0]));
-   gateway=spawn(process.execPath,["gateway/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(g),TT_CONTROLLER_URL:base,TT_MCP_TOKEN:mcpToken,TT_SERVICE_TOKEN:service},stdio:"ignore"});
+   gateway=spawn(process.execPath,["gateway/server.mjs"],{cwd:root,env:{...process.env,HOST:"127.0.0.1",PORT:String(g),MAIN_CONTROLLER_URL:base,MAIN_MCP_TOKEN:mcpToken,MAIN_SERVICE_TOKEN:service},stdio:"ignore"});
    await ready(mcp);
    const headersMcp={"content-type":"application/json",accept:"application/json, text/event-stream"};
    assert.equal((await json(mcp,"/mcp",{jsonrpc:"2.0",id:1,method:"tools/list"},headersMcp)).status,401);
@@ -320,7 +320,7 @@ test("first administrator persists across server restarts without a login enviro
  const dir=mkdtempSync(join(tmpdir(),"tt-auth-persist-"));
  const p=await freePort(),base="http://127.0.0.1:"+p;
  const password="persistent-account-password-2026";
- const env={...process.env,HOST:"127.0.0.1",PORT:String(p),TT_DATA_DIR:dir,TT_ADMIN_TOKEN:"",TT_MASTER_KEY:"",TT_REQUIRE_LOGIN:"1"};
+ const env={...process.env,HOST:"127.0.0.1",PORT:String(p),MAIN_DATA_DIR:dir,MAIN_ADMIN_TOKEN:"",MAIN_MASTER_KEY:"",MAIN_REQUIRE_LOGIN:"1"};
  let child;
  const launch=async()=>{
    child=spawn(process.execPath,["portal/server.mjs"],{cwd:root,env,stdio:"ignore"});

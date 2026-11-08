@@ -16,7 +16,7 @@ import {join} from "node:path";
 import {homedir} from "node:os";
 import {fileURLToPath} from "node:url";
 
-const stateDir=process.env.TT_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
+const stateDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
 const statePath=join(stateDir,"runner.json");
 const agent=fileURLToPath(new URL("./agent.mjs",import.meta.url));
 const error=(message)=>Object.assign(new Error(message),{code:"PAIRING_FAILED"});
@@ -74,7 +74,7 @@ async function pair(){
  const origin=controllerAddress(address);
  const token=await requestInvitation(origin,username,password);
  const child=spawn(process.execPath,[agent,"enroll"],{
-  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin,TT_ENROLLMENT_TOKEN:token}});
+  stdio:"inherit",env:{...process.env,MAIN_CONTROLLER_URL:origin,MAIN_ENROLLMENT_TOKEN:token}});
  const exitCode=await new Promise((resolve,reject)=>{
   child.once("error",reject);child.once("exit",code=>resolve(code??1));
  });
@@ -86,7 +86,7 @@ function run(){
  const config=JSON.parse(readFileSync(statePath,"utf8"));
  const origin=controllerAddress(config.url);
  const child=spawn(process.execPath,[agent,"run"],{
-  stdio:"inherit",env:{...process.env,TT_CONTROLLER_URL:origin}});
+  stdio:"inherit",env:{...process.env,MAIN_CONTROLLER_URL:origin}});
  for(const signal of ["SIGINT","SIGTERM"])process.on(signal,()=>child.kill(signal));
  child.once("exit",code=>{process.exitCode=code??1;});
 }

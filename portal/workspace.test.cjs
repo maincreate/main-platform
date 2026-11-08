@@ -10,8 +10,8 @@ test("workspace serves current builder, marketplace, and job experiences",async(
    "portal/marketplace.html","portal/marketplace.js","portal/jobs.html","portal/jobs.js","portal/activity.css"])
    assert.ok(content.includes(asset),dockerfile+" must ship "+asset);
  }
- const prior=process.env.TT_REQUIRE_LOGIN;
- process.env.TT_REQUIRE_LOGIN="0";
+ const prior=process.env.MAIN_REQUIRE_LOGIN;
+ process.env.MAIN_REQUIRE_LOGIN="0";
  try{
   const {localRoute}=await import("../controller/routes.mjs");
   async function page(path){
@@ -59,7 +59,7 @@ test("workspace serves current builder, marketplace, and job experiences",async(
   const activityStyle=await page("/activity.css");
   assert.ok(activityStyle.includes(".tt-activity-chart"));
  }finally{
-  if(prior===undefined)delete process.env.TT_REQUIRE_LOGIN;
-  else process.env.TT_REQUIRE_LOGIN=prior;
+  if(prior===undefined)delete process.env.MAIN_REQUIRE_LOGIN;
+  else process.env.MAIN_REQUIRE_LOGIN=prior;
  }
 });

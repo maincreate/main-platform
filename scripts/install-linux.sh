@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # TinkerTunnel distributed Host Service for Linux ARM64. Pair from the controller UI afterward.
 set -Eeuo pipefail
-ORIGIN="${TT_CONTROLLER_URL:-https://tinkertunnel.home.ayusohaylock.com}"
+ORIGIN="${MAIN_CONTROLLER_URL:-https://tinkertunnel.home.ayusohaylock.com}"
 ORIGIN="${ORIGIN%/}"
 # The one-time installer sets up the Host Service. Pairing and GitHub Actions
 # provisioning happen later, so those states must never be reported as success.
@@ -66,7 +66,7 @@ run_stage() {
 }
 fail() { printf 'ERROR: %s\n' "$*" >&2; return 1; }
 preflight() {
-  [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] || { fail "TT_CONTROLLER_URL must be a trusted HTTPS origin."; return 1; }
+  [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] || { fail "MAIN_CONTROLLER_URL must be a trusted HTTPS origin."; return 1; }
   [[ "$(uname -s)" == Linux && "$(uname -m)" == aarch64 ]] || { fail "This release requires Linux ARM64 (Raspberry Pi OS 64-bit)."; return 1; }
   [[ "$(id -u)" == 0 ]] || { fail "Run the installer with sudo."; return 1; }
   command -v apt-get >/dev/null || { fail "Debian or Raspberry Pi OS with apt is required."; return 1; }

@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 
 const dir=mkdtempSync(join(tmpdir(),"tt-device-inventory-"));
-process.env.TT_DATA_DIR=dir;
+process.env.MAIN_DATA_DIR=dir;
 const {reportDevices,listDevices,renameDevice}=await import("./devices.mjs");
 const DAY=86400_000;
 const start=Date.parse("2026-11-01T12:00:00Z");

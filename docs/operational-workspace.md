@@ -8,15 +8,15 @@ Routes: `/` Overview, `/projects` GitHub inventory, `/jobs` builders and jobs, `
 
 ## Project inventory
 
-A signed-in administrator selects a GitHub App installation under Settings → GitHub. On Projects, **Sync repositories** calls GitHub's user-installation repository metadata API with the existing encrypted GitHub user token, retaining a bounded snapshot of up to 500 repositories in `TT_DATA_DIR/projects.json`.
+A signed-in administrator selects a GitHub App installation under Settings → GitHub. On Projects, **Sync repositories** calls GitHub's user-installation repository metadata API with the existing encrypted GitHub user token, retaining a bounded snapshot of up to 500 repositories in `MAIN_DATA_DIR/projects.json`.
 
 The Projects page joins repository names with *actual TinkerTunnel job records* carrying an explicit source repository and pinned revision. A Git push is not recorded as a successful build. The snapshot is not continuously polled; it needs manual sync in this release. GitHub App user-token expiry currently requires reconnecting.
 
 ## Read-only device discovery
 
-A trusted enrolled runner can explicitly enable `TT_RUNNER_DEVICE_DISCOVERY=1`. It invokes the bundled `runner/scan_devices.py` through an operator-selected Python interpreter with `pyserial`. It enumerates ports on Linux, macOS and Windows without opening them, then sends a bounded authenticated report outbound to the controller.
+A trusted enrolled runner can explicitly enable `MAIN_RUNNER_DEVICE_DISCOVERY=1`. It invokes the bundled `runner/scan_devices.py` through an operator-selected Python interpreter with `pyserial`. It enumerates ports on Linux, macOS and Windows without opening them, then sends a bounded authenticated report outbound to the controller.
 
-The controller keeps `TT_DATA_DIR/devices.json` with: opaque device ID, reporting runner identity/name, port (e.g. `/dev/ttyACM0`, `/dev/cu.usbmodem...`, `COM3`), USB VID/PID, device serial if present, interface, location, manufacturer, product, optional user label, first-seen and last-seen timestamps.
+The controller keeps `MAIN_DATA_DIR/devices.json` with: opaque device ID, reporting runner identity/name, port (e.g. `/dev/ttyACM0`, `/dev/cu.usbmodem...`, `COM3`), USB VID/PID, device serial if present, interface, location, manufacturer, product, optional user label, first-seen and last-seen timestamps.
 
 **Identity rules**:
 - USB VID/PID + manufacturer-provided serial + interface is the preferred persistent match, scoped to the enrolling runner. Port renumbering does not create a new record.
@@ -27,7 +27,7 @@ The controller keeps `TT_DATA_DIR/devices.json` with: opaque device ID, reportin
 
 Existing MCP tools expose the inventory read-only: `tt_discover({resource:"devices"})` lists visible reported devices and `tt_inspect({resource:"device",id:"..."})` returns a single sanitized device record. Neither tool opens a serial port or changes hardware. No seventh MCP tool is required.
 
-The runner opt-in does not grant execution capabilities. For a host installation: install Python 3 and `pyserial`, then run the current TinkerTunnel agent with `TT_RUNNER_DEVICE_DISCOVERY=1`. A containerized runner must have explicit access to USB host devices; Docker containers do not automatically see physical ports. Do not grant a Docker socket or privileged mode merely to enable discovery.
+The runner opt-in does not grant execution capabilities. For a host installation: install Python 3 and `pyserial`, then run the current TinkerTunnel agent with `MAIN_RUNNER_DEVICE_DISCOVERY=1`. A containerized runner must have explicit access to USB host devices; Docker containers do not automatically see physical ports. Do not grant a Docker socket or privileged mode merely to enable discovery.
 
 ## Topology correctness
 
@@ -81,4 +81,4 @@ Requirements before enabling: signed GitHub webhook events or properly authentic
 
 **Not implemented by this branch:** actual serial write/flash, GitHub webhook receiver, automatic build/flash policy engine, SDK autodetection, or production ChatGPT OAuth. Those are separate adapter and authorization milestones, not UI states to fabricate.
 
-To verify: run Node 22+ `npm test`; verify the private Dockerfile image has the new controller modules and assets; log in and visit all pages; connect/sync GitHub; enroll a test runner and enable read-only device discovery; unplug/replug a USB device, changing port if possible; validate 7/30 lifecycle in unit tests; ensure the controller has `TT_ENABLE_FABRIC_EXECUTION=0` unless separately enabled.
+To verify: run Node 22+ `npm test`; verify the private Dockerfile image has the new controller modules and assets; log in and visit all pages; connect/sync GitHub; enroll a test runner and enable read-only device discovery; unplug/replug a USB device, changing port if possible; validate 7/30 lifecycle in unit tests; ensure the controller has `MAIN_ENABLE_FABRIC_EXECUTION=0` unless separately enabled.

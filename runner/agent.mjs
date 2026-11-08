@@ -5,16 +5,16 @@ import {createHash} from "node:crypto";
 import {spawn} from "node:child_process";
 import {fileURLToPath} from "node:url";
 
-const configDir=process.env.TT_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
+const configDir=process.env.MAIN_RUNNER_STATE_DIR||join(homedir(),".tinkertunnel");
 const path=join(configDir,"runner.json");
-const command=process.argv[2]||"run",endpoint=process.env.TT_CONTROLLER_URL||"http://portal:3000";
+const command=process.argv[2]||"run",endpoint=process.env.MAIN_CONTROLLER_URL||"http://portal:3000";
 const os={win32:"windows",darwin:"macos",linux:"linux"}[platform()];
 const architecture={x64:"x64",arm64:"arm64"}[arch()];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function ensureUrl(){
  const u=new URL(endpoint);
  if(!["https:","http:"].includes(u.protocol))throw new Error("Unsupported controller scheme");
- if(u.protocol==="http:"&&!["127.0.0.1","localhost","portal","controller"].includes(u.hostname)&&process.env.TT_ALLOW_INSECURE_LAN!=="true")
+ if(u.protocol==="http:"&&!["127.0.0.1","localhost","portal","controller"].includes(u.hostname)&&process.env.MAIN_ALLOW_INSECURE_LAN!=="true")
   throw new Error("Use HTTPS for remote controller or explicitly permit isolated LAN HTTP");
  return u;
 }
@@ -29,9 +29,9 @@ async function post(route,obj,token){
 }
 async function enroll(){
  if(!os||!architecture)throw new Error("Unsupported runner platform or architecture");
- const invite=process.env.TT_ENROLLMENT_TOKEN||"";
- if(invite.length<32)throw new Error("TT_ENROLLMENT_TOKEN required for enrollment");
- const name=(process.env.TT_RUNNER_NAME||hostname()).slice(0,64);
+ const invite=process.env.MAIN_ENROLLMENT_TOKEN||"";
+ if(invite.length<32)throw new Error("MAIN_ENROLLMENT_TOKEN required for enrollment");
+ const name=(process.env.MAIN_RUNNER_NAME||hostname()).slice(0,64);
  const r=await post("/api/agent/enroll",{token:invite,name,os,arch:architecture});
  mkdirSync(configDir,{recursive:true,mode:0o700});
  writeFileSync(path,JSON.stringify({id:r.id,token:r.token,url:endpoint,name,os,arch:architecture},null,2),{mode:0o600});
@@ -39,10 +39,10 @@ async function enroll(){
  console.log("Enrolled "+name+" ("+r.id+") to "+endpoint+". Execution requires explicit controller and runner opt-in.");
 }
 function approvedCheckout(repo){
- if(process.env.TT_RUNNER_ENABLE_BUILDS!=="1")throw new Error("Runner builds disabled by operator");
+ if(process.env.MAIN_RUNNER_ENABLE_BUILDS!=="1")throw new Error("Runner builds disabled by operator");
  let projects;
- try{projects=JSON.parse(process.env.TT_RUNNER_PROJECTS_JSON||"{}");}
- catch{throw new Error("Invalid TT_RUNNER_PROJECTS_JSON");}
+ try{projects=JSON.parse(process.env.MAIN_RUNNER_PROJECTS_JSON||"{}");}
+ catch{throw new Error("Invalid MAIN_RUNNER_PROJECTS_JSON");}
  if(!projects||typeof projects!=="object"||Array.isArray(projects)||
   !Object.hasOwn(projects,repo)||typeof projects[repo]!=="string")
   throw new Error("Repository not in this runner's approved local project map");
@@ -120,7 +120,7 @@ async function executeJob(config,job){
     const dirty=(await processTool("git",["status","--porcelain=v1","--untracked-files=normal"],checkout,20000)).trim();
     if(dirty)throw new Error("Approved checkout has modified or untracked files; use a clean pinned checkout");
     // No user-provided executable, flags, environment, working directory, URL or command string.
-    const output=await processTool(process.env.TT_RUNNER_IDF_CMD||"idf.py",["-C",checkout,"build"],
+    const output=await processTool(process.env.MAIN_RUNNER_IDF_CMD||"idf.py",["-C",checkout,"build"],
      checkout,20*60*1000);
     out.push(output.slice(-14000));
     ids.push(await uploadAsset(config,job.id,"esp-idf-build-log.txt","text/plain",
@@ -167,7 +167,7 @@ function linuxSerialDevices(){
 }
 async function scanSerialDevices(){
  if(os==="linux")return linuxSerialDevices();
- const python=process.env.TT_RUNNER_PYTHON||(os==="windows"?"python":"python3");
+ const python=process.env.MAIN_RUNNER_PYTHON||(os==="windows"?"python":"python3");
  const script=fileURLToPath(new URL("./scan_devices.py",import.meta.url));
  return new Promise((resolve,reject)=>{
   const child=spawn(python,[script],{shell:false,windowsHide:true,stdio:["ignore","pipe","pipe"]});
@@ -223,7 +223,7 @@ async function run(){
     try{await post("/api/agent/heartbeat",{id:config.id,packages:await detectPackages()},config.token);}
     catch(e){console.error("Package inventory:",e.message);}
    }
-   if(process.env.TT_RUNNER_DEVICE_DISCOVERY!=="0"&&Date.now()>=nextScan){
+   if(process.env.MAIN_RUNNER_DEVICE_DISCOVERY!=="0"&&Date.now()>=nextScan){
     nextScan=Date.now()+60000;
     try{
      const devices=await scanSerialDevices();

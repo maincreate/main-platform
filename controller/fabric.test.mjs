@@ -6,7 +6,7 @@ import {join} from "node:path";
 import {createHash} from "node:crypto";
 
 const dir=mkdtempSync(join(tmpdir(),"tt-fabric-"));
-process.env.TT_DATA_DIR=dir;
+process.env.MAIN_DATA_DIR=dir;
 const {fabricCall,approveJob,claimJob,reportJob,agentAsset}=await import("./fabric.mjs");
 const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
 const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};

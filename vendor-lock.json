@@ -1,7 +1,7 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "c922dc9663106821acfbd7b226514c887002d1f8",
+    "revision": "ec7df776f715a2d3c1c79d714900c1f94ef85d8c",
     "paths": ["host", "runner", "scripts/install-linux.sh", "scripts/uninstall-linux.sh"]
   },
   "marketplace": {
