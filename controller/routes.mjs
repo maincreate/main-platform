@@ -6,7 +6,6 @@ import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from ".
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
-import {inspectHost,enrollHost,parseHost} from "./host_adoption.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
@@ -14,7 +13,6 @@ const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
 let bootstrapBusy = false;
 const provisioningNames=new Set();
-const managedHostOperations=new Map();
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
@@ -714,69 +712,6 @@ export async function localRoute(req) {
         catch(e){return deny(e.status||422,e.message);}
       }
 
-      if(path==="/api/local/builders/ssh/probe"&&method==="POST"){
-        const b=await body(req);
-        if(limited("ssh-probe:"+session(req).username,18))return deny(429,"Too many connection attempts");
-        try{return reply(await inspectHost(b.address,b.username));}
-        catch(e){return deny(e.status||502,e.message||"Host unavailable");}
-      }
-      if(path==="/api/local/builders/ssh/enroll"&&method==="POST"){
-        const b=await body(req),stored=state();
-        if(limited("ssh-enroll:"+session(req).username,5))return deny(429,"Too many enrollment attempts");
-        if(!githubIdentityCurrent(stored.github)||!stored.github.selectedOrganization)
-          return deny(409,"Connect an organization in GitHub first");
-        if(typeof b.controllerUrl!=="string"||!/^https:\/\/[a-z0-9.-]+(?::[0-9]{2,5})?$/i.test(b.controllerUrl))
-          return deny(422,"Controller URL must be an HTTPS origin");
-        try{parseHost(b.address,b.username);}catch(e){return deny(e.status||422,e.message);}
-        if(typeof b.password!=="string"||!b.password)return deny(422,"Host password required");
-        const org=stored.github.selectedOrganization,hostKey=b.address.toLowerCase();
-        if([...managedHostOperations.values()].some(o=>o.hostKey===hostKey&&o.state==="running"))
-          return deny(409,"Host enrollment already in progress");
-        const id=randomBytes(12).toString("hex");
-        const operation={id,hostKey,state:"running",stage:"Connecting",createdAt:Date.now(),result:null,error:null};
-        for(const [key,item] of managedHostOperations)if(Date.now()-item.createdAt>3600000)managedHostOperations.delete(key);
-        managedHostOperations.set(id,operation);
-        const getToken=async()=>{
-          const current=state();
-          if(!githubIdentityCurrent(current.github)||current.github.selectedOrganization!==org)
-            throw new Error("GitHub organization changed during enrollment");
-          const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/registration-token",{
-            method:"POST",headers:{authorization:"Bearer "+unseal(current.github.oauthToken),
-              accept:"application/vnd.github+json","user-agent":"TinkerTunnel",
-              "x-github-api-version":"2022-11-28"},signal:AbortSignal.timeout(15000)});
-          if(!response.ok)throw new Error(response.status===403?
-            "GitHub App requires approved Self-hosted runners: write permission and organization admin access":
-            "GitHub runner registration failed (HTTP "+response.status+")");
-          const json=await response.json();
-          if(typeof json.token!=="string"||json.token.length<20)throw new Error("GitHub did not issue runner registration token");
-          return json.token;
-        };
-        const getInvite=async()=>{
-          const current=state(),token=rnd();
-          current.invites=(current.invites||[]).filter(v=>v.expires>Date.now());
-          current.invites.push({hash:digest(token),expires:Date.now()+10*60000});
-          save(current);return token;
-        };
-        // Credentials are deliberately never persisted. The browser polls only sanitized stages.
-        void enrollHost({address:b.address,username:b.username,password:b.password,
-          approvedFingerprint:b.fingerprint,organization:org,controllerUrl:b.controllerUrl,
-          progress:stage=>{operation.stage=stage;},getToken,getInvite}).then(result=>{
-          operation.state="complete";operation.stage="Managed runner enrolled";operation.result=result;
-          if(result.agentId){
-            const current=state(),agent=current.runners.find(v=>v.id===result.agentId);
-            if(agent){agent.managedHost=result.host;agent.githubRunnerName=result.name;
-              agent.labels=result.labels;agent.hostKeyFingerprint=b.fingerprint;save(current);}
-          }
-        }).catch(error=>{operation.state="failed";operation.error=error.message||"Enrollment failed";
-          operation.stage="Enrollment failed";});
-        return reply({operationId:id,state:"running"},202);
-      }
-      if(path==="/api/local/builders/ssh/status"&&method==="GET"){
-        const id=new URL(req.url).searchParams.get("id");
-        const op=managedHostOperations.get(id);
-        if(!op)return deny(404,"Enrollment session not found");
-        return reply({state:op.state,stage:op.stage,error:op.error,result:op.result});
-      }
       if(path==="/api/local/builders/github-runners"&&method==="GET"){
         const gh=state().github,org=gh.selectedOrganization;
         if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
