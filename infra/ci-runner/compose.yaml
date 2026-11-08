@@ -1,0 +1,35 @@
+# TinkerTunnel internal CI runner — Coolify Docker Compose
+# Keep the GitHub credential in Coolify's environment settings, never in Git.
+# Restrict the org runner group to TinkerTunnel/tinkertunnel before enabling workflows.
+services:
+  tt-ci-linux-01:
+    image: ghcr.io/myoung34/docker-github-actions-runner:latest
+    restart: unless-stopped
+    environment:
+      RUNNER_SCOPE: org
+      ORG_NAME: TinkerTunnel
+      RUNNER_NAME: tt-ci-linux-01
+      RUNNER_GROUP: Default
+      LABELS: tt-ci,linux-x64
+      RUNNER_WORKDIR: /tmp/runner/work
+      ACCESS_TOKEN: ${TT_CI_GITHUB_TOKEN:?Configure TT_CI_GITHUB_TOKEN in Coolify}
+      RUN_AS_ROOT: "false"
+      UNSET_CONFIG_VARS: "true"
+      START_DOCKER_SERVICE: "false"
+      # Registration persists across container restart; workspace does not.
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/data
+      DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+    user: "1001:121"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - tt-ci-runner-registration:/runner/data
+    # No host Docker socket, host network, privileged mode, or published ports.
+    # Limit GitHub Actions jobs to source/tests that don't need container jobs.
+    mem_limit: 4g
+    cpus: 2.0
+    pids_limit: 512
+    stop_grace_period: 2m
+
+volumes:
+  tt-ci-runner-registration:
