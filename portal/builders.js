@@ -612,7 +612,7 @@ async function pollSetupProgress(serial){
   if(serial!==setupPollSerial||!dialog.open)return;
   const host=overview.runners?.items?.find(r=>r.id===setupHostId);
   if(!host){setupFailure("enrollment","The controller no longer has this builder enrollment.");return;}
-  const recent=await api("/api/local/builders/actions");
+  const recent=await api("/api/local/builders/actions?runnerId="+encodeURIComponent(setupHostId));
   if(serial!==setupPollSerial||!dialog.open)return;
   const action=(recent.actions||[]).filter(a=>a.runnerId===setupHostId&&a.type==="github-runner.provision").at(-1);
   const live=host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000;
