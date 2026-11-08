@@ -165,48 +165,69 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-topology-flow-wrap .topology-node.hub{border-color:var(--accent)}
 @media(max-width:1100px){.tt-topology-flow{grid-template-columns:repeat(5,205px)}.tt-topology-ai-flow{grid-template-columns:repeat(4,205px)}}
 
-/* Builder adoption: one modal for host address and credentials. */
-.tt-builder-dialog{max-width:560px;width:calc(100% - 28px);border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:16px;padding:24px}
-.tt-builder-dialog::backdrop{background:rgba(0,0,0,.73)}
-.tt-builder-dialog form{display:grid;gap:11px}
-.tt-builder-dialog h2{margin:0}
-.tt-builder-dialog h3{font-size:15px;margin:0}
-.tt-builder-dialog p{color:var(--muted);font-size:13px;line-height:1.6}
+
+/* Compact modal: three independent screens rather than one long installation form. */
+.tt-builder-dialog{box-sizing:border-box;width:min(760px,calc(100vw - 28px));max-width:760px;max-height:min(92dvh,760px);
+ overflow:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:24px}
+.tt-builder-dialog::backdrop{background:rgba(0,0,0,.72)}
+.tt-builder-content{display:grid;gap:13px}
+.tt-builder-header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.tt-builder-header h2{font-size:25px;line-height:1.1;letter-spacing:-.04em;margin:5px 0 0}
+.tt-builder-header .eyebrow{margin:0}
+.tt-builder-close{border:0;background:transparent;color:var(--muted);font-size:28px;line-height:1;cursor:pointer;padding:0 4px}
+.tt-builder-intro{color:var(--muted);font-size:13px;line-height:1.55;margin:0;max-width:670px}
+.tt-builder-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.tt-builder-progress span{border-top:3px solid var(--line);padding:8px 0 0;color:var(--muted);font-size:11px;font-weight:700}
+.tt-builder-progress span[aria-current=step]{border-color:var(--accent);color:var(--text)}
+.tt-builder-step{display:grid;gap:11px;min-width:0}
+.tt-builder-step[hidden],.tt-builder-dialog [hidden]{display:none!important}
+.tt-builder-step h3{font-size:15px;letter-spacing:-.02em;margin:3px 0 1px}
+.tt-builder-step p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+.tt-builder-step strong{color:var(--text)}
 .tt-builder-dialog label{font-size:12px;font-weight:700}
-.tt-builder-dialog input{font:inherit;width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px}
-.tt-builder-dialog .tt-toolbar-actions{justify-content:flex-end}
-.tt-builder-dialog .tt-cta{margin:0;border:0;box-shadow:none}
-.tt-builder-dialog #hostFingerprint{font-size:12px;display:block;overflow-wrap:anywhere;background:var(--bg);padding:9px;border:1px solid var(--line);border-radius:8px}
-.tt-builder-dialog #builderProgress{min-height:20px;color:var(--accent)}
-.tt-builder-dialog .tt-builder-footnote{font-size:11px}
-.inventory-table details ul{padding-left:16px;margin:8px 0;font-size:12px}
-
-/* Outbound Host Service enrollment — no legacy SSH pairing fields. */
-.tt-builder-content{display:grid;gap:11px}
-.tt-builder-dialog{max-height:min(90vh,780px);overflow-y:auto}
-.tt-builder-dialog .tt-command-block{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:7px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px}
-.tt-builder-dialog .tt-service-command{align-self:stretch;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;margin:0;font-size:12px;line-height:1.7;color:var(--text);user-select:text}
-.tt-builder-dialog .tt-builder-copy-status{min-height:1em;margin:0}
-.tt-builder-dialog #controllerAddress{overflow-wrap:anywhere}
-
-/* Controller-led first-run builder enrollment. */
-.tt-builder-dialog{width:min(690px,calc(100% - 28px));max-width:690px}
-.tt-builder-dialog .tt-pair-step{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:17px}
-.tt-builder-dialog .tt-pair-step h3{font-size:17px;margin:0}
-.tt-builder-dialog .tt-pair-step p{margin:0}
-.tt-builder-dialog .tt-discovered-hosts{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
-.tt-builder-dialog .tt-discovered-hosts button{white-space:normal;text-align:left;overflow-wrap:anywhere}
-.tt-builder-dialog .tt-pair-confirm{display:flex;gap:10px;align-items:center;font-size:12px;line-height:1.5}
-.tt-builder-dialog .tt-pair-confirm input{width:17px;height:17px;flex:none;margin:0}
-.tt-builder-dialog #hostVerification{display:grid;gap:11px}
-.tt-builder-dialog #hostVerification[hidden]{display:none}
-.tt-builder-dialog #pairProgress{min-height:22px;color:var(--accent)}
-.tt-builder-dialog #hostFingerprint{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
-.tt-builder-dialog button:disabled{opacity:.5;cursor:not-allowed}
-.tt-builder-dialog .tt-toolbar-actions{justify-content:flex-start;flex-wrap:wrap}
-.tt-builder-dialog .tt-cta{justify-self:start;padding:10px 16px}
-@media(max-width:650px){
- .tt-builder-dialog{padding:18px}
- .tt-builder-dialog .tt-cta{width:100%;justify-self:stretch}
- .tt-builder-dialog .tt-command-block{align-items:stretch}
+.tt-builder-dialog input:not([type=checkbox]){font:inherit;width:100%;min-width:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px}
+.tt-builder-dialog input:focus-visible,.tt-builder-dialog button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tt-os-tabs,.tt-connect-tabs{display:flex;gap:7px;min-width:0;overflow-x:auto;scrollbar-width:thin;padding-bottom:5px}
+.tt-os-tabs button,.tt-connect-tabs button{white-space:nowrap;flex:0 0 auto;padding:9px 13px;font:700 12px system-ui;
+ background:var(--bg);color:var(--muted);border:1px solid var(--line);border-radius:9px;cursor:pointer}
+.tt-os-tabs button[aria-selected=true],.tt-connect-tabs button[aria-selected=true]{border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.tt-os-content{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:14px;min-height:143px}
+.tt-os-content [role=tabpanel]{display:grid;gap:11px}
+.tt-os-content p{font-size:13px}
+.tt-command-block{display:flex;align-items:center;gap:10px;justify-content:space-between;min-width:0;
+ background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
+.tt-service-command{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;margin:0;font-size:11px;line-height:1.65;color:var(--text);user-select:text}
+.tt-command-block button{flex:0 0 auto}
+.tt-builder-dialog .tt-builder-footnote,.tt-builder-more{font-size:11px!important;color:var(--muted);line-height:1.55}
+.tt-builder-more a{color:var(--accent);text-decoration:underline}
+.tt-connect-panel{display:grid;gap:8px;min-width:0}
+.tt-connect-panel[hidden]{display:none}
+.tt-scan-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tt-scan-header span{font-size:11px;color:var(--muted)}
+.tt-discovery-table-wrap{border:1px solid var(--line);border-radius:10px;max-height:170px;overflow:auto}
+.tt-discovery-table{width:100%;border-collapse:collapse;font-size:12px}
+.tt-discovery-table th,.tt-discovery-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.tt-discovery-table th{background:var(--bg);color:var(--muted);font-size:11px}
+.tt-discovery-table td:last-child{text-align:right;white-space:nowrap}
+.tt-discovery-table tr:last-child td{border-bottom:none}
+.tt-credentials{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px 12px;align-items:end}
+.tt-credentials label:nth-of-type(1){grid-column:1;grid-row:1}
+.tt-credentials input:nth-of-type(1){grid-column:1;grid-row:2}
+.tt-credentials label:nth-of-type(2){grid-column:2;grid-row:1}
+.tt-credentials input:nth-of-type(2){grid-column:2;grid-row:2}
+.tt-fingerprint-block{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.tt-fingerprint-block small{font-weight:700;color:var(--muted)}
+.tt-fingerprint-block code{overflow-wrap:anywhere;font:700 14px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--text)}
+.tt-pair-confirm{display:flex;align-items:center;gap:9px;line-height:1.5}
+.tt-pair-confirm input{width:17px;height:17px;flex:0 0 auto}
+.tt-builder-feedback{min-height:17px;margin:0!important;color:var(--accent);font-size:12px!important;line-height:1.5}
+.tt-builder-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:11px;border-top:1px solid var(--line)}
+.tt-builder-footer-actions{display:flex;align-items:center;gap:9px}
+.tt-builder-dialog .tt-cta{margin:0;border:0;box-shadow:none;padding:9px 16px}
+.tt-builder-dialog button:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:650px){.tt-builder-dialog{padding:17px;max-height:94dvh}.tt-builder-header h2{font-size:21px}
+.tt-credentials{display:grid;grid-template-columns:1fr;gap:6px}
+.tt-credentials label:nth-of-type(n),.tt-credentials input:nth-of-type(n){grid-column:auto;grid-row:auto}
+.tt-builder-footer{flex-wrap:wrap}.tt-builder-footer-actions{margin-left:auto}
+.tt-service-command{font-size:10px}
 }

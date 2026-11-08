@@ -1,53 +1,84 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Builders • TinkerTunnel</title><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/jobs.css"><script src="/builders.js" defer></script></head><body data-theme="midnight"><aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders" aria-current="page">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><span id="username">administrator</span></header><main class="main inventory-page">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Builders • TinkerTunnel</title><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/jobs.css"><script src="/builders.js" defer></script></head>
+<body data-theme="midnight"><aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders" aria-current="page">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside>
+<header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><span id="username">administrator</span></header>
+<main class="main inventory-page">
  <p class="eyebrow">FLEET / BUILD MACHINES</p>
- <div class="setting-row"><div><h1>Builders</h1><p>Install once on a fresh Pi, pair with your Linux login, and let the controller register its shared GitHub runner.</p></div>
-  <button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
+ <div class="setting-row"><div><h1>Builders</h1><p>Manage your distributed build fleet and its GitHub Actions runners.</p></div><button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
  <p id="notification" class="home-error" role="status" aria-live="polite"></p>
- <section class="inventory-panel">
-  <div class="panel-heading"><div><h2>Managed build machines</h2><p>Connected hosts and installed packages.</p></div>
-   <button id="refresh" type="button" class="plain-button">Refresh</button></div>
-  <div class="inventory-toolbar">
-   <input id="builderSearch" type="search" placeholder="Search builders or tools" aria-label="Search builders">
-   <select id="builderStatus" aria-label="Filter builders"><option value="all">All builders</option><option value="online">Online</option><option value="offline">Offline</option></select>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Connected hosts and installed packages.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
+  <div class="inventory-toolbar"><input id="builderSearch" type="search" placeholder="Search builders or tools" aria-label="Search builders"><select id="builderStatus" aria-label="Filter builders"><option value="all">All builders</option><option value="online">Online</option><option value="offline">Offline</option></select></div>
+  <div id="runners-list" aria-live="polite"></div></section>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>GitHub Actions runners</h2><p>Registered runners from the selected organization.</p></div></div><div id="githubRunners" aria-live="polite"></div></section>
+ <section class="inventory-panel"><div class="panel-heading"><div><h2>Host provisioning activity</h2><p>Controller-issued runner registration actions.</p></div></div><div id="hostActions"></div></section>
+
+ <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle" aria-describedby="builderIntro">
+ <div class="tt-builder-content">
+  <div class="tt-builder-header"><div><p class="eyebrow">FLEET / NEW MACHINE</p><h2 id="addBuilderTitle">Add a build machine</h2></div><button type="button" id="closeBuilder" class="tt-builder-close" aria-label="Close dialog">×</button></div>
+  <p id="builderIntro" class="tt-builder-intro">Prepare a host once. TinkerTunnel pairs it and registers its shared GitHub Actions runner using the machine hostname.</p>
+  <div class="tt-builder-progress" aria-label="Setup progress">
+   <span data-step-indicator="1" aria-current="step">1 · Prepare</span><span data-step-indicator="2">2 · Connect</span><span data-step-indicator="3">3 · Confirm</span>
   </div>
-  <div id="runners-list" aria-live="polite"></div>
- </section>
- <section class="inventory-panel">
-  <div class="panel-heading"><div><h2>GitHub Actions runners</h2><p>Registered runners from the selected organization and their managed labels.</p></div></div>
-  <div id="githubRunners" aria-live="polite"></div>
- </section>
- <section class="inventory-panel"><div class="panel-heading"><div><h2>Host provisioning activity</h2><p>Controller-issued GitHub runner actions.</p></div></div><div id="hostActions"></div></section>
- <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle">
-  <div class="tt-builder-content">
-   <h2 id="addBuilderTitle">Add a build machine</h2>
-   <p><strong>Linux ARM64 / Raspberry Pi OS Lite (64-bit) — first-run alpha.</strong> Configure hostname, user, password, and SSH in Raspberry Pi Imager. The installer prepares the host; the controller handles GitHub registration after pairing.</p>
-   <section class="tt-pair-step"><h3>1. Install once on the Pi</h3>
-    <p>SSH into the freshly imaged Pi, then run this command. It installs the Host Service, enables it at boot, and advertises the host on mDNS.</p>
-    <div class="tt-command-block"><pre class="tt-service-command"><code id="installCommand"></code></pre>
-     <button type="button" id="copyInstallCommand" class="plain-button">Copy command</button></div>
-    <p class="tt-builder-footnote">This release requires Linux ARM64 (aarch64). The controller address is <code id="controllerAddress"></code>. Other OS installers are planned; do not use this command on x64, macOS, or Windows.</p>
-   </section>
-   <section class="tt-pair-step"><h3>2. Connect your host</h3>
-    <div class="tt-toolbar-actions"><button type="button" id="discoverHosts" class="plain-button">Discover hosts on network</button></div>
-    <div id="discoveredHosts" aria-live="polite" class="tt-discovered-hosts"></div>
-    <label for="hostAddress">Pi hostname or IP address</label>
-    <input id="hostAddress" type="text" autocomplete="off" spellcheck="false" placeholder="waymarker-lab.local or 192.168.100.25">
-    <label for="hostUsername">Linux username (from Raspberry Pi Imager)</label>
-    <input id="hostUsername" type="text" autocomplete="username" placeholder="Username configured during imaging">
-    <label for="hostPassword">Linux password (used only for initial SSH pairing)</label>
-    <input id="hostPassword" type="password" autocomplete="off" placeholder="Local Pi password">
-    <button type="button" id="checkHost" class="action tt-cta">Check host identity</button>
-    <div id="hostVerification" hidden>
-     <p><strong>Confirm this is your Pi</strong> before sending credentials. Compare the SSH fingerprint with the value on the Pi:</p>
-     <div class="tt-command-block"><pre class="tt-service-command"><code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code></pre></div>
-     <p id="hostFingerprint" class="tt-builder-fingerprint"></p>
-     <label class="tt-pair-confirm"><input type="checkbox" id="confirmFingerprint"> Fingerprint matches the Pi I intended to pair</label>
-     <button type="button" id="pairHost" class="action tt-cta">Pair and register GitHub runner</button>
+
+  <section id="builderStep1" class="tt-builder-step" aria-label="Step 1: Prepare a machine">
+   <h3>Select operating system and architecture</h3>
+   <div class="tt-os-tabs" role="tablist" aria-label="Host operating system and CPU architecture">
+    <button type="button" role="tab" id="platform-linux-arm64" aria-controls="instructions-linux-arm64" aria-selected="true" tabindex="0" data-platform="linux-arm64">Linux ARM64</button>
+    <button type="button" role="tab" id="platform-linux-x64" aria-controls="instructions-linux-x64" aria-selected="false" tabindex="-1" data-platform="linux-x64">Linux x64</button>
+    <button type="button" role="tab" id="platform-macos-arm64" aria-controls="instructions-macos-arm64" aria-selected="false" tabindex="-1" data-platform="macos-arm64">macOS ARM64</button>
+    <button type="button" role="tab" id="platform-macos-x64" aria-controls="instructions-macos-x64" aria-selected="false" tabindex="-1" data-platform="macos-x64">macOS x64</button>
+    <button type="button" role="tab" id="platform-windows-x64" aria-controls="instructions-windows-x64" aria-selected="false" tabindex="-1" data-platform="windows-x64">Windows x64</button>
+   </div>
+   <div class="tt-os-content">
+    <div id="instructions-linux-arm64" role="tabpanel" aria-labelledby="platform-linux-arm64">
+     <p><strong>Available for testing · Raspberry Pi OS Lite 64-bit.</strong> In Raspberry Pi Imager, set a hostname, local username/password, and enable SSH with password authentication. Boot and SSH into the Pi.</p>
+     <div class="tt-command-block"><pre class="tt-service-command"><code id="installCommand"></code></pre><button type="button" id="copyInstallCommand" class="plain-button">Copy</button></div>
+     <p class="tt-builder-footnote">One-time installer: Linux ARM64 only. It installs the persistent Host Service; GitHub registration happens after pairing.</p>
     </div>
-    <p id="pairProgress" class="tt-builder-copy-status" role="status" aria-live="polite"></p>
-   </section>
-   <p class="tt-builder-footnote">After pairing, the controller automatically requests a scoped GitHub Actions registration token and configures the runner under the Pi's actual hostname. If GitHub access is not ready, the Pi stays paired and shows a clear retry action. No GitHub credentials are entered on the Pi.</p>
-   <div class="tt-toolbar-actions"><a class="plain-button" href="https://tinkertunnel.com/docs/" target="_blank" rel="noopener noreferrer">Read setup instructions ↗</a><button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
-  </div>
- </dialog>
+    <div id="instructions-linux-x64" role="tabpanel" aria-labelledby="platform-linux-x64" hidden><p><strong>Coming soon.</strong> A native Linux x64 installer and controller-managed runner provisioning are planned for VMs and x86 mini PCs. The ARM64 installer will not work here.</p></div>
+    <div id="instructions-macos-arm64" role="tabpanel" aria-labelledby="platform-macos-arm64" hidden><p><strong>Coming soon.</strong> Apple Silicon Mac host service, launchd support and Xcode-aware builder registration are planned. No native installer is released for this platform.</p></div>
+    <div id="instructions-macos-x64" role="tabpanel" aria-labelledby="platform-macos-x64" hidden><p><strong>Coming soon.</strong> Intel Mac hosting, launchd and Xcode toolchain discovery are planned. No native installer is released for this platform.</p></div>
+    <div id="instructions-windows-x64" role="tabpanel" aria-labelledby="platform-windows-x64" hidden><p><strong>Coming soon.</strong> Windows x64 service installation, Visual Studio tooling and GitHub runner lifecycle support are planned. No native installer is released for this platform.</p></div>
+   </div>
+   <p class="tt-builder-more">Complete installation on the machine, then continue. <a href="https://tinkertunnel.com/docs/" target="_blank" rel="noopener noreferrer">Full setup instructions ↗</a></p>
+  </section>
+
+  <section id="builderStep2" class="tt-builder-step" aria-label="Step 2: Connect to machine" hidden>
+   <h3>Connect to the installed Host Service</h3>
+   <div class="tt-connect-tabs" role="tablist" aria-label="Connection method">
+    <button type="button" role="tab" id="method-manual" aria-controls="connectManual" aria-selected="true" tabindex="0" data-method="manual">Manual</button>
+    <button type="button" role="tab" id="method-discovery" aria-controls="connectDiscovery" aria-selected="false" tabindex="-1" data-method="discovery">Discover nearby</button>
+   </div>
+   <div id="connectManual" role="tabpanel" aria-labelledby="method-manual" class="tt-connect-panel">
+    <label for="hostAddress">Machine hostname or IP address</label>
+    <input id="hostAddress" type="text" autocomplete="off" spellcheck="false" placeholder="waymarker-lab.local or 192.168.100.25">
+    <p class="tt-builder-footnote">Use the hostname configured during imaging or its IP address—this is an SSH endpoint, not a web URL.</p>
+   </div>
+   <div id="connectDiscovery" role="tabpanel" aria-labelledby="method-discovery" class="tt-connect-panel" hidden>
+    <div class="tt-scan-header"><span id="discoveryStatus" role="status" aria-live="polite">Start discovery to find nearby Host Services.</span><button type="button" id="restartDiscovery" class="plain-button">Scan again</button></div>
+    <div class="tt-discovery-table-wrap"><table class="tt-discovery-table"><thead><tr><th>Machine</th><th>Address</th><th></th></tr></thead><tbody id="discoveredHosts"><tr><td colspan="3">Looking for machines…</td></tr></tbody></table></div>
+    <p id="selectedHost" class="tt-builder-footnote" role="status">No host selected.</p>
+   </div>
+   <div class="tt-credentials">
+    <label for="hostUsername">Local Linux username</label><input id="hostUsername" type="text" autocomplete="username" placeholder="Pi Imager username">
+    <label for="hostPassword">Local Linux password</label><input id="hostPassword" type="password" autocomplete="off" placeholder="Used only for pairing">
+   </div>
+   <p class="tt-builder-footnote">Your password is sent only after you confirm the host's SSH fingerprint. It is not stored by TinkerTunnel.</p>
+  </section>
+
+  <section id="builderStep3" class="tt-builder-step" aria-label="Step 3: Verify and add builder" hidden>
+   <h3>Verify host identity</h3>
+   <p>Before credentials are sent, confirm that this SSH host key belongs to the machine you're adding.</p>
+   <div class="tt-fingerprint-block"><small id="verifyHostAddress">Host</small><code id="hostFingerprint" aria-live="polite"></code></div>
+   <p class="tt-builder-footnote">On the host, run: <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code></p>
+   <label class="tt-pair-confirm"><input type="checkbox" id="confirmFingerprint"> This fingerprint matches the target machine</label>
+   <p class="tt-builder-footnote">After pairing, the controller queues GitHub registration under the machine hostname. The Builder list shows provisioning status; no manual runner setup is needed.</p>
+  </section>
+
+  <p id="pairProgress" class="tt-builder-feedback" role="status" aria-live="polite"></p>
+  <div class="tt-builder-footer"><button type="button" id="cancelBuilder" class="plain-button">Cancel</button><div class="tt-builder-footer-actions">
+   <button type="button" id="backBuilder" class="plain-button" hidden>Back</button>
+   <button type="button" id="nextBuilder" class="action tt-cta">Next: Connect</button>
+   <button type="button" id="pairHost" class="action tt-cta" hidden disabled>Add builder</button>
+  </div></div>
+ </div></dialog>
 </main></body></html>
