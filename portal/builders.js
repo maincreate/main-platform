@@ -37,7 +37,9 @@ function renderBuilders(){
   }else tools.textContent="Not reported";
   tr.append(tools,el("td",(r.labels||[]).join(", ")||"—"));
   const actions=el("td");
-  if(r.managedHost&&!r.githubRunnerName){
+  if(r.managedHost?.pairingMethod==="outbound-ed25519"&&!r.githubRunnerName){
+   actions.textContent="Host Service paired · GitHub runner install coming soon";
+  }else if(r.managedHost&&!r.githubRunnerName){
    const button=el("button","Provision GitHub runner","plain-button");button.type="button";
    button.disabled=currentState(r)!=="online";
    button.addEventListener("click",async()=>{
