@@ -23,10 +23,16 @@ test("workspace serves current builder, marketplace, and job experiences",async(
   const builders=await page("/builders");
   for(const id of ["runners-list","addBuilderDialog","addBuilderProgress","addBuilderStages","removeBuilderDialog","upgradeBuilderDialog","copyInstallCommand","pairHost","hostFingerprint","hostPassword","githubRunners"])
    assert.ok(builders.includes('id="'+id+'"'),"Builders missing "+id);
+  for(const id of ["removeBuilderIdentityStep","removeBuilderNameReference","copyRemoveBuilderName",
+   "continueRemoveBuilder","removeBuilderPasswordStep","backRemoveBuilder","removeBuilderProgress"])
+   assert.ok(builders.includes('id="'+id+'"'),"Staged removal missing "+id);
   const buildersScript=await page("/builders.js");
   for(const feature of ["renderBuilders","validateBuilder","dismissDialogOnBackdrop","openUpgradeDialog","tt-runner-label-editor","renderSetupTimeline","pollSetupProgress","openSetupProgress","setupFailure"])
    assert.ok(buildersScript.includes(feature),"Builder script missing "+feature);
   assert.ok(!buildersScript.includes('prompt("Comma-separated'),"Labels must not use a browser prompt");
+  assert.ok(buildersScript.includes("setRemovalStep(2)"),"Name confirmation must precede password");
+  assert.ok(buildersScript.includes("removalConfirmationStep!==2"),"Removal submission must require password stage");
+  assert.ok(buildersScript.includes("navigator.clipboard.writeText(removeTarget.name)"),"Name must be copyable");
   const jobs=await page("/jobs");
   for(const id of ["jobs-list","githubActionsRuns","flashDialog"])
    assert.ok(jobs.includes('id="'+id+'"'),"Jobs missing "+id);
