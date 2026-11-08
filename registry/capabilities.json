@@ -141,5 +141,65 @@
       "additionalProperties": false
     },
     "steps": []
+  },
+  {
+    "id": "web.static.build",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "build",
+    "state": "unavailable",
+    "description": "Planned: build a static site on a compatible TinkerTunnel-managed Linux, macOS, or Windows host using an approved, pinned web toolchain. Record exact source SHA, output directory, artifact checksums and logs. No arbitrary shell adapter.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  },
+  {
+    "id": "web.static.publish.github_pages",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "deployment",
+    "state": "unavailable",
+    "description": "Planned: controller-managed publish of verified static-site artifacts to an approved GitHub Pages branch/path. Build runs on an owned host; provider credentials remain on controller. Do not infer Pages is enabled for private organization repositories.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  },
+  {
+    "id": "web.static.publish.cloudflare",
+    "version": "0.0.0",
+    "kind": "action",
+    "risk": "deployment",
+    "state": "unavailable",
+    "description": "Planned: publish verified static-site artifacts to an allowlisted Cloudflare Workers Static Assets or Pages destination using controller-held provider credentials. This does not imply automatic GitHub-to-Cloudflare syncing.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
+  },
+  {
+    "id": "workflow.web.static_build_publish",
+    "version": "0.0.0",
+    "kind": "workflow",
+    "risk": "deployment",
+    "state": "unavailable",
+    "description": "Planned: build a version-pinned static website on an eligible managed host, validate immutable artifacts, and publish through a selected provider adapter with audit and rollback reference.",
+    "platforms": [],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "steps": []
   }
 ]
