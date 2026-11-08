@@ -6,7 +6,6 @@ COPY --chown=node:node portal/worker.js portal/server.mjs portal/setup.html port
 COPY --chown=node:node controller/routes.mjs controller/fabric.mjs controller/devices.mjs controller/projects.mjs controller/repository_creation.mjs ./controller/
 COPY --chown=node:node runner/agent.mjs runner/scan_devices.py ./runner/
 COPY --chown=node:node registry/capabilities.json registry/toolkits.json ./registry/
-RUN npm install --omit=dev --no-audit --no-fund --ignore-scripts
 RUN mkdir -p /data && chown node:node /data
 USER node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 TT_DATA_DIR=/data TT_REQUIRE_LOGIN=1
