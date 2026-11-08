@@ -95,7 +95,7 @@ func run()error{
  if _,e:=load();e!=nil{log.Print("Unpaired; waiting for controller enrollment")}
  sig:=make(chan os.Signal,1);signal.Notify(sig,syscall.SIGTERM,syscall.SIGINT);stopAdvertising:=advertise();defer stopAdvertising()
  tick:=time.NewTicker(10*time.Second);defer tick.Stop()
- lastHeartbeat:=time.Time{};lastInventory:=time.Time{}
+ lastHeartbeat:=time.Time{};lastInventory:=time.Time{};lastDevices:=time.Time{}
  for {select{
  case <-sig:return nil
  case <-tick.C:
@@ -105,6 +105,18 @@ func run()error{
     e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"packages":packages()},nil);lastInventory=time.Now()
    }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version},nil)}
    if e!=nil{log.Printf("heartbeat: %v",e)};lastHeartbeat=time.Now()
+  }
+  // Read-only discovery occurs on startup and every minute. An unreadable
+  // sysfs is NOT an empty inventory: preserve the previous observations.
+  if os.Getenv("TT_HOST_DEVICE_DISCOVERY")!="0"&&time.Since(lastDevices)>60*time.Second{
+   devices,scanErr:=scanUSBSerial()
+   if scanErr!=nil{log.Printf("USB discovery: %v",scanErr)}else{
+    if postErr:=post(c.Controller,"/api/agent/devices",c.Token,
+      map[string]any{"id":c.ID,"devices":devices},nil);postErr!=nil{
+     log.Printf("USB inventory report: %v",postErr)
+    }
+   }
+   lastDevices=time.Now()
   }
   var out struct{Action *action `json:"action"`}
   if e=post(c.Controller,"/api/agent/actions/claim",c.Token,map[string]string{"id":c.ID},&out);e!=nil{log.Printf("action polling: %v",e);continue}
