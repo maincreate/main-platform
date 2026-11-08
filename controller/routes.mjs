@@ -7,6 +7,7 @@ import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from ".
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
+import {planBuildFlashRoute,routeSummaries,validateRouteRemoval} from "./build_flash_routing.mjs";
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
@@ -629,6 +630,40 @@ export async function localRoute(req) {
             accessToken:unseal(gh.oauthToken),repositories:inventory.repositories});
           return reply({...inventory,...projectSummary(inventory.repositories,stored.runners)});
         }catch(e){return deny(e.status||503,e.message);}
+      }
+      if(path==="/api/local/projects/routes"&&method==="GET"){
+        const stored=state(),gh=stored.github||{},org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        if(!org)return deny(409,"Connect a GitHub organization first");
+        const projects=listProjects(org).repositories;
+        const devices=listDevices({mode:"all"}).devices;
+        return reply({organization:org,routes:routeSummaries(stored.projectRoutes||[],org,projects,stored.runners,devices),
+          policy:{configOnly:true,autoFlashExecutionAvailable:false,
+            note:"Saving a route never starts a build or flashes hardware. Git-triggered dispatch and verified flashing require separate adapters."}});
+      }
+      if(path==="/api/local/projects/routes"&&method==="POST"){
+        const input=await body(req),stored=state(),gh=stored.github||{};
+        const org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        if(!org)return deny(409,"Connect a GitHub organization first");
+        try{
+          const route=planBuildFlashRoute(input,{
+            organization:org,projects:listProjects(org).repositories,builders:stored.runners,
+            devices:listDevices({mode:"all"}).devices},session(req).username);
+          const others=(stored.projectRoutes||[]).filter(r=>r.organization!==org||r.repository!==route.repository);
+          stored.projectRoutes=[...others,route].slice(-500);save(stored);
+          return reply({route},201);
+        }catch(e){return deny(e.status||422,e.message);}
+      }
+      if(path==="/api/local/projects/routes/remove"&&method==="POST"){
+        const input=await body(req),stored=state(),gh=stored.github||{};
+        const org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        if(!org)return deny(409,"Connect a GitHub organization first");
+        try{
+          validateRouteRemoval(input.repository,org,listProjects(org).repositories);
+          const current=stored.projectRoutes||[];
+          stored.projectRoutes=current.filter(r=>r.organization!==org||r.repository!==input.repository);
+          if(current.length===stored.projectRoutes.length)return deny(404,"Routing policy not found");
+          save(stored);return reply({repository:input.repository,removed:true});
+        }catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/projects/ignore"&&method==="POST"){
         const input=await body(req),stored=state(),org=githubIdentityCurrent(stored.github)?stored.github.selectedOrganization:null;

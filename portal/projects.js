@@ -1,6 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,selectedOrg=null,projectInventory=[],projectUpdatedAt=null,projectTruncated=false;
+let routes=[],builders=[],devices=[],sdkReleases=[],activeRouteRepo=null;
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){options.method="POST";options.headers={"content-type":"application/json","x-maincreate-csrf":csrf};options.body=JSON.stringify(payload);}
@@ -54,6 +55,22 @@ function renderProjectList(){
   const details=node("small",project.builds+" local build job"+(project.builds===1?"":"s")+
    (project.latestBuild?" · Last: "+project.latestBuild.status.replaceAll("_"," "):""));
   right.append(details);
+  const route=routes.find(r=>r.repository===project.fullName);
+  if(route){
+    const buildName=route.builder?.name||"missing builder";
+    const flashName=route.flashBuilder?.name||"not set";
+    left.append(node("small","Build: "+buildName+" · "+route.buildTrigger+
+      " · SDK: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
+      " · Flash: "+flashName+
+      (route.autoFlashRequested?" · Auto-flash requested (blocked)":" · Manual flash"),"project-compatibility"));
+  }
+  if(!project.archived){
+    const routeButton=node("button",route?"Edit build / flash route":"Assign build / flash route","plain-button");
+    routeButton.type="button";
+    routeButton.addEventListener("click",()=>openRouting(project.fullName));
+    right.append(routeButton);
+  }
+
   const link=node("a","View on GitHub");
   link.href=project.url;link.target="_blank";link.rel="noopener noreferrer";
   right.append(link);
@@ -77,6 +94,16 @@ async function load(){
   if(!csrf){const overview=await api("/api/local/overview");csrf=overview.csrf;$("username").textContent=overview.username||"administrator";}
   const projects=await api("/api/local/projects");
   selectedOrg=projects.organization;
+  const [savedRoutes,allDevices,catalog]=await Promise.all([
+    selectedOrg?api("/api/local/projects/routes"):Promise.resolve({routes:[]}),
+    api("/api/local/devices?mode=all"),
+    api("/api/local/marketplace/releases")
+  ]);
+  routes=savedRoutes.routes||[];
+  devices=allDevices.devices||[];
+  sdkReleases=catalog.releases||[];
+  const overview=await api("/api/local/overview");
+  builders=overview.runners.items||[];
   $("newRepo").disabled=!selectedOrg;
   $("sync").disabled=!projects.organization;
   render(projects);
@@ -120,6 +147,86 @@ $("newRepoForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
  
+function fillSelect(select,choices,emptyLabel){
+  select.replaceChildren();
+  if(emptyLabel!==null){
+    const empty=node("option",emptyLabel);empty.value="";select.append(empty);
+  }
+  for(const choice of choices){
+    const opt=node("option",choice.label);opt.value=choice.value;select.append(opt);
+  }
+}
+function refreshRouteDeviceOptions(selectedId=""){
+  const runnerId=$("routeFlashBuilder").value;
+  const choices=devices.filter(d=>d.runnerId===runnerId).map(d=>({
+    value:d.id,
+    label:(d.label||d.description||d.id)+" · "+(d.connected?"connected":"offline")+
+      " · "+(d.identityConfidence||"unverified")+" identity"
+  }));
+  fillSelect($("routeDevice"),choices,"No device selected");
+  if(choices.some(x=>x.value===selectedId))$("routeDevice").value=selectedId;
+}
+function openRouting(repository){
+  activeRouteRepo=repository;
+  const policy=routes.find(r=>r.repository===repository);
+  $("routeRepository").textContent=repository;
+  const eligible=builders.filter(b=>b.managedHost&&!b.decommission);
+  const names=eligible.map(b=>({
+    value:b.id,label:(b.assignment?.displayName||b.name)+" · "+b.os+"/"+b.arch+
+      (b.githubRunnerName?" · "+b.githubRunnerName:" · no GitHub runner")
+  }));
+  fillSelect($("routeBuild"),names,"Choose a managed builder");
+  fillSelect($("routeFlashBuilder"),names,"No flash machine");
+  fillSelect($("routeSdk"),sdkReleases.map(r=>({
+    value:r.family+"@"+r.version,
+    label:r.name+" "+r.version+" · "+r.targets.map(t=>t.os+"/"+t.arch).join(", ")
+  })),"Not assigned yet");
+  $("routeBuild").value=policy?.buildBuilderId||"";
+  $("routeTrigger").value=policy?.buildTrigger||"manual";
+  $("routeSdk").value=policy?.sdk?policy.sdk.family+"@"+policy.sdk.version:"";
+  $("routeFlashBuilder").value=policy?.flashBuilderId||"";
+  refreshRouteDeviceOptions(policy?.deviceId||"");
+  $("routeAutoFlash").checked=!!policy?.autoFlashRequested;
+  $("routeRemove").disabled=!policy;
+  $("routeNotice").textContent=policy?.note||"";
+  $("routeDialog").showModal();
+}
+$("routeFlashBuilder").addEventListener("change",()=>refreshRouteDeviceOptions());
+$("routeCancel").addEventListener("click",()=>$("routeDialog").close());
+$("routeDialog").addEventListener("close",()=>{activeRouteRepo=null;});
+$("routeForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!activeRouteRepo)return;
+  const btn=$("routeSave");btn.disabled=true;
+  try{
+    const input={repository:activeRouteRepo,
+      buildBuilderId:$("routeBuild").value,buildTrigger:$("routeTrigger").value,
+      flashBuilderId:$("routeFlashBuilder").value||null,
+      deviceId:$("routeDevice").value||null,
+      autoFlashRequested:$("routeAutoFlash").checked};
+    if($("routeSdk").value){
+      const [family,version]=$("routeSdk").value.split("@");
+      input.sdkFamily=family;input.sdkVersion=version;
+    }
+    const saved=await api("/api/local/projects/routes",input);
+    $("routeDialog").close();
+    await load();
+    $("notice").textContent="Routing for "+saved.route.repository+
+      " saved. No GitHub job or flash started; auto-flash execution remains blocked pending verification.";
+  }catch(e){$("routeNotice").textContent=e.message;}
+  finally{btn.disabled=false;}
+});
+$("routeRemove").addEventListener("click",async()=>{
+  if(!activeRouteRepo||!confirm("Remove routing configuration for "+activeRouteRepo+"?"))return;
+  const btn=$("routeRemove");btn.disabled=true;
+  try{
+    await api("/api/local/projects/routes/remove",{repository:activeRouteRepo});
+    $("routeDialog").close();await load();
+    $("notice").textContent="Build / flash routing configuration removed.";
+  }catch(e){$("routeNotice").textContent=e.message;}
+  finally{btn.disabled=false;}
+});
+
 $("projectSearch").addEventListener("input",renderProjectList);
 $("projectFilter").addEventListener("change",renderProjectList);
 const urlFilter=new URLSearchParams(location.search).get("filter");
