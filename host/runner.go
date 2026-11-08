@@ -20,6 +20,10 @@ import (
 )
 
 const runnerDir="/opt/tinkertunnel/actions-runner"
+// The official runner bundle can contain files exceeding 100 MiB (for example bundled runtimes).
+// Keep separate limits on each member and on total expanded bytes.
+const maxRunnerMemberBytes int64 = 512 << 20
+const maxRunnerExpandedBytes int64 = 800 << 20
 type release struct{
  TagName string `json:"tag_name"`
  Assets []struct{Name string `json:"name"`;Digest string `json:"digest"`;BrowserDownloadURL string `json:"browser_download_url"`} `json:"assets"`
@@ -55,6 +59,11 @@ func downloadRunner()([]byte,error){
  }
  return nil,errors.New("no verified Linux ARM64 runner in latest release")
 }
+func countRunnerMember(total,size int64)(int64,error){
+ if size<0||size>maxRunnerMemberBytes{return total,errors.New("runner archive member too large")}
+ if total<0||total>maxRunnerExpandedBytes||size>maxRunnerExpandedBytes-total{return total,errors.New("runner archive expands too large")}
+ return total+size,nil
+}
 func unpackVerified(archive []byte,dir string)error{
  gz,e:=gzip.NewReader(bytes.NewReader(archive));if e!=nil{return e};defer gz.Close()
  tr:=tar.NewReader(gz);var total int64
@@ -72,8 +81,7 @@ func unpackVerified(archive []byte,dir string)error{
    if e=os.Symlink(h.Linkname,dest);e!=nil{return e};continue
   }
   if h.Typeflag!=tar.TypeReg&&h.Typeflag!=tar.TypeRegA{return errors.New("unsupported archive entry type")}
-  if h.Size<0||h.Size>100<<20{return errors.New("runner archive member too large")}
-  total+=h.Size;if total>800<<20{return errors.New("runner archive expands too large")}
+  total,e=countRunnerMember(total,h.Size);if e!=nil{return e}
   if e=os.MkdirAll(filepath.Dir(dest),0755);e!=nil{return e}
   mode:=os.FileMode(0644);if h.Mode&0111!=0{mode=0755}
   f,e:=os.OpenFile(dest,os.O_CREATE|os.O_WRONLY|os.O_EXCL,mode);if e!=nil{return e}
@@ -82,13 +90,31 @@ func unpackVerified(archive []byte,dir string)error{
  }
  return nil
 }
+// Never discard an existing installation. Older installers could leave a partial
+// extraction behind; preserve it in a named backup before a clean retry.
+func prepareRunnerTarget(dir string)error{
+ info,e:=os.Lstat(dir)
+ if errors.Is(e,os.ErrNotExist){return nil}
+ if e!=nil{return e}
+ if !info.IsDir(){return errors.New("runner installation target is not a directory")}
+ if _,e=os.Lstat(filepath.Join(dir,".runner"));e==nil{return errors.New("runner already registered; refusing replacement")}else if !errors.Is(e,os.ErrNotExist){return e}
+ files,e:=os.ReadDir(dir);if e!=nil{return e}
+ if len(files)==0{return os.Remove(dir)}
+ backup:=fmt.Sprintf("%s.incomplete-%d",dir,time.Now().UTC().UnixNano())
+ if e=os.Rename(dir,backup);e!=nil{return fmt.Errorf("cannot preserve incomplete runner installation: %w",e)}
+ return nil
+}
 func provisionRunner(a action)error{
  if os.Geteuid()!=0{return errors.New("root required for runner provisioning")}
- if _,e:=os.Stat(filepath.Join(runnerDir,".runner"));e==nil{return errors.New("runner already registered; refusing replacement")}
- if e:=os.MkdirAll(runnerDir,0755);e!=nil{return e}
- files,e:=os.ReadDir(runnerDir);if e!=nil{return e};if len(files)>0{return errors.New("runner directory not empty; refusing overwrite")}
+ if _,e:=os.Lstat(filepath.Join(runnerDir,".runner"));e==nil{return errors.New("runner already registered; refusing replacement")}
  archive,e:=downloadRunner();if e!=nil{return e}
- if e=unpackVerified(archive,runnerDir);e!=nil{return e}
+ parent:=filepath.Dir(runnerDir)
+ if e=os.MkdirAll(parent,0755);e!=nil{return e}
+ stage,e:=os.MkdirTemp(parent,".actions-runner-stage-");if e!=nil{return e}
+ defer os.RemoveAll(stage)
+ if e=unpackVerified(archive,stage);e!=nil{return e}
+ if e=prepareRunnerTarget(runnerDir);e!=nil{return e}
+ if e=os.Rename(stage,runnerDir);e!=nil{return e}
  if e=runCmd("",runnerDir,"chown","-R","tt-runner:tt-runner",runnerDir);e!=nil{return e}
  args:=[]string{"--unattended","--url","https://github.com/"+a.Organization,"--token",a.RegistrationToken,"--name",a.RunnerName,"--labels",strings.Join(a.Labels,","),"--work","_work"}
  // Only the official runner config process sees the short-lived registration token.
