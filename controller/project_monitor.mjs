@@ -45,7 +45,10 @@ export function inferRequirementsFromWorkflows(files){
   if(found.size===1){
    const os=[...found][0],tools=[];
    if(idf)tools.push({name:"esp-idf",version:idf[1]});
+   else if(/\b(?:esp-idf|idf\.py|esp_idf|espressif)\b/i.test(text))tools.push({name:"esp-idf",version:null});
    if(os==="macos"&&xcode)tools.push({name:"xcode",version:xcode[1]});
+   else if(os==="macos"&&/\b(?:xcodebuild|xcode|ios|iphone|fastlane)\b/i.test(text))
+    tools.push({name:"xcode",version:null});
    targets.push({os,arch:null,tools});
   }
  }
