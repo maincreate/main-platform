@@ -32,7 +32,10 @@ async function enroll(){
  const invite=process.env.TT_ENROLLMENT_TOKEN||"";
  if(invite.length<32)throw new Error("TT_ENROLLMENT_TOKEN required for enrollment");
  const name=(process.env.TT_RUNNER_NAME||hostname()).slice(0,64);
- const r=await post("/api/agent/enroll",{token:invite,name,os,arch:architecture});
+ const publicKey=process.env.TT_PAIRING_PUBLIC_KEY;
+ const signature=process.env.TT_PAIRING_ENROLL_SIGNATURE;
+ const r=await post("/api/agent/enroll",{token:invite,name,os,arch:architecture,
+  ...(publicKey&&signature?{publicKey,signature}:{} )});
  mkdirSync(configDir,{recursive:true,mode:0o700});
  writeFileSync(path,JSON.stringify({id:r.id,token:r.token,url:endpoint,name,os,arch:architecture},null,2),{mode:0o600});
  chmodSync(path,0o600);
