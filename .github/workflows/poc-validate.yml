@@ -19,6 +19,8 @@ jobs:
           node-version: '22'
       - name: Test portal account provisioning and MCP
         run: npm test
+      - name: Validate UX support documentation matches flow contracts
+        run: npm run docs:check
       - uses: actions/setup-go@v6
         with:
           go-version-file: host/go.mod
