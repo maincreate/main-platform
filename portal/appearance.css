@@ -1,0 +1,4 @@
+body{color-scheme:light;--bg:#f4f6f7;--surface:#fcfdfe;--text:#20292d;--muted:#53636b;--line:#d9e2e6;--accent:#2d6279;--accent-hover:#224e61;--soft:#e3edf1;--tag:#e3edf1}
+body[data-theme="graphite"]{--bg:#f6f7fb;--surface:#fff;--text:#19243c;--muted:#647188;--line:#e0e5ee;--accent:#6058ee;--accent-hover:#4740ce;--soft:#f1f2ff;--tag:#edf0f8}
+body[data-theme="paper"]{--bg:#faf7f1;--surface:#fffdf8;--text:#36332d;--muted:#746c62;--line:#e8dfd2;--accent:#ad593f;--accent-hover:#89462f;--soft:#f9ede3;--tag:#f3ece1}
+body[data-theme="midnight"]{color-scheme:dark;--bg:#0d1526;--surface:#172339;--text:#f2f6ff;--muted:#b0bfd4;--line:#30425e;--accent:#24c9bd;--accent-hover:#15a99e;--soft:#163b48;--tag:#233552}

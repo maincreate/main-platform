@@ -50,7 +50,7 @@ const maincreateAppearance = (() => {
   }
 
   let settings = read();
-  const customTokens = [...colors, "muted", "line", "accent-hover", "soft", "tag", "focus"];
+  const customTokens = [...colors, "muted", "line", "accent-hover", "soft", "tag"];
 
   function apply() {
     const dark = settings.mode === "dark" || (settings.mode === "system" && device.matches);
@@ -68,7 +68,6 @@ const maincreateAppearance = (() => {
         "accent-hover": "var(--accent)",
         soft: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
         tag: "var(--soft)",
-        focus: "var(--accent)",
       };
       for (const [name, value] of Object.entries(tokens)) style.setProperty("--" + name, value);
       style.setProperty("color-scheme", luminance(custom.bg) < 0.18 ? "dark" : "light");

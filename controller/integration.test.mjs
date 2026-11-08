@@ -42,7 +42,14 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const setupHtml=await (await fetch(base+"/setup")).text();
    assert.match(setupHtml,/Create your administrator account/);
    assert.doesNotMatch(setupHtml,/Coolify|deployment role|MCP server|private key/i,"Initial setup must contain account creation only");
-   assert.equal((await fetch(base+"/setup.css")).status,200);
+   assert.match(setupHtml,/src="\/appearance\.js"/);
+   const loginStyle=await fetch(base+"/setup.css");
+   assert.equal(loginStyle.status,200);
+   assert.match(await loginStyle.text(),/@import url\("\/appearance\.css"\)/);
+   const paletteStyle=await fetch(base+"/appearance.css");
+   assert.equal(paletteStyle.status,200);
+   assert.match(await paletteStyle.text(),/body\{[^}]*--accent:#2d6279/);
+   assert.equal((await fetch(base+"/appearance.js")).status,200);
    assert.equal((await fetch(base+"/setup.js")).status,200);
    assert.equal((await fetch(base+"/api/local/config")).status,401);
    const publicInfo=await (await fetch(base+"/api/local/public")).json();
