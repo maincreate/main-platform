@@ -432,6 +432,9 @@ export async function localRoute(req) {
           usingDefaultApp:!process.env.TT_GITHUB_CLIENT_ID&&!g.oauthClientId,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
           selectedOrganization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
+          hostedRunnerPolicyConfirmation:g.hostedRunnerPolicyConfirmation?.organization===g.selectedOrganization?
+            {organization:g.selectedOrganization,confirmedAt:g.hostedRunnerPolicyConfirmation.confirmedAt,
+             source:"operator_confirmation_not_github_verified"}:null,
           installationsTotal:g.oauthInstallationsTotal||0,
           hasMoreInstallations:!!g.oauthHasMoreInstallations,
           note:configured?null:"Enter the public Client ID of your GitHub App to enable authorization."});
@@ -506,6 +509,10 @@ export async function localRoute(req) {
       if(path==="/api/local/github/device/organization"&&method==="POST"){
         const input=await body(req),stored=state();
         const value=typeof input.organization==="string"?input.organization:"";
+        // GitHub does not expose a supported documented API for the Standard
+        // hosted runners org-level switch. We must not claim to verify or change it.
+        if(input.standardHostedRunnersDisabledConfirmed!==true)
+          return deny(422,"Review the organization's GitHub Actions settings and confirm that standard hosted runners are disabled.");
         if(!githubIdentityCurrent(stored.github))return deny(409,"Connect your GitHub account first");
         if(!stored.github.oauthOrganizations?.some(o=>o.login===value))return deny(422,"Organization is not visible to the connected account");
         const org=stored.github.oauthOrganizations.find(o=>o.login===value);
@@ -517,8 +524,14 @@ export async function localRoute(req) {
         }catch(e){return deny(e.status||502,"Could not sync repositories for "+value+": "+(e.message||"GitHub unavailable")+". Retry organization selection.");}
         const current=state();
         if(!githubIdentityCurrent(current.github))return deny(409,"GitHub authorization changed. Reconnect.");
-        current.github.selectedOrganization=value;save(current);
+        current.github.selectedOrganization=value;
+        current.github.hostedRunnerPolicyConfirmation={
+          organization:value,confirmedAt:new Date().toISOString(),
+          confirmedBy:session(req).username,source:"operator_confirmation_not_github_verified"
+        };
+        save(current);
         return reply({ok:true,organization:value,runnerAccessVerified:false,
+          standardHostedRunnersPolicy:"operator_confirmed_not_github_verified",
           repositoriesSynced:synced.repositories.length,syncedAt:synced.updatedAt});
       }
       if(path==="/api/local/github/device/disconnect"&&method==="POST"){
@@ -528,6 +541,7 @@ export async function localRoute(req) {
         delete stored.github.oauthOrganizations;delete stored.github.oauthOrganizationsReadable;
         delete stored.github.oauthInstallationsTotal;delete stored.github.oauthHasMoreInstallations;
         delete stored.github.selectedOrganization;
+        delete stored.github.hostedRunnerPolicyConfirmation;
         save(stored);githubDeviceFlows.delete(session(req).csrf);
         return reply({ok:true});
       }

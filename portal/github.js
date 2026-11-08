@@ -1,6 +1,19 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,flowActive=false,flowTimer=null;
+let previousOrganization="",confirmedForOrganization=null;
+function syncRunnerPolicy(){
+  const org=$("org").value,valid=/^[A-Za-z0-9-]{1,39}$/.test(org);
+  $("runnerPolicy").hidden=!valid;
+  $("runnerPolicyConfirmed").checked=org!==""&&confirmedForOrganization===org;
+  $("runnerPolicyOrg").textContent=org;
+  if(valid)$("runnerPolicyLink").href="https://github.com/organizations/"+encodeURIComponent(org)+"/settings/actions";
+  else $("runnerPolicyLink").removeAttribute("href");
+  $("saveOrg").disabled=!valid||!$("runnerPolicyConfirmed").checked;
+  $("runnerPolicyState").textContent=confirmedForOrganization===org?
+    "Operator-confirmed for "+org+". GitHub API verification is not available.":
+    "Pending your confirmation. TinkerTunnel cannot read or change this switch through the supported GitHub API.";
+}
 const panels=["loading","unavailable","disconnected","authorizing","connected"];
 function show(panel){panels.forEach(id=>$(id).hidden=id!==panel);}
 function notice(text){$("notice").textContent=text||"";}
@@ -31,6 +44,9 @@ async function refresh(){
       select.appendChild(opt);
     }
     select.value=status.selectedOrganization||"";
+    confirmedForOrganization=status.hostedRunnerPolicyConfirmation?.organization||null;
+    previousOrganization=status.selectedOrganization||"";
+    syncRunnerPolicy();
     $("orgEmptyHelp").hidden=!!status.organizations?.length;
     $("organizationHint").textContent=status.selectedOrganization?
       "Selected: "+status.selectedOrganization+" (build runner permissions still need setup)":
@@ -93,14 +109,25 @@ $("copyCode").addEventListener("click",async()=>{
   try{await navigator.clipboard.writeText($("userCode").textContent);notice("Code copied.");}
   catch{notice("Select and copy the code shown above.");}
 });
+$("org").addEventListener("change",()=>{confirmedForOrganization=null;syncRunnerPolicy();notice("");});
+$("runnerPolicyConfirmed").addEventListener("change",()=>{
+  confirmedForOrganization=$("runnerPolicyConfirmed").checked?$("org").value:null;
+  syncRunnerPolicy();
+});
 $("saveOrg").addEventListener("click",async()=>{
   const organization=$("org").value;
   if(!organization){notice("Choose an organization first.");return;}
+  if(!$("runnerPolicyConfirmed").checked||confirmedForOrganization!==organization){
+    notice("Open GitHub Actions settings and confirm standard hosted runners are disabled for "+organization+".");
+    return;
+  }
   const button=$("saveOrg");
   button.disabled=true;
   notice("");
   try{
-    const saved=await api("/api/local/github/device/organization",{organization});
+    const saved=await api("/api/local/github/device/organization",{
+      organization,standardHostedRunnersDisabledConfirmed:true
+    });
     if(saved.organization!==organization||saved.ok!==true)throw new Error("Organization selection could not be confirmed");
     notice("Synchronized "+saved.repositoriesSynced+" repositories. Opening workspace…");
     window.location.assign("/");
