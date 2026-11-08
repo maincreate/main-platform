@@ -20,10 +20,10 @@
  <dialog id="upgradeBuilderDialog" class="tt-builder-dialog" aria-labelledby="upgradeBuilderTitle">
   <div class="tt-builder-content"><div class="tt-builder-header"><div><p class="eyebrow">BUILD HOST / MAINTENANCE</p><h2 id="upgradeBuilderTitle">Upgrade Host Service</h2></div><button type="button" id="closeUpgradeDialog" class="tt-builder-close" aria-label="Close upgrade instructions">×</button></div>
    <p id="upgradeBuilderDescription"></p>
-   <p>Run this on the selected Linux ARM64 builder over SSH. This upgrades the Host Service in place, preserves enrollment and the GitHub runner, and restarts only the Host Service.</p>
-   <div class="tt-command-block"><pre class="tt-service-command"><code id="upgradeBuilderCommand">curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo bash</code></pre><button type="button" class="plain-button" id="copyUpgradeCommand">Copy</button></div>
+   <p id="upgradeBuilderGuidance">The controller can queue verified upgrades for hosts running v0.5.0 or newer. Older versions require a one-time manual bootstrap.</p>
+   <div id="manualUpgradeSteps" class="tt-command-block"><pre class="tt-service-command"><code id="upgradeBuilderCommand">curl -fsSL https://tinkertunnel.home.ayusohaylock.com/install.sh | sudo bash</code></pre><button type="button" class="plain-button" id="copyUpgradeCommand">Copy</button></div>
    <p id="upgradeBuilderFeedback" role="status"></p>
-   <div class="button-row"><button type="button" class="plain-button" id="doneUpgradeDialog">Close</button></div>
+   <div class="button-row"><button type="button" class="plain-button" id="doneUpgradeDialog">Close</button><button type="button" class="action tt-cta" id="startRemoteUpgrade">Upgrade remotely</button></div>
   </div>
  </dialog>
  <section class="inventory-panel"><div class="panel-heading"><div><h2>Managed build machines</h2><p>Host Service health and GitHub runner readiness are separate. Remove a builder to revoke its enrollment; registered GitHub runners must be offline and idle first. Local host cleanup is a separate step before re-adding.</p></div><button id="refresh" type="button" class="plain-button">Refresh</button></div>
