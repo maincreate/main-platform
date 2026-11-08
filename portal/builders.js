@@ -103,9 +103,57 @@ async function load(){
   if(!list.childNodes.length)list.textContent="No controller provisioning actions yet.";
  }catch(e){$("hostActions").textContent=e.message}
 }
+// Only architectures recognized by runner/agent.mjs are offered.
+// These are source-based Node.js instructions, not native installers.
+const builderPlatforms=Object.freeze({
+ linux:{
+  name:"Linux",shell:"a terminal (Bash or compatible shell)",
+  details:{arm64:"64-bit ARM Linux (e.g., Raspberry Pi OS 64-bit); use an ARM64 build of Node.js.",x64:"64-bit Intel/AMD Linux; use an x64 build of Node.js."},
+  prerequisites:"Install Git and Node.js 22+ for the selected CPU architecture. The OS must be 64-bit; 32-bit ARM is not supported.",
+  cd:"cd tinkertunnel",pair:"node runner/service.mjs pair",run:"node runner/service.mjs run"
+ },
+ macos:{
+  name:"macOS",shell:"Terminal (zsh)",
+  details:{arm64:"Apple silicon Macs (M1 or later); use native ARM64 Node.js.",x64:"Intel Macs; use an x64 build of Node.js."},
+  prerequisites:"Install Git (Xcode Command Line Tools is one option) and Node.js 22+ for your Mac architecture.",
+  cd:"cd tinkertunnel",pair:"node runner/service.mjs pair",run:"node runner/service.mjs run"
+ },
+ windows:{
+  name:"Windows",shell:"PowerShell",
+  details:{arm64:"Windows on ARM64; use ARM64 Node.js, not an emulated x64 process.",x64:"64-bit Intel/AMD Windows; use an x64 build of Node.js."},
+  prerequisites:"Install Git for Windows and Node.js 22+ for the selected architecture. Open PowerShell and verify both commands are available in PATH.",
+  cd:"Set-Location .\\tinkertunnel",pair:"node .\\runner\\service.mjs pair",run:"node .\\runner\\service.mjs run"
+ }
+});
+function platformCommands(os,arch){
+ const p=builderPlatforms[os];
+ if(!p||!Object.hasOwn(p.details,arch))throw Error("Unsupported builder platform");
+ const verify= os==="windows"? 'node -p "process.platform + \'/\' + process.arch"':'node -p "process.platform + \'/\' + process.arch"';
+ const expect={linux:"linux",macos:"darwin",windows:"win32"}[os]+"/"+arch;
+ return {prepare:[
+  "node --version",
+  "git --version",
+  verify,
+  "# Expected platform: "+expect,
+  "git clone https://github.com/TinkerTunnel/tinkertunnel.git",
+  p.cd,p.pair
+ ].join("\n"),run:p.run,platform:p};
+}
+function updateBuilderInstructions(){
+ const os=$("builderOS").value,arch=$("builderArch").value;
+ const options=platformCommands(os,arch);
+ $("platformDetails").textContent=options.platform.details[arch];
+ $("platformPrerequisites").textContent=options.platform.prerequisites;
+ $("platformTerminal").textContent=options.platform.shell;
+ $("installCommand").textContent=options.prepare;
+ $("runCommand").textContent=options.run;
+ $("dialogCopyStatus").textContent="";
+}
+$("builderOS").addEventListener("change",updateBuilderInstructions);
+$("builderArch").addEventListener("change",updateBuilderInstructions);
 function openDialog(){
  $("controllerAddress").textContent=location.origin;
- $("dialogCopyStatus").textContent="";
+ updateBuilderInstructions();
  $("addBuilderDialog").showModal();
 }
 $("addBuilder").addEventListener("click",openDialog);

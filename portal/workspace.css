@@ -188,3 +188,9 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-builder-dialog .tt-service-command{align-self:stretch;white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;margin:0;font-size:12px;line-height:1.7;color:var(--text);user-select:text}
 .tt-builder-dialog .tt-builder-copy-status{min-height:1em;margin:0}
 .tt-builder-dialog #controllerAddress{overflow-wrap:anywhere}
+
+.tt-builder-dialog .tt-platform-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tt-builder-dialog .tt-platform-grid label{display:flex;flex-direction:column;gap:7px}
+.tt-builder-dialog select{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--bg);color:var(--text);font:inherit}
+.tt-builder-dialog .tt-platform-description{margin:0}
+@media(max-width:530px){.tt-builder-dialog .tt-platform-grid{grid-template-columns:1fr}}

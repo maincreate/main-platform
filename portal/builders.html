@@ -22,22 +22,34 @@
    <h2 id="addBuilderTitle">Add a build machine</h2>
    <p>Connect a Linux, macOS, or Windows machine using the outbound TinkerTunnel Host Service. No inbound SSH or open ports on the host.</p>
    <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
-   <h3>1. Prepare the build machine</h3>
-   <p>Install Node.js 22+ and Git, then run the following on the build machine itself:</p>
+   <h3>1. Select machine platform</h3>
+   <div class="tt-platform-grid">
+    <label for="builderOS">Operating system
+     <select id="builderOS"><option value="linux">Linux</option><option value="macos">macOS</option><option value="windows">Windows</option></select>
+    </label>
+    <label for="builderArch">CPU architecture
+     <select id="builderArch"><option value="arm64">ARM64 (64-bit ARM)</option><option value="x64">x64 (Intel / AMD)</option></select>
+    </label>
+   </div>
+   <p id="platformDetails" class="tt-platform-description" aria-live="polite"></p>
+   <h3>2. Prepare the build machine</h3>
+   <p id="platformPrerequisites"></p>
+   <p><a href="https://nodejs.org/en/download" target="_blank" rel="noopener noreferrer">Node.js downloads</a> · <a href="https://git-scm.com/install/" target="_blank" rel="noopener noreferrer">Git installation</a></p>
+   <p>Run these commands in <strong id="platformTerminal">the build machine's terminal</strong>:</p>
    <div class="tt-command-block">
     <pre class="tt-service-command"><code id="installCommand">git clone https://github.com/TinkerTunnel/tinkertunnel.git
 cd tinkertunnel
 node runner/service.mjs pair</code></pre>
     <button type="button" id="copyInstallCommand" class="plain-button">Copy commands</button>
    </div>
-   <h3>2. Pair locally</h3>
+   <h3>3. Pair locally</h3>
    <p>The Host Service asks for this controller URL and your TinkerTunnel administrator username and password <strong>in the machine's terminal</strong>. It obtains a one-time enrollment credential and saves only the new machine credential.</p>
-   <h3>3. Start outbound connection</h3>
+   <h3>4. Start outbound connection</h3>
    <div class="tt-command-block">
     <pre class="tt-service-command"><code id="runCommand">node runner/service.mjs run</code></pre>
     <button type="button" id="copyRunCommand" class="plain-button">Copy command</button>
    </div>
-   <p class="tt-builder-footnote">Current MVP: the Host Service runs in the terminal, not yet as a permanently installed OS service. GitHub Actions runner installation is separate and not automated yet. The controller must be reachable over trusted HTTPS from the build machine.</p>
+   <p class="tt-builder-footnote">Platform selection changes the commands and prerequisites; it does not install tools remotely. Current MVP: the Host Service runs in the terminal, not yet as a permanently installed OS service. GitHub Actions runner installation is separate and not automated yet. The controller must be reachable over trusted HTTPS from the build machine.</p>
    <p id="dialogCopyStatus" role="status" aria-live="polite" class="tt-builder-copy-status"></p>
    <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">View source</a><button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
   </div>
