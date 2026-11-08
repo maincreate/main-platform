@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {adminHostRoute,agentHostRoute,removalActivity} from './host_routes.mjs';
+import {adminHostRoute,agentHostRoute,removalActivity,removalTimeline} from './host_routes.mjs';
 
 const ID='abcdef123456abcdef123456';
 function harness({online=false,registered=false,actions=[]}={}){
@@ -206,4 +206,40 @@ test('Successful staged upgrade acknowledgement requires a new heartbeat for com
  assert.equal(result.status,200);
  assert.equal(h.state().runners[0].upgrade.phase,'installing');
  assert.equal(h.state().hostActions[0].status,'completed');
+});
+
+test('Removal status reports four ordered stages and preserves completed audit',async()=>{
+ const h=harness({online:true});
+ const initial=await h.removal();
+ assert.equal(initial.status,200);
+ const queued=h.state();
+ const progress=removalTimeline(queued.runners[0],queued.hostActions);
+ assert.deepEqual(progress.stages.map(s=>s.id),['stopping','unregistering','cleaning','controller']);
+ assert.equal(progress.stages.find(s=>s.id==='stopping').status,'skipped');
+ assert.equal(progress.stages.find(s=>s.id==='cleaning').status,'active');
+ assert.equal(progress.stages.find(s=>s.id==='controller').status,'pending');
+ const status=await h.call('/api/local/builders/remove/status',{id:ID});
+ assert.equal(status.status,200);
+ const claimed=await h.call('/api/agent/actions/claim',{id:ID},true);
+ await h.call('/api/agent/actions/complete',{
+  id:ID,action_id:claimed.data.action.id,success:true,message:'cleanup scheduled'
+ },true);
+ const end=removalTimeline(null,[],h.state().builderRemovalAudit[0]);
+ assert.equal(end.removed,true);
+ assert.equal(end.stages.find(s=>s.id==='stopping').status,'skipped');
+ assert.equal(end.stages.find(s=>s.id==='controller').status,'completed');
+});
+test('Removal errors identify the failing stage for manual recovery',async()=>{
+ const h=harness({online:true});
+ await h.removal();
+ const claimed=await h.call('/api/agent/actions/claim',{id:ID},true);
+ await h.call('/api/agent/actions/complete',{
+  id:ID,action_id:claimed.data.action.id,success:false,message:'Host cleanup unavailable'
+ },true);
+ const saved=h.state();
+ const timeline=removalTimeline(saved.runners[0],saved.hostActions);
+ assert.equal(timeline.phase,'failed');
+ assert.equal(timeline.stages.find(s=>s.id==='cleaning').status,'failed');
+ assert.match(timeline.stages.find(s=>s.id==='cleaning').detail,/cleanup unavailable/);
+ assert.equal(timeline.stages.find(s=>s.id==='controller').status,'pending');
 });
