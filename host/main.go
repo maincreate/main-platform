@@ -98,7 +98,7 @@ func run()error{
   c,e:=load();if e!=nil{continue}
   if time.Since(lastHeartbeat)>30*time.Second{
    if time.Since(lastInventory)>2*time.Minute{
-    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"packages":packages()},nil);lastInventory=time.Now()
+    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"packages":packages()},nil);lastInventory=time.Now()
    }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID},nil)}
    if e!=nil{log.Printf("heartbeat: %v",e)};lastHeartbeat=time.Now()
   }
