@@ -14,6 +14,11 @@ async function api(path,payload){
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 function render(result){
  projectInventory=result.repositories||[];projectUpdatedAt=result.updatedAt;projectTruncated=!!result.truncated;
+ const pending=projectInventory.filter(p=>p.alert).length;
+ const unknown=projectInventory.filter(p=>p.compatibility?.status==="unknown"&&!p.ignored&&!p.archived).length;
+ $("compatibilitySummary").textContent=pending?
+   pending+" project"+(pending===1?" needs":"s need")+" a compatible builder · "+unknown+" not yet classified":
+   "No confirmed unmatched active projects · "+unknown+" awaiting requirement detection";
  renderProjectList();
 }
 function renderProjectList(){
@@ -30,18 +35,42 @@ function renderProjectList(){
  }
  const query=$("projectSearch").value.toLowerCase().trim(),filter=$("projectFilter").value;
  const items=result.repositories.filter(item=>(!query||[item.fullName,item.description,item.defaultBranch].join(" ").toLowerCase().includes(query))&&
-  (filter==="all"||(filter==="active"&&!item.archived)||(filter==="archived"&&item.archived)||(filter==="private"&&item.private)||(filter==="public"&&!item.private)));
+  (filter==="all"||(filter==="active"&&!item.archived)||(filter==="archived"&&item.archived)||(filter==="private"&&item.private)||(filter==="public"&&!item.private)||(filter==="missing"&&item.alert)||(filter==="unknown"&&item.compatibility?.status==="unknown")||(filter==="ignored"&&item.ignored)));
  if(!items.length){holder.append(node("p","No matching repositories.","home-empty"));return;}
  for(const project of items){
   const card=node("article",undefined,"project-entry"),left=node("div"),right=node("div",undefined,"project-right");
   const name=node("strong",project.fullName),description=node("small",project.description||"Default: "+(project.defaultBranch||"unknown"));
   left.append(name,description);
+  const req=project.requirements||{status:"unknown",targets:[]};
+  const summary=(req.targets||[]).map(t=>[
+    t.os,t.arch||null,...(t.tools||[]).map(tool=>tool.name+(tool.version?" "+tool.version:""))
+   ].filter(Boolean).join(" / ")).join(" OR ");
+  const status=project.archived?"Archived · alerts muted":project.ignored?
+    "Ignored · alerts muted":project.compatibility?.status==="missing"?
+    "Needs compatible builder":project.compatibility?.status==="compatible"?
+    "Compatible builder available":"Requirements not classified";
+  left.append(node("small",status+(summary?" · "+summary:""),"project-compatibility"));
+  if(req.status==="inferred")left.append(node("small","Detected from GitHub Actions workflow; verify exact tool versions.","project-compatibility"));
+
   const details=node("small",project.builds+" local build job"+(project.builds===1?"":"s")+
    (project.latestBuild?" · Last: "+project.latestBuild.status.replaceAll("_"," "):""));
   right.append(details);
   const link=node("a","View on GitHub");
   link.href=project.url;link.target="_blank";link.rel="noopener noreferrer";
-  right.append(link);card.append(left,right);holder.append(card);
+  right.append(link);
+  if(!project.archived){
+    const mute=node("button",project.ignored?"Resume compatibility alerts":"Ignore compatibility alerts","plain-button");
+    mute.type="button";
+    mute.addEventListener("click",async()=>{
+      mute.disabled=true;
+      try{
+        await api("/api/local/projects/ignore",{fullName:project.fullName,ignored:!project.ignored});
+        await load();
+      }catch(e){$("notice").textContent=e.message;mute.disabled=false}
+    });
+    right.append(mute);
+  }
+  card.append(left,right);holder.append(card);
  }
 }
 async function load(){
