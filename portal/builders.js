@@ -227,7 +227,11 @@ function openUpgradeDialog(host){
   !!host.upgrade&&["queued","installing"].includes(host.upgrade.phase);
  $("upgradeBuilderFeedback").textContent=host.upgrade?.phase==="failed"?(host.upgrade.error||"Previous upgrade failed"):"";
  upgradeDialog.showModal();
- startUpgradeWatch(host,expected);
+ // Monitor only an outstanding upgrade or a manual bootstrap. Opening an
+ // already-current host's details must not immediately close the dialog.
+ if(bootstrap||["queued","installing"].includes(host.upgrade?.phase))
+  startUpgradeWatch(host,expected);
+ else stopUpgradeWatch();
 }
 $("startRemoteUpgrade").addEventListener("click",async()=>{
  const host=upgradeTarget;if(!host)return;
