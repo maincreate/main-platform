@@ -3,6 +3,7 @@ import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
 import {hostDistributionRoute,adminHostRoute,agentHostRoute} from "./host_routes.mjs";
+import {publicHostPairRoute,adminHostPairRoute,verifyEnrolledPair} from "./pairing.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
@@ -318,9 +319,11 @@ export async function localRoute(req) {
   }
   if(path==="/setup.js"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.js",import.meta.url),"utf8"),{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store"}});
   if(path==="/setup.css"&&method==="GET")return new Response(readFileSync(new URL("../portal/setup.css",import.meta.url),"utf8"),{headers:{"content-type":"text/css; charset=utf-8","cache-control":"public, max-age=300"}});
-  if(!path.startsWith("/api/local/")&&!path.startsWith("/api/agent/")&&!path.startsWith("/api/internal/")&&path!=="/api/v1/status")return null;
+  if(!path.startsWith("/api/local/")&&!path.startsWith("/api/agent/")&&!path.startsWith("/api/host/pair/")&&!path.startsWith("/api/internal/")&&path!=="/api/v1/status")return null;
   if(!sameOrigin(req))return deny(403,"Origin rejected");
   try {
+    const hostPairResponse=await publicHostPairRoute(req,{state,save,body,reply,deny,limited,unseal});
+    if(hostPairResponse)return hostPairResponse;
     if(path==="/api/local/public"&&method==="GET")return reply(publicSummary());
     if(path==="/api/v1/status"&&method==="GET") {
       const p=publicSummary();
@@ -365,6 +368,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+       const pairingResponse=await adminHostPairRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,limited});
+       if(pairingResponse)return pairingResponse;
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited});
        if(hostResponse)return hostResponse;
       if(path==="/api/local/logout"&&method==="POST"){
@@ -810,10 +815,12 @@ export async function localRoute(req) {
       const b=await body(req),s=state();
       const invite=(s.invites||[]).find(x=>equal(x.hash,digest(b.token||""))&&x.expires>Date.now());
       if(!invite)return deny(401,"Enrollment token invalid or expired");
+      if(!verifyEnrolledPair(invite,b))return deny(401,"Enrolled host identity does not match the approved fingerprint");
       if(!bounded(b.name,64)||!["linux","macos","windows"].includes(b.os)||!["x64","arm64"].includes(b.arch))return deny(422,"Invalid agent identity");
       s.invites=s.invites.filter(x=>x!==invite);
       const token=rnd(),id=randomBytes(12).toString("hex");
-      s.runners.push({id,name:b.name,os:b.os,arch:b.arch,tokenHash:digest(token),registeredAt:new Date().toISOString(),lastSeen:null});
+      s.runners.push({id,name:b.name,os:b.os,arch:b.arch,tokenHash:digest(token),registeredAt:new Date().toISOString(),lastSeen:null,
+       ...(invite.hostFingerprint?{managedHost:{pairingMethod:"outbound-ed25519",fingerprint:invite.hostFingerprint,pairedAt:new Date().toISOString()}}:{})});
       save(s);return reply({id,token,heartbeatPath:"/api/agent/heartbeat"});
     }
     if(path==="/api/agent/heartbeat"&&method==="POST"){
