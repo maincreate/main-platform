@@ -13,13 +13,13 @@ jobs:
     runs-on: [self-hosted, ci, linux-x64]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Test portal account provisioning and MCP
         run: npm test
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: host/go.mod
           cache: false
@@ -27,7 +27,7 @@ jobs:
         run: cd host && go test ./...
       - name: Cross-compile Linux ARM64 Host Service
         run: cd host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/tinkertunnel-host-linux-arm64 .
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Validate artifact packaging
@@ -38,7 +38,7 @@ jobs:
           mkdir -p out
           printf 'tinkertunnel-poc-only-NOT-FLASHABLE' > demo.bin
           python poc/artifacts.py --source demo.bin --output out --commit "${GITHUB_SHA}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: tinkertunnel-poc-contract-${{ github.sha }}
           path: out/
