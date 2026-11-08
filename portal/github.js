@@ -17,9 +17,6 @@ function syncRunnerPolicy(){
 const panels=["loading","unavailable","disconnected","authorizing","connected"];
 function show(panel){panels.forEach(id=>$(id).hidden=id!==panel);}
 function notice(text){$("notice").textContent=text||"";}
-function applyTheme(){
-  try{const t=localStorage.getItem("maincreate-theme");if(["cool-mist","graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
-}
 async function api(path,values){
   const opts={cache:"no-store",credentials:"same-origin"};
   if(values!==undefined){opts.method="POST";opts.headers={"content-type":"application/json","x-maincreate-csrf":csrf};opts.body=JSON.stringify(values);}
@@ -141,4 +138,4 @@ $("disconnect").addEventListener("click",async()=>{
   catch(e){notice(e.message);}
 });
 window.addEventListener("pagehide",()=>{flowActive=false;if(flowTimer)clearTimeout(flowTimer);});
-applyTheme();refresh().catch(e=>{notice(e.message);show("unavailable");});
+refresh().catch(e=>{notice(e.message);show("unavailable");});

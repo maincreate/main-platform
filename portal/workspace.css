@@ -231,3 +231,11 @@ body>.main{margin:0 0 0 var(--maincreate-sidebar-width);width:calc(100% - var(--
 .maincreate-builder-footer{flex-wrap:wrap}.maincreate-builder-footer-actions{margin-left:auto}
 .maincreate-service-command{font-size:10px}
 }
+
+.settings-form select{font:inherit;padding:10px 12px;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:9px}
+.appearance-editor{margin:18px 0}
+.appearance-editor summary{cursor:pointer}
+.appearance-colors{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:10px}
+.appearance-colors label{display:grid;gap:5px}
+.settings-form .appearance-colors input{width:100%;height:42px;padding:3px}
+.settings-form #deleteTemplate{border:1px solid var(--line)}

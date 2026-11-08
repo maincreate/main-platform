@@ -1,7 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,currentJobs=[],currentAssets=[],devices=[];
-try{const theme=localStorage.getItem("maincreate-theme");if(["cool-mist","graphite","paper","midnight"].includes(theme))document.body.dataset.theme=theme;}catch{}
 function el(tag,text,cls){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;}
 function message(value){$("notification").textContent=value||"";}
 async function api(path,payload){

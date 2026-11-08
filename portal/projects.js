@@ -1,7 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,selectedOrg=null,projectInventory=[],projectUpdatedAt=null,projectTruncated=false;
-try{const t=localStorage.getItem("maincreate-theme");if(["cool-mist","midnight","paper","graphite"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){options.method="POST";options.headers={"content-type":"application/json","x-maincreate-csrf":csrf};options.body=JSON.stringify(payload);}

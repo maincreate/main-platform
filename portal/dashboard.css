@@ -121,3 +121,4 @@ dialog::backdrop{background:#131e32aa}.dialog-head{display:flex;justify-content:
 #lane-devices .topology-hint{font-size:11px}
 
 .theme-choice[data-palette="cool-mist"] i:nth-child(1){background:#f4f6f7}.theme-choice[data-palette="cool-mist"] i:nth-child(2){background:#2d6279}.theme-choice[data-palette="cool-mist"] i:nth-child(3){background:#fcfdfe}
+body[data-theme="custom"] .action:hover{color:var(--bg)}

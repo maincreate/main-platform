@@ -1,9 +1,5 @@
 "use strict";
 const $=id=>document.getElementById(id);
-try {
-  const chosen=localStorage.getItem("maincreate-theme");
-  document.body.dataset.theme=["cool-mist","graphite","paper","midnight"].includes(chosen)?chosen:"cool-mist";
-} catch {}
 const notice=msg=>{$("notice").textContent=msg;};
 async function api(path,data){
   const init={cache:"no-store",credentials:"same-origin"};

@@ -5,7 +5,6 @@ let platform="linux-arm64",method="manual",step=1;
 let fingerprint=null,verifiedHost=null,identitySerial=0;
 let selectedDiscoveryHost=null,scanActive=false,scanDeadline=0,scanTimer=null,scanClock=null,scanRequest=null,scanSerial=0,scanLastHosts=new Map(),pairing=false;
 const SCAN_MAX_MS=5*60*1000,SCAN_INTERVAL_MS=12000;
-try{const t=localStorage.getItem("maincreate-theme");if(["cool-mist","graphite","paper","midnight"].includes(t))document.body.dataset.theme=t;}catch{}
 async function api(path,body,signal){
  const request={credentials:"same-origin",cache:"no-store"};
  if(signal)request.signal=signal;

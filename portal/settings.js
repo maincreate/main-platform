@@ -1,15 +1,87 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null;
-const themes=["cool-mist","graphite","paper","midnight"];
-function theme(id, save = false){
- if(!themes.includes(id))id="cool-mist";
- document.body.dataset.theme=id;
- document.querySelectorAll(".theme-choice").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.palette===id)));
- if(save)try{localStorage.setItem("maincreate-theme",id);}catch{}
+const appearance = maincreateAppearance;
+const appearanceMode = $("appearanceMode");
+const lightTemplate = $("lightTemplate");
+const darkTemplate = $("darkTemplate");
+const customTemplate = $("customTemplate");
+const appearanceStatus = $("appearanceStatus");
+
+function renderAppearance(editorId = customTemplate.value) {
+ const {mode, light, dark, templates} = appearance.read();
+ const options = [...Object.entries(appearance.presets), ...templates.map(({id, name}) => [id, name])];
+ appearanceMode.value = mode;
+ lightTemplate.replaceChildren(...options.map(([id, name]) => new Option(name, id)));
+ darkTemplate.replaceChildren(...options.map(([id, name]) => new Option(name, id)));
+ lightTemplate.value = light;
+ darkTemplate.value = dark;
+ customTemplate.replaceChildren(new Option("New template", ""), ...templates.map(({id, name}) => new Option(name, id)));
+ customTemplate.value = templates.some(template => template.id === editorId) ? editorId : "";
 }
-try{theme(localStorage.getItem("maincreate-theme")||"cool-mist");}catch{theme("cool-mist");}
-document.querySelectorAll(".theme-choice").forEach(button=>button.addEventListener("click",()=>theme(button.dataset.palette, true)));
+
+function editTemplate() {
+ const selected = appearance.read().templates.find(template => template.id === customTemplate.value);
+ $("templateName").value = selected?.name ?? "";
+ for (const color of appearance.colors) {
+  const input = $("theme-" + color);
+  input.value = selected?.[color] ?? input.defaultValue;
+ }
+ $("deleteTemplate").hidden = !selected;
+}
+
+function saveAppearance(next, message, editorId) {
+ try {
+  appearance.save(next);
+ } catch {
+  renderAppearance();
+  appearanceStatus.textContent = "This browser could not save the appearance settings.";
+  return false;
+ }
+ renderAppearance(editorId);
+ appearanceStatus.textContent = message;
+ return true;
+}
+
+for (const [input, field] of [[appearanceMode, "mode"], [lightTemplate, "light"], [darkTemplate, "dark"]]) {
+ input.addEventListener("change", () => saveAppearance({...appearance.read(), [field]: input.value}, "Appearance saved."));
+}
+customTemplate.addEventListener("change", editTemplate);
+$("appearanceForm").addEventListener("submit", event => {
+ event.preventDefault();
+ const name = $("templateName").value.trim();
+ if (!name) {
+  appearanceStatus.textContent = "Enter a template name.";
+  $("templateName").focus();
+  return;
+ }
+ const palette = Object.fromEntries(appearance.colors.map(color => [color, $("theme-" + color).value]));
+ if (["text", "accent"].some(color => ["bg", "surface"].some(surface => appearance.contrast(palette[color], palette[surface]) < 4.5))) {
+  appearanceStatus.textContent = "Use text and accent colors with at least 4.5:1 contrast against the canvas and surface.";
+  return;
+ }
+ const id = customTemplate.value || "custom-" + crypto.randomUUID();
+ const current = appearance.read();
+ const template = {id, name, ...palette};
+ const templates = customTemplate.value
+  ? current.templates.map(item => item.id === id ? template : item)
+  : [...current.templates, template];
+ if (saveAppearance({...current, templates}, "Template saved. Assign it to light or dark mode above.", id)) editTemplate();
+});
+$("deleteTemplate").addEventListener("click", () => {
+ const id = customTemplate.value;
+ const current = appearance.read();
+ const next = {
+  ...current,
+  light: current.light === id ? appearance.defaults.light : current.light,
+  dark: current.dark === id ? appearance.defaults.dark : current.dark,
+  templates: current.templates.filter(template => template.id !== id),
+ };
+ if (saveAppearance(next, "Template deleted. Any slot using it returned to its default.", "")) editTemplate();
+});
+window.addEventListener("storage", () => { renderAppearance(); editTemplate(); });
+renderAppearance();
+editTemplate();
 async function api(path,payload){
  const opts={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){

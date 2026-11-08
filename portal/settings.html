@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Settings • Main{Create}</title>
 <link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css">
-<script src="/settings.js" defer></script></head><body data-theme="cool-mist">
+<script src="/appearance.js" defer></script><script src="/settings.js" defer></script></head><body data-theme="cool-mist">
 <aside class="maincreate-sidebar" aria-label="Main navigation"><a href="/" class="maincreate-brand"><span class="maincreate-logo">M{}</span>Main{Create}</a><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings" aria-current="page">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><span>GitHub organization</span><div class="maincreate-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button></div></header>
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
@@ -36,13 +36,32 @@
  <div class="setting-meta">Remote MCP OAuth connection is not yet configured. Local/private MCP development is separate from GitHub authorization.</div>
 </section>
 <section class="settings-panel" aria-labelledby="appearanceTitle">
- <h2 id="appearanceTitle">Appearance</h2><p>Choose a color palette for this browser.</p>
- <div class="themes" role="group" aria-label="Color palette">
- <button class="theme-choice" data-palette="cool-mist" aria-pressed="true"><span class="swatches"><i></i><i></i><i></i></span><span>Cool Mist</span></button>
- <button class="theme-choice" data-palette="graphite" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Graphite + Iris</span></button>
- <button class="theme-choice" data-palette="paper" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Warm Paper</span></button>
- <button class="theme-choice" data-palette="midnight" aria-pressed="false"><span class="swatches"><i></i><i></i><i></i></span><span>Midnight</span></button>
+ <h2 id="appearanceTitle">Appearance</h2>
+ <p>Choose which templates to use for light and dark mode. Preferences are saved in this browser.</p>
+ <div class="settings-form">
+  <label for="appearanceMode">Mode</label>
+  <select id="appearanceMode"><option value="light">Light</option><option value="dark">Dark</option><option value="system">Follow device</option></select>
+  <label for="lightTemplate">Light mode template</label><select id="lightTemplate"></select>
+  <label for="darkTemplate">Dark mode template</label><select id="darkTemplate"></select>
  </div>
+ <details class="appearance-editor">
+  <summary>Manage custom templates</summary>
+  <form class="settings-form" id="appearanceForm">
+   <label for="customTemplate">Template to edit</label><select id="customTemplate"></select>
+   <label for="templateName">Template name</label><input id="templateName" maxlength="40" required>
+   <div class="appearance-colors">
+    <label for="theme-bg">Canvas <input type="color" id="theme-bg" value="#f4f6f7"></label>
+    <label for="theme-surface">Surface <input type="color" id="theme-surface" value="#fcfdfe"></label>
+    <label for="theme-text">Text <input type="color" id="theme-text" value="#20292d"></label>
+    <label for="theme-accent">Accent <input type="color" id="theme-accent" value="#2d6279"></label>
+   </div>
+   <div class="themes">
+    <button class="action" type="submit">Save template</button>
+    <button class="plain-button" id="deleteTemplate" type="button" hidden>Delete template</button>
+   </div>
+  </form>
+ </details>
+ <p id="appearanceStatus" role="status"></p>
 </section>
 <section class="settings-panel" aria-labelledby="passwordTitle">
  <h2 id="passwordTitle">Account security</h2>
