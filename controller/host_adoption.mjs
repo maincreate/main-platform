@@ -91,7 +91,7 @@ export async function enrollHost({address,username,password,approvedFingerprint,
    const releases=await fetch("https://nodejs.org/dist/index.json",{signal:AbortSignal.timeout(14000)});
    if(!releases.ok)throw fail(502,"Could not retrieve Node.js releases");
    const all=await releases.json();
-   const release=all.find(v=>/^v22\\.\\d+\\.\\d+$/.test(v.version)&&v.files?.includes("linux-"+arch));
+   const release=all.find(v=>/^v22\.\d+\.\d+$/.test(v.version)&&v.files?.includes("linux-"+arch));
    if(!release)throw fail(502,"No supported Node.js 22 release for Linux "+arch);
    const filename="node-"+release.version+"-linux-"+arch+".tar.xz";
    const install=[
@@ -101,9 +101,9 @@ export async function enrollHost({address,username,password,approvedFingerprint,
     "grep -F "+shell("  "+filename)+" node-checksums | sha256sum -c -",
     "tar -xJf "+shell(filename),
     "rm -f node-checksums "+shell(filename)
-   ].join("\\n")+"\\n";
+   ].join("\n")+"\n";
    await execute(conn,"bash -se",install,160000);
-   nodeBin=base+"/"+filename.replace(/\\.tar\\.xz$/,"")+"/bin/node";
+   nodeBin=base+"/"+filename.replace(/\.tar\.xz$/,"")+"/bin/node";
   }
   progress("Downloading verified GitHub Actions runner");
   const asset=await officialRelease(arch),runnerDir=base+"/actions-runner";
