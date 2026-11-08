@@ -166,7 +166,9 @@ test('Stalled removal can be reconciled without unregistering or deleting the bu
  assert.equal(h.state().hostActions[0].status,'expired');
 });
 test('Successful validation clears stale removal and retains recovery audit',async()=>{
- const h=harness({online:true,registered:true});
+ const h=harness({online:true,registered:true,actions:[{
+  id:'provisioned',runnerId:ID,organization:'MainCreate',runnerName:'builder-linux-arm64-01',status:'completed'
+ }]});
  const s=h.state();s.runners[0].managedHost={host:'192.168.100.200'};
  s.runners[0].decommission={phase:'stopping',mode:'managed',error:null};h.setState(s);
  const old=globalThis.fetch;
