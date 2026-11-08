@@ -131,6 +131,7 @@ function dismissDialogOnBackdrop(dialog){
 }
 dismissDialogOnBackdrop(removeDialog);
 removeDialog.addEventListener("close",()=>{
+ stopRemovalPoll();progressMode(false);
  $("removeBuilderPassword").value="";
  removeTarget=null;removeMode=null;
 });
@@ -252,7 +253,70 @@ $("startRemoteUpgrade").addEventListener("click",async()=>{
 });
 let removeTarget=null;
 let removeMode=null;
+const removeStageNames={stopping:"Stopping runner",unregistering:"Unregistering from GitHub",cleaning:"Removing Software",controller:"Removing from Controller"};
+const removalHelp={
+ stopping:["Verify the GitHub runner has no active job.","Check the runner service on the host and stop it only when idle.","Retry removal after checking the host, or use Force remove if recovery is impossible."],
+ unregistering:["Check the organization’s GitHub Actions runner inventory.","Reconnect the original GitHub organization to TinkerTunnel if authorization expired.","If the runner is offline and idle, unregister it through GitHub and retry removal."],
+ cleaning:["Inspect the TinkerTunnel Host Service and runner on the machine.","If cleanup cannot finish, follow the documented uninstall procedure on the host.","Then use Force remove to revoke the controller enrollment; do not delete unrelated files."],
+ controller:["Refresh the Builders list and inspect the removal audit.","Confirm the GitHub registration is absent.","If the builder still appears, reconcile or retry its removal."]
+};
+let removalTimer=null,removalSerial=0,removalBusy=false;
+function stopRemovalPoll(){removalSerial++;if(removalTimer!==null)clearInterval(removalTimer);removalTimer=null;removalBusy=false;}
+function progressMode(enabled){
+ $("removeBuilderProgress").hidden=!enabled;
+ for(const id of ["removeBuilderName","removeBuilderPassword"]){
+  $(id).hidden=enabled;const label=removeDialog.querySelector('label[for="'+id+'"]');
+  if(label)label.hidden=enabled;
+ }
+ $("confirmRemoveBuilder").hidden=enabled;
+ $("cancelRemoveBuilder").textContent=enabled?"Close":"Cancel";
+}
+function renderRemovalProgress(result){
+ const list=$("removeBuilderStages");list.replaceChildren();
+ for(const id of ["stopping","unregistering","cleaning","controller"]){
+  const stage=result.stages?.find(x=>x.id===id)||{status:"pending"};
+  const row=el("li",undefined,"tt-removal-stage tt-removal-"+stage.status);
+  const header=el("div",undefined,"tt-removal-stage-heading");
+  header.append(el("span",({completed:"✓",active:"●",failed:"!",skipped:"–",pending:"○"})[stage.status]||"○","tt-removal-symbol"),
+   el("strong",removeStageNames[id]),el("small",({completed:"Complete",active:"In progress",failed:"Failed",skipped:"Skipped",pending:"Pending"})[stage.status]||"Pending"));
+  row.append(header);
+  if(stage.status==="failed"){
+   const details=el("details",undefined,"tt-removal-failure");details.open=true;
+   details.append(el("summary","Failure details and manual recovery"));
+   details.append(el("p",stage.detail||result.error||"The operation failed."));
+   const instructions=el("ol");
+   const help=id==="cleaning"&&result.mode==="remote"?
+    ["The host was unreachable; local software was not removed.","When it becomes accessible, use the documented TinkerTunnel uninstall procedure or reimage it.","Verify GitHub registration is absent before re-enrolling."]:removalHelp[id];
+   for(const step of help)instructions.append(el("li",step));
+   details.append(instructions);row.append(details);
+  }
+  list.append(row);
+ }
+ const active=result.stages?.find(x=>x.status==="active");
+ $("removeBuilderProgressHeadline").textContent=result.removed?"Removal complete":
+  result.phase==="failed"?"Removal failed · action required":
+  result.stalled?"Removal stalled · no active operation":
+  "Removal in progress: "+(removeStageNames[active?.id]||"Checking state");
+}
+async function pollRemoval(serial){
+ if(serial!==removalSerial||removalBusy||!removeDialog.open||!removeTarget)return;
+ removalBusy=true;
+ try{
+  const result=await api("/api/local/builders/remove/status?id="+encodeURIComponent(removeTarget.id));
+  if(serial!==removalSerial||!removeDialog.open)return;
+  renderRemovalProgress(result);
+  if(result.removed||result.phase==="failed"||result.stalled){stopRemovalPoll();await load();}
+ }catch(e){
+  if(serial===removalSerial&&removeDialog.open)$("removeBuilderProgressHeadline").textContent="Status unavailable · "+e.message;
+ }finally{removalBusy=false;}
+}
+function startRemovalPoll(){
+ stopRemovalPoll();const serial=removalSerial;
+ pollRemoval(serial);
+ removalTimer=setInterval(()=>pollRemoval(serial),2500);
+}
 function openRemoveDialog(host,mode){
+  stopRemovalPoll();progressMode(false);
   removeTarget=host;removeMode=mode;
   const live=mode==="managed";
   $("removeBuilderName").value="";$("removeBuilderPassword").value="";
@@ -286,7 +350,7 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
   const result=await api("/api/local/builders/remove",{
     runnerId:host.id,confirmName:host.name,password,mode
   });
-  $("removeBuilderPassword").value="";removeDialog.close();removeTarget=null;
+  $("removeBuilderPassword").value="";progressMode(true);
   if(result.removed){
     const output=$("builderRemovalInstructions");
     output.hidden=false;output.replaceChildren();
@@ -297,6 +361,7 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
     status(host.name+": decommissioning "+(result.phase||"started")+". Follow status in the Builders table.");
   }
   await load();
+  startRemovalPoll();
  }catch(e){$("removeBuilderFeedback").textContent=e.message;}
  finally{syncRemoveConfirmation()}
 });
