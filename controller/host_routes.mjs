@@ -217,9 +217,9 @@ export async function adminHostRoute(req,ctx){
   }
   const ready=checks.length>0&&checks.every(c=>c.status==='pass');
   // Removal history cannot override fresh validated operational state.
-  if(ready&&host.decommission?.phase==='failed'){
+  if(ready&&(host.decommission?.phase==='failed'||removalActivity(host,s.hostActions||[])?.stalled)){
    const latest=state(),current=latest.runners.find(r=>r.id===host.id);
-   if(current?.decommission?.phase==='failed'){
+   if(current?.decommission&&(current.decommission.phase==='failed'||removalActivity(current,latest.hostActions||[])?.stalled)){
     latest.builderRecoveryAudit=[...(latest.builderRecoveryAudit||[]).slice(-49),{
      id:current.id,name:current.name,previousDecommission:current.decommission,
      recoveredAt:new Date().toISOString(),reason:'successful_validation'
@@ -238,7 +238,7 @@ export async function adminHostRoute(req,ctx){
   if(!activity.stalled)return reply({status:'active',activity});
   for(const action of s.hostActions||[]){
    if(action.runnerId===host.id&&['github-runner.stop','host.cleanup'].includes(action.type)&&
-      ['queued','claimed'].includes(action.status)&&Date.parse(action.expiresAt)<=Date.now()){
+      ['queued','claimed'].includes(action.status)&&(!Number.isFinite(Date.parse(action.expiresAt))||Date.parse(action.expiresAt)<=Date.now())){
     action.status='expired';action.completedAt=new Date().toISOString();delete action.secret;
    }
   }
