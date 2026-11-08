@@ -21,5 +21,51 @@
     "capabilities": [
       "host.snapshot"
     ]
+  },
+  {
+    "id": "static-web-build",
+    "displayName": "Static Website Build Toolchains",
+    "category": "web",
+    "state": "catalog-only",
+    "installation": "operator-managed",
+    "description": "Planned support for version-pinned Node.js, pnpm/npm, Astro/Vite and similar static export builds on an available managed Linux, macOS or Windows builder; deployment is controller-owned.",
+    "capabilities": [
+      "web.static.build",
+      "workflow.web.static_build_publish"
+    ]
+  },
+  {
+    "id": "hugo",
+    "displayName": "Hugo Static Site Generator",
+    "category": "web",
+    "state": "catalog-only",
+    "installation": "operator-managed",
+    "description": "Planned native static-site generator; potential Linux ARM64/x64, macOS, and Windows build-host profiles require version validation.",
+    "capabilities": [
+      "web.static.build"
+    ]
+  },
+  {
+    "id": "mkdocs",
+    "displayName": "MkDocs Documentation Generator",
+    "category": "web",
+    "state": "catalog-only",
+    "installation": "operator-managed",
+    "description": "Planned Python/MkDocs site builds with pinned Python and package dependencies, hosted on compatible managed builders.",
+    "capabilities": [
+      "web.static.build"
+    ]
+  },
+  {
+    "id": "site-publishing",
+    "displayName": "GitHub Pages & Cloudflare Static Hosting",
+    "category": "deployment",
+    "state": "catalog-only",
+    "installation": "operator-managed",
+    "description": "Planned destinations for verified, prebuilt static assets. Publishing permissions and provider credentials are controller-managed, not builder-managed.",
+    "capabilities": [
+      "web.static.publish.github_pages",
+      "web.static.publish.cloudflare"
+    ]
   }
 ]
