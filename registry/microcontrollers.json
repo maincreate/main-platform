@@ -1,0 +1,255 @@
+{
+  "schema": 1,
+  "catalogRevision": "2026-11-08",
+  "policy": {
+    "usbDescriptorIsChipProof": false,
+    "flashRequiresActiveChipProbe": true,
+    "flashRequiresExplicitApproval": true,
+    "installationRequiresValidatedRecipe": true
+  },
+  "families": [
+    {
+      "id": "espressif-esp32",
+      "name": "Espressif ESP32",
+      "chips": [
+        "ESP32",
+        "ESP32-S2",
+        "ESP32-S3",
+        "ESP32-C3",
+        "ESP32-C6",
+        "ESP32-H2",
+        "ESP32-P4"
+      ],
+      "sdk": [
+        {
+          "id": "esp-idf",
+          "versions": [
+            "5.5.x"
+          ],
+          "status": "pilot"
+        },
+        {
+          "id": "arduino-esp32",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        }
+      ],
+      "usb": [
+        {
+          "vid": 12346,
+          "pid": 4097,
+          "evidence": "Espressif USB Serial/JTAG interface; exact chip unknown",
+          "confidence": "family-only"
+        }
+      ],
+      "probe": "esptool chip_id/read_mac (read-only)",
+      "sources": [
+        "https://docs.espressif.com/projects/esptool/en/latest/",
+        "https://docs.espressif.com/projects/esp-idf/en/latest/"
+      ]
+    },
+    {
+      "id": "raspberry-pi-rp",
+      "name": "Raspberry Pi RP2040 / RP2350",
+      "chips": [
+        "RP2040",
+        "RP2350"
+      ],
+      "sdk": [
+        {
+          "id": "pico-sdk",
+          "versions": [
+            "2.3.1"
+          ],
+          "status": "review"
+        },
+        {
+          "id": "arduino-pico",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        }
+      ],
+      "usb": [
+        {
+          "vid": 11914,
+          "pid": 10,
+          "evidence": "RP2040 Pico SDK USB CDC interface",
+          "confidence": "family-only"
+        },
+        {
+          "vid": 11914,
+          "pid": 3,
+          "evidence": "RP2040 USB bootloader (not a serial interface)",
+          "confidence": "family-only"
+        }
+      ],
+      "probe": "picotool info / USB ROM identity (read-only)",
+      "sources": [
+        "https://github.com/raspberrypi/usb-pid",
+        "https://github.com/raspberrypi/pico-sdk/releases"
+      ]
+    },
+    {
+      "id": "st-stm32",
+      "name": "STMicroelectronics STM32",
+      "chips": [
+        "STM32F0/F1/F4",
+        "STM32G0/G4",
+        "STM32H5/H7",
+        "STM32L4/U5"
+      ],
+      "sdk": [
+        {
+          "id": "stm32cube",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        },
+        {
+          "id": "platformio",
+          "versions": [],
+          "status": "review"
+        }
+      ],
+      "usb": [],
+      "probe": "OpenOCD or STM32CubeProgrammer read-only chip ID",
+      "sources": [
+        "https://www.st.com/en/embedded-software/stm32cube-mcu-mpu-packages.html"
+      ]
+    },
+    {
+      "id": "nordic-nrf",
+      "name": "Nordic nRF",
+      "chips": [
+        "nRF52",
+        "nRF53",
+        "nRF54"
+      ],
+      "sdk": [
+        {
+          "id": "nrf-connect-sdk",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        }
+      ],
+      "usb": [],
+      "probe": "nrfutil/J-Link read-only device family identification",
+      "sources": [
+        "https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/index.html"
+      ]
+    },
+    {
+      "id": "microchip-avr-samd",
+      "name": "Microchip AVR / SAMD",
+      "chips": [
+        "ATmega328P",
+        "ATmega2560",
+        "SAMD21",
+        "SAMD51"
+      ],
+      "sdk": [
+        {
+          "id": "arduino-cli",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "platformio",
+          "versions": [],
+          "status": "review"
+        }
+      ],
+      "usb": [],
+      "probe": "avrdude signature or UF2 board identification (read-only)",
+      "sources": [
+        "https://docs.arduino.cc/arduino-cli/"
+      ]
+    },
+    {
+      "id": "nxp-teensy",
+      "name": "NXP i.MX RT / Teensy",
+      "chips": [
+        "i.MX RT1062",
+        "i.MX RT1170"
+      ],
+      "sdk": [
+        {
+          "id": "teensyduino",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "mcuxpresso",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        }
+      ],
+      "usb": [],
+      "probe": "Board-specific bootloader or debug probe identification",
+      "sources": [
+        "https://www.nxp.com/design/design-center/software/development-software/mcuxpresso-software-and-tools-:MCUXPRESSO"
+      ]
+    },
+    {
+      "id": "silabs-efr32",
+      "name": "Silicon Labs EFR32",
+      "chips": [
+        "EFR32BG",
+        "EFR32MG"
+      ],
+      "sdk": [
+        {
+          "id": "simplicity-sdk",
+          "versions": [],
+          "status": "review"
+        },
+        {
+          "id": "zephyr",
+          "versions": [
+            "4.5.0"
+          ],
+          "status": "board-dependent-review"
+        }
+      ],
+      "usb": [],
+      "probe": "Simplicity Commander read-only device identification",
+      "sources": [
+        "https://docs.silabs.com/"
+      ]
+    }
+  ]
+}
