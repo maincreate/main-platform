@@ -2,7 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {HOST_RELEASE,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
+import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
@@ -754,6 +754,7 @@ export async function localRoute(req) {
               software:{
                version:r.hostVersion||null,
                expectedVersion:HOST_RELEASE,
+               remoteUpgradeSupported:supportsRemoteHostUpgrade(r.hostVersion),
                upToDate:!!r.hostVersion&&r.hostVersion===HOST_RELEASE,
                updateAvailable:!!r.hostVersion&&r.hostVersion.split(".").length===3&&r.hostVersion.split(".").every(v=>v!==""&&String(Number(v))===v)&&
                 r.hostVersion.split(".").map(Number).some((n,i,a)=>{

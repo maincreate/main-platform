@@ -22,6 +22,12 @@ function expireStaleHostActions(s,id,now=Date.now()){
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
 export const HOST_RELEASE = "0.6.2";
+const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
+const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
+export function supportsRemoteHostUpgrade(version) {
+ const installed = parseHostVersion(version);
+ return installed !== null && compareHostVersions(installed, [0, 5, 0]) >= 0;
+}
 
 export function removalActivity(host,actions=[],now=Date.now()){
  const d=host?.decommission;
@@ -367,12 +373,10 @@ export async function adminHostRoute(req,ctx){
   if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
   // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
   // bootstrap is required; never queue an instruction the host cannot execute.
-  const parseVersion=v=>/^\\d+\\.\\d+\\.\\d+$/.test(v||'')?v.split('.').map(Number):null;
-  const installed=parseVersion(host.hostVersion),minimum=[0,5,0],available=parseVersion(release);
-  const compare=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
-  if(!installed||compare(installed,minimum)<0)
-   return deny(409,'This Host Service does not support remote upgrades yet. Install v0.5.0 once using the upgrade instructions, then future upgrades can be remote.');
-  if(compare(installed,available)>0)return deny(409,'Host has a newer version than the controller release. Downgrades are not supported.');
+  if(!supportsRemoteHostUpgrade(host.hostVersion))
+   return deny(409,'Remote upgrade requires Host Service 0.5.0 or newer. Run the manual installer to upgrade to '+release+'.');
+  if(compareHostVersions(parseHostVersion(host.hostVersion),parseHostVersion(release))>0)
+   return deny(409,'Host has a newer version than the controller release. Downgrades are not supported.');
   if(expireStaleHostActions(s,host.id))save(s);
   if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a)))
    return deny(409,'Another host operation is active');

@@ -218,10 +218,10 @@ function openUpgradeDialog(host){
  const installed=host.software?.version||null,expected=host.software?.expectedVersion||"current";
  $("upgradeBuilderDescription").textContent=host.name+" · Installed: "+
   (installed||"unverified")+" · Available: "+expected;
- const bootstrap=!installed||installed==="0.4.0";
- $("manualUpgradeSteps").hidden=!bootstrap;
+ const bootstrap=!host.software?.remoteUpgradeSupported;
+ $("manualUpgradeSteps").hidden=!bootstrap&&!host.software?.updateAvailable;
  $("upgradeBuilderGuidance").textContent=bootstrap?
-  "One-time bootstrap required: this host predates the authenticated remote-upgrade protocol. Install v0.5.0 once over SSH; later versions can be installed from this page.":
+  "Remote upgrade requires Host Service 0.5.0 or newer. Run the command below on the builder to install the current release ("+expected+").":
   installed===expected?"Host Service is already at the current version.":
   "Queue a checksum-pinned update from the controller. The host downloads it over its existing HTTPS connection, stages it, restarts, and confirms the new version through heartbeat.";
  $("startRemoteUpgrade").disabled=bootstrap||installed===expected||currentState(host)!=="online"||!!host.decommission||
@@ -248,6 +248,7 @@ $("startRemoteUpgrade").addEventListener("click",async()=>{
   $("upgradeBuilderFeedback").textContent="Upgrade queued · waiting for builder to claim the instruction…";
  }catch(e){
   $("upgradeBuilderFeedback").textContent=e.message;
+  $("manualUpgradeSteps").hidden=false;
   button.disabled=false;
  }
 });

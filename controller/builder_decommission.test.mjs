@@ -189,10 +189,12 @@ test('Remote upgrade requires a managed, reachable, protocol-capable host',async
  s.runners[0].hostVersion='0.4.0';h.setState(s);
  const legacy=await h.call('/api/local/builders/upgrade',{runnerId:ID});
  assert.equal(legacy.status,409);
- assert.match(legacy.data.error,/once/i);
+ assert.match(legacy.data.error,/manual installer/);
  assert.equal(h.state().hostActions.length,0);
- const fresh=h.state();fresh.runners[0].hostVersion='0.6.0';h.setState(fresh);
- assert.equal((await h.call('/api/local/builders/upgrade',{runnerId:ID})).status,409);
+ const fresh=h.state();fresh.runners[0].hostVersion='99.0.0';h.setState(fresh);
+ const newer=await h.call('/api/local/builders/upgrade',{runnerId:ID});
+ assert.equal(newer.status,409);
+ assert.match(newer.data.error,/Downgrades are not supported/);
 });
 test('Successful staged upgrade acknowledgement requires a new heartbeat for completion',async()=>{
  const h=harness({online:true,registered:true,actions:[{
