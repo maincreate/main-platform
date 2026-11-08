@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Builders • TinkerTunnel</title><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/jobs.css"><script src="/builders.js" defer></script></head><body data-theme="midnight"><aside class="tt-sidebar" aria-label="Main navigation"><a href="/" class="tt-brand"><span class="tt-logo">T↗</span>TinkerTunnel</a><span class="tt-sidebar-label">WORKSPACE</span><nav class="tt-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders" aria-current="page">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="tt-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="tt-app-topbar"><span>GitHub organization / TinkerTunnel</span><span id="username">administrator</span></header><main class="main inventory-page">
  <p class="eyebrow">FLEET / BUILD MACHINES</p>
- <div class="setting-row"><div><h1>Builders</h1><p>Manage build hosts, GitHub Actions runners, labels and installed toolchains.</p></div>
+ <div class="setting-row"><div><h1>Builders</h1><p>Install once on a fresh Pi, pair with your Linux login, and let the controller register its shared GitHub runner.</p></div>
   <button type="button" id="addBuilder" class="action tt-cta">+ Add a Build Machine</button></div>
  <p id="notification" class="home-error" role="status" aria-live="polite"></p>
  <section class="inventory-panel">
@@ -20,26 +20,34 @@
  <dialog id="addBuilderDialog" class="tt-builder-dialog" aria-labelledby="addBuilderTitle">
   <div class="tt-builder-content">
    <h2 id="addBuilderTitle">Add a build machine</h2>
-   <p>Connect a Linux, macOS, or Windows machine using the outbound TinkerTunnel Host Service. No inbound SSH or open ports on the host.</p>
-   <p><strong>Controller:</strong> <code id="controllerAddress"></code></p>
-   <h3>1. Prepare the build machine</h3>
-   <p>Install Node.js 22+ and Git, then run the following on the build machine itself:</p>
-   <div class="tt-command-block">
-    <pre class="tt-service-command"><code id="installCommand">git clone https://github.com/TinkerTunnel/tinkertunnel.git
-cd tinkertunnel
-node runner/service.mjs pair</code></pre>
-    <button type="button" id="copyInstallCommand" class="plain-button">Copy commands</button>
-   </div>
-   <h3>2. Pair locally</h3>
-   <p>The Host Service asks for this controller URL and your TinkerTunnel administrator username and password <strong>in the machine's terminal</strong>. It obtains a one-time enrollment credential and saves only the new machine credential.</p>
-   <h3>3. Start outbound connection</h3>
-   <div class="tt-command-block">
-    <pre class="tt-service-command"><code id="runCommand">node runner/service.mjs run</code></pre>
-    <button type="button" id="copyRunCommand" class="plain-button">Copy command</button>
-   </div>
-   <p class="tt-builder-footnote">Current MVP: the Host Service runs in the terminal, not yet as a permanently installed OS service. GitHub Actions runner installation is separate and not automated yet. The controller must be reachable over trusted HTTPS from the build machine.</p>
-   <p id="dialogCopyStatus" role="status" aria-live="polite" class="tt-builder-copy-status"></p>
-   <div class="tt-toolbar-actions"><a class="plain-button" href="https://github.com/TinkerTunnel/tinkertunnel" target="_blank" rel="noopener noreferrer">View source</a><button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
+   <p><strong>Linux ARM64 / Raspberry Pi OS Lite (64-bit) — first-run alpha.</strong> Configure hostname, user, password, and SSH in Raspberry Pi Imager. The installer prepares the host; the controller handles GitHub registration after pairing.</p>
+   <section class="tt-pair-step"><h3>1. Install once on the Pi</h3>
+    <p>SSH into the freshly imaged Pi, then run this command. It installs the Host Service, enables it at boot, and advertises the host on mDNS.</p>
+    <div class="tt-command-block"><pre class="tt-service-command"><code id="installCommand"></code></pre>
+     <button type="button" id="copyInstallCommand" class="plain-button">Copy command</button></div>
+    <p class="tt-builder-footnote">This release requires Linux ARM64 (aarch64). The controller address is <code id="controllerAddress"></code>. Other OS installers are planned; do not use this command on x64, macOS, or Windows.</p>
+   </section>
+   <section class="tt-pair-step"><h3>2. Connect your host</h3>
+    <div class="tt-toolbar-actions"><button type="button" id="discoverHosts" class="plain-button">Discover hosts on network</button></div>
+    <div id="discoveredHosts" aria-live="polite" class="tt-discovered-hosts"></div>
+    <label for="hostAddress">Pi hostname or IP address</label>
+    <input id="hostAddress" type="text" autocomplete="off" spellcheck="false" placeholder="waymarker-lab.local or 192.168.100.25">
+    <label for="hostUsername">Linux username (from Raspberry Pi Imager)</label>
+    <input id="hostUsername" type="text" autocomplete="username" placeholder="Username configured during imaging">
+    <label for="hostPassword">Linux password (used only for initial SSH pairing)</label>
+    <input id="hostPassword" type="password" autocomplete="off" placeholder="Local Pi password">
+    <button type="button" id="checkHost" class="action tt-cta">Check host identity</button>
+    <div id="hostVerification" hidden>
+     <p><strong>Confirm this is your Pi</strong> before sending credentials. Compare the SSH fingerprint with the value on the Pi:</p>
+     <div class="tt-command-block"><pre class="tt-service-command"><code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code></pre></div>
+     <p id="hostFingerprint" class="tt-builder-fingerprint"></p>
+     <label class="tt-pair-confirm"><input type="checkbox" id="confirmFingerprint"> Fingerprint matches the Pi I intended to pair</label>
+     <button type="button" id="pairHost" class="action tt-cta">Pair and register GitHub runner</button>
+    </div>
+    <p id="pairProgress" class="tt-builder-copy-status" role="status" aria-live="polite"></p>
+   </section>
+   <p class="tt-builder-footnote">After pairing, the controller automatically requests a scoped GitHub Actions registration token and configures the runner under the Pi's actual hostname. If GitHub access is not ready, the Pi stays paired and shows a clear retry action. No GitHub credentials are entered on the Pi.</p>
+   <div class="tt-toolbar-actions"><a class="plain-button" href="https://tinkertunnel.com/docs/" target="_blank" rel="noopener noreferrer">Read setup instructions ↗</a><button type="button" id="cancelBuilder" class="plain-button">Close</button></div>
   </div>
  </dialog>
 </main></body></html>
