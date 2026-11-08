@@ -195,6 +195,18 @@ export async function adminHostRoute(req,ctx){
    }
   }
   const ready=checks.length>0&&checks.every(c=>c.status==='pass');
+  // Removal history cannot override fresh validated operational state.
+  if(ready&&host.decommission?.phase==='failed'){
+   const latest=state(),current=latest.runners.find(r=>r.id===host.id);
+   if(current?.decommission?.phase==='failed'){
+    latest.builderRecoveryAudit=[...(latest.builderRecoveryAudit||[]).slice(-49),{
+     id:current.id,name:current.name,previousDecommission:current.decommission,
+     recoveredAt:new Date().toISOString(),reason:'successful_validation'
+    }];
+    delete current.decommission;
+    save(latest);
+   }
+  }
   return reply({runnerId:host.id,name:host.name,ready,checkedAt:new Date().toISOString(),checks});
  }
  if(path==='/api/local/builders/remove'&&method==='POST'){
