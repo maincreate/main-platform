@@ -300,9 +300,9 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await json(base,"/api/local/approval-settings",{buildApproval:"automatic",flashApproval:"always"},resetHeaders)).status,200);
    const storedPrefs=await (await fetch(base+"/api/local/approval-settings",{headers:{cookie:resetHeaders.cookie}})).json();
    assert.equal(storedPrefs.buildApproval,"automatic");
-   assert.equal((await json(base,"/api/local/installation/reset",{password:"wrong",confirm:"RESET TINKERTUNNEL"},resetHeaders)).status,401);
+   assert.equal((await json(base,"/api/local/installation/reset",{password:"wrong",confirm:"RESET MAINCREATE"},resetHeaders)).status,401);
    assert.equal((await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"incorrect"},resetHeaders)).status,422);
-   const reset=await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"RESET TINKERTUNNEL"},resetHeaders);
+   const reset=await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"RESET MAINCREATE"},resetHeaders);
    assert.equal(reset.status,200);assert.equal(reset.data.reset,true);
    assert.match(reset.data.backup,/^reset-backups\/reset-/);
    assert.equal(statSync(join(dir,reset.data.backup,"state.json")).isFile(),true);

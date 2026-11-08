@@ -413,7 +413,7 @@ export async function localRoute(req) {
         const b=await body(req),stored=state();
         if(limited("installation-reset:"+session(req).username,4))return deny(429,"Too many reset attempts");
         if(!stored.admin)return deny(409,"No administrator configured");
-        if(b.confirm!=="RESET TINKERTUNNEL")return deny(422,"Enter RESET TINKERTUNNEL to confirm");
+        if(b.confirm!=="RESET MAINCREATE")return deny(422,"Enter RESET MAINCREATE to confirm");
         if(typeof b.password!=="string"||!(await verifyPassword(b.password,stored.admin.password)))
           return deny(401,"Administrator password is incorrect");
         const running=fabricCall("tt_jobs",{action:"list"}).jobs.some(j=>j.status==="running");

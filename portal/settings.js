@@ -127,7 +127,7 @@ $("approvalForm").addEventListener("submit",async event=>{
 $("resetForm").addEventListener("submit",async event=>{
  event.preventDefault();
  const password=$("resetPassword").value,confirmText=$("resetConfirm").value,button=$("resetSubmit");
- if(confirmText!=="RESET TINKERTUNNEL"){$("resetNotice").textContent="Enter the exact confirmation phrase.";return;}
+ if(confirmText!=="RESET MAINCREATE"){$("resetNotice").textContent="Enter the exact confirmation phrase.";return;}
  if(!window.confirm("Reset the local Main{Create} installation and sign out all users? A private snapshot will be kept on this host. External GitHub resources will remain."))return;
  button.disabled=true;
  try{
