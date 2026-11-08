@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {adminHostRoute,agentHostRoute} from './host_routes.mjs';
+import {adminHostRoute,agentHostRoute,removalActivity} from './host_routes.mjs';
 
 const ID='abcdef123456abcdef123456';
 function harness({online=false,registered=false,actions=[]}={}){
@@ -144,4 +144,38 @@ test('Validation reports missing registration and heartbeat without claiming rea
  assert.equal(result.data.ready,false);
  assert(result.data.checks.some(c=>c.label==='GitHub registration'&&c.status==='fail'));
  assert(result.data.checks.some(c=>c.label==='Host heartbeat'&&c.status==='pass'));
+});
+
+test('Stored removal without an active action is stalled, not in progress',()=>{
+ const host={id:ID,decommission:{phase:'stopping'}};
+ assert.equal(removalActivity(host,[]).stalled,true);
+ assert.equal(removalActivity(host,[{runnerId:ID,type:'github-runner.stop',status:'queued',
+  expiresAt:new Date(Date.now()-60000).toISOString()}]).stalled,true);
+ assert.equal(removalActivity(host,[{runnerId:ID,type:'github-runner.stop',status:'queued',
+  expiresAt:new Date(Date.now()+60000).toISOString()}]).active,true);
+});
+test('Stalled removal can be reconciled without unregistering or deleting the builder',async()=>{
+ const h=harness({online:true,registered:true,actions:[{id:'expired',runnerId:ID,type:'github-runner.stop',
+  status:'claimed',expiresAt:new Date(Date.now()-60000).toISOString()}]});
+ const data=h.state();data.runners[0].decommission={phase:'stopping',mode:'managed'};h.setState(data);
+ const result=await h.call('/api/local/builders/removal/reconcile',{runnerId:ID});
+ assert.equal(result.status,200);
+ assert.equal(result.data.status,'stalled');
+ assert.equal(h.state().runners.length,1);
+ assert.equal(h.state().runners[0].decommission.phase,'failed');
+ assert.equal(h.state().hostActions[0].status,'expired');
+});
+test('Successful validation clears stale removal and retains recovery audit',async()=>{
+ const h=harness({online:true,registered:true});
+ const s=h.state();s.runners[0].managedHost={host:'192.168.100.200'};
+ s.runners[0].decommission={phase:'stopping',mode:'managed',error:null};h.setState(s);
+ const old=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json({total_count:1,runners:[
+  {id:21,name:'builder-linux-arm64-01',status:'online',busy:false}]});
+ try{
+  const result=await h.call('/api/local/builders/validate',{runnerId:ID});
+  assert.equal(result.data.ready,true);
+  assert.equal(h.state().runners[0].decommission,undefined);
+  assert.equal(h.state().builderRecoveryAudit.length,1);
+ }finally{globalThis.fetch=old;}
 });
