@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync,mkdirSync,chmodSync,statSync,realpathSync,readdirSync} from "node:fs";
-import {join,resolve,isAbsolute,sep} from "node:path";
+import {join,resolve,isAbsolute,sep,dirname} from "node:path";
 import {homedir,hostname,platform,arch,cpus,totalmem,freemem,uptime} from "node:os";
 import {createHash} from "node:crypto";
 import {spawn} from "node:child_process";
@@ -139,7 +139,34 @@ async function executeJob(config,job){
   logs,steps:results,asset_ids:ids},config.token);
  console.log("Job "+job.id+" "+(failed?"failed":"completed")+"; artifacts "+ids.length);
 }
+function linuxSerialDevices(){
+ const devices=[];
+ let ports=[];try{ports=readdirSync("/sys/class/tty");}catch{return devices;}
+ for(const name of ports){
+  if(!/^tty(?:USB|ACM)\d+$/.test(name))continue;
+  try{
+   let current=realpathSync(join("/sys/class/tty",name,"device"));
+   let vid=null,pid=null,serialNumber=null,manufacturer=null,product=null;
+   for(let i=0;i<9&&current.startsWith("/sys/");i++){
+    try{
+     const v=readFileSync(join(current,"idVendor"),"utf8").trim();
+     const p=readFileSync(join(current,"idProduct"),"utf8").trim();
+     if(/^[a-f0-9]{4}$/i.test(v)&&/^[a-f0-9]{4}$/i.test(p)){
+      vid=parseInt(v,16);pid=parseInt(p,16);
+      const read=n=>{try{return readFileSync(join(current,n),"utf8").trim().slice(0,120);}catch{return null;}};
+      serialNumber=read("serial");manufacturer=read("manufacturer");product=read("product");break;
+     }
+    }catch{}
+    const next=dirname(current);if(next===current)break;current=next;
+   }
+   if(vid!==null&&pid!==null)devices.push({port:"/dev/"+name,description:product||name,
+     manufacturer,product,vid,pid,serialNumber,location:null,interface:null});
+  }catch{}
+ }
+ return devices.slice(0,48);
+}
 async function scanSerialDevices(){
+ if(os==="linux")return linuxSerialDevices();
  const python=process.env.TT_RUNNER_PYTHON||(os==="windows"?"python":"python3");
  const script=fileURLToPath(new URL("./scan_devices.py",import.meta.url));
  return new Promise((resolve,reject)=>{
@@ -161,6 +188,26 @@ async function scanSerialDevices(){
   });
  });
 }
+async function detectPackages(){
+ const candidates=[["node","node",["--version"]],["git","git",["--version"]],
+  ["python3","python3",["--version"]],["cmake","cmake",["--version"]],
+  ["gcc","gcc",["--version"]],["esp-idf","idf.py",["--version"]],
+  ["swift","swift",["--version"]],["xcode","xcodebuild",["-version"]]];
+ const packages=[];
+ for(const [name,bin,args] of candidates){
+  try{
+   const output=await new Promise((resolve,reject)=>{
+    const child=spawn(bin,args,{shell:false,windowsHide:true,stdio:["ignore","pipe","ignore"]});
+    let data="";const timer=setTimeout(()=>child.kill("SIGKILL"),3000);
+    child.stdout.on("data",c=>{data+=String(c);if(data.length>2000)child.kill("SIGKILL");});
+    child.once("error",e=>{clearTimeout(timer);reject(e);});
+    child.once("close",code=>{clearTimeout(timer);code===0?resolve(data.trim()):reject(new Error("Tool unavailable"));});
+   });
+   packages.push({name,version:String(output.split(/\r?\n/)[0]||"installed").slice(0,90)});
+  }catch{}
+ }
+ return packages;
+}
 async function run(){
  const config=JSON.parse(readFileSync(path,"utf8"));
  if(config.url!==endpoint)throw new Error("Controller URL does not match enrollment");
@@ -169,9 +216,14 @@ async function run(){
   post("/api/agent/heartbeat",{id:config.id},config.token).catch(e=>console.error("Heartbeat:",e.message));
  },30000);
  try{
-  let nextScan=0;
+  let nextScan=0,nextPackageScan=0;
   for(;;){
-   if(process.env.TT_RUNNER_DEVICE_DISCOVERY==="1"&&Date.now()>=nextScan){
+   if(Date.now()>=nextPackageScan){
+    nextPackageScan=Date.now()+300000;
+    try{await post("/api/agent/heartbeat",{id:config.id,packages:await detectPackages()},config.token);}
+    catch(e){console.error("Package inventory:",e.message);}
+   }
+   if(process.env.TT_RUNNER_DEVICE_DISCOVERY!=="0"&&Date.now()>=nextScan){
     nextScan=Date.now()+60000;
     try{
      const devices=await scanSerialDevices();

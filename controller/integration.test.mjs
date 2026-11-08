@@ -88,6 +88,13 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await fetch(base+"/workspace.css")).status,401);
    assert.equal((await fetch(base+"/workspace.css",{headers:{cookie}})).status,200);
    assert.equal((await fetch(base+"/api/local/devices")).status,401);
+   // Host adoption is local-admin protected. No remote SSH connection is made in this test.
+   assert.equal((await json(base,"/api/local/builders/ssh/probe",{address:"bad/host",username:"dev"},headers)).status,422);
+   assert.equal((await json(base,"/api/local/builders/ssh/enroll",{
+     address:"192.168.22.41",username:"dev",password:"never-used",fingerprint:"invalid",
+     controllerUrl:"https://example.invalid"},headers)).status,409);
+   assert.equal((await fetch(base+"/api/local/builders/ssh/status?id=123")).status,401);
+
    assert.equal((await fetch(base+"/api/local/projects")).status,401);
 
    assert.equal((await fetch(base+"/jobs",{redirect:"manual"})).status,302);

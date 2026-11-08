@@ -22,8 +22,12 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     }
     const builders = await page("/builders");
     assert.match(builders, /id="runners-list"/);
-    assert.match(builders, /id="invite"/);
-    assert.match(builders, /GitHub Actions runner registration is a separate step/);
+    assert.match(builders, /id="addBuilderDialog"/);
+    assert.match(builders, /id="hostAddress"/);
+    assert.match(builders, /id="hostUsername"/);
+    assert.match(builders, /id="hostPassword"/);
+    assert.doesNotMatch(builders, /Generate pairing token/);
+    assert.match(builders, /GitHub Actions runners/);
     const jobs = await page("/jobs");
     assert.doesNotMatch(jobs, /id="planForm"/);
     assert.match(jobs, /id="flashDialog"/);
@@ -32,7 +36,10 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.doesNotMatch(jobs, /id="runners-list"/);
     const marketplace = await page("/marketplace");
     assert.match(marketplace, /id="marketplaceRows"/);
-    assert.match(marketplace, /Catalog is currently read-only/);
+    assert.match(marketplace, /id="marketplaceTiles"/);
+    assert.match(marketplace, /id="tileView"/);
+    assert.match(marketplace, /id="listView"/);
+    assert.match(marketplace, /Browse versioned frameworks and SDKs/);
     const devices = await page("/devices");
     assert.match(devices, /id="deviceSearch"/);
     assert.match(devices, /id="deviceHost"/);
@@ -56,6 +63,10 @@ test("Penpot MVP workspace routes provide separated, editable UI without a new e
     assert.match(settings, /id="resetForm"/);
     const projectsPage = await page("/projects");
     assert.match(projectsPage, /id="newRepoDialog"/);
+    assert.match(projectsPage, /\+ New Project/);
+    const topology = await page("/topology");
+    assert.match(topology, /Source → build → device/);
+    assert.match(topology, /AI access path/);
     assert.match(projectsPage, /id="newRepoVisibility"/);
     assert.match(projectsPage, /id="projectSearch"/);
     assert.match(projectsPage, /id="projectFilter"/);

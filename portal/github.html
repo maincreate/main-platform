@@ -41,7 +41,11 @@
     <p>Signed in as <strong id="githubLogin"></strong>. Select an organization to make it possible to share build machines between repositories later.</p>
     <label for="org">GitHub organization</label>
     <select id="org"><option value="">Choose an organization</option></select>
-    <p class="muted" id="organizationHint"></p>
+    <p class="muted" id="organizationHint"></p><div class="tt-org-help" id="orgEmptyHelp" hidden>
+ <strong>No GitHub organizations available</strong>
+ <p>Create an organization in GitHub, install the TinkerTunnel GitHub App in it, then come back and refresh this list.</p>
+ <a class="plain-button" href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create a GitHub organization ↗</a>
+</div>
     <button id="refreshOrganizations" class="plain-button" type="button">Refresh organizations</button>
     <div class="button-row"><button id="saveOrg" class="primary">Use this organization</button><button id="disconnect" class="plain-button">Disconnect GitHub</button></div>
     <p class="small">To select an organization, first install this GitHub App on that organization in GitHub. Then return and choose Refresh organizations. <a href="https://github.com/organizations/new" target="_blank" rel="noopener noreferrer">Create an organization</a> if you don't have one. Selecting an organization does not install or grant runners access.</p>

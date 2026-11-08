@@ -6,6 +6,7 @@ import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from ".
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
+import {inspectHost,enrollHost,parseHost} from "./host_adoption.mjs";
 
 const dataDir = process.env.TT_DATA_DIR || "./.tinkertunnel-data";
 const dataFile = join(dataDir, "state.json");
@@ -13,6 +14,7 @@ const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
 let bootstrapBusy = false;
 const provisioningNames=new Set();
+const managedHostOperations=new Map();
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
@@ -248,7 +250,7 @@ function githubOnboardingReady(g){
 export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.TT_REQUIRE_LOGIN!=="0";
-  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
@@ -486,8 +488,18 @@ export async function localRoute(req) {
         const value=typeof input.organization==="string"?input.organization:"";
         if(!githubIdentityCurrent(stored.github))return deny(409,"Connect your GitHub account first");
         if(!stored.github.oauthOrganizations?.some(o=>o.login===value))return deny(422,"Organization is not visible to the connected account");
-        stored.github.selectedOrganization=value;
-        save(stored);return reply({ok:true,organization:value,runnerAccessVerified:false});
+        const org=stored.github.oauthOrganizations.find(o=>o.login===value);
+        if(!Number.isSafeInteger(org.installationId))return deny(409,"Install the GitHub App in this organization, then refresh organizations");
+        let synced;
+        try{
+          synced=await syncProjects({organization:value,installationId:org.installationId,
+            accessToken:unseal(stored.github.oauthToken)});
+        }catch(e){return deny(e.status||502,"Could not sync repositories for "+value+": "+(e.message||"GitHub unavailable")+". Retry organization selection.");}
+        const current=state();
+        if(!githubIdentityCurrent(current.github))return deny(409,"GitHub authorization changed. Reconnect.");
+        current.github.selectedOrganization=value;save(current);
+        return reply({ok:true,organization:value,runnerAccessVerified:false,
+          repositoriesSynced:synced.repositories.length,syncedAt:synced.updatedAt});
       }
       if(path==="/api/local/github/device/disconnect"&&method==="POST"){
         const stored=state();
@@ -632,7 +644,9 @@ export async function localRoute(req) {
           runners:{
             count:stored.runners.length,
             items:stored.runners.slice(0,24).map(r=>({
-              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null
+              id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
+              labels:r.labels||["tt-"+r.os,"tt-"+r.arch],packages:r.packages||[],
+              githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null
             })),
             truncated:stored.runners.length>24,
             executionEnabled:process.env.TT_ENABLE_FABRIC_EXECUTION==="1"
@@ -699,6 +713,116 @@ export async function localRoute(req) {
         try{return reply(approveJob(b.job_id,b.decision));}
         catch(e){return deny(e.status||422,e.message);}
       }
+
+      if(path==="/api/local/builders/ssh/probe"&&method==="POST"){
+        const b=await body(req);
+        if(limited("ssh-probe:"+session(req).username,18))return deny(429,"Too many connection attempts");
+        try{return reply(await inspectHost(b.address,b.username));}
+        catch(e){return deny(e.status||502,e.message||"Host unavailable");}
+      }
+      if(path==="/api/local/builders/ssh/enroll"&&method==="POST"){
+        const b=await body(req),stored=state();
+        if(limited("ssh-enroll:"+session(req).username,5))return deny(429,"Too many enrollment attempts");
+        if(!githubIdentityCurrent(stored.github)||!stored.github.selectedOrganization)
+          return deny(409,"Connect an organization in GitHub first");
+        if(typeof b.controllerUrl!=="string"||!/^https:\/\/[a-z0-9.-]+(?::[0-9]{2,5})?$/i.test(b.controllerUrl))
+          return deny(422,"Controller URL must be an HTTPS origin");
+        try{parseHost(b.address,b.username);}catch(e){return deny(e.status||422,e.message);}
+        if(typeof b.password!=="string"||!b.password)return deny(422,"Host password required");
+        const org=stored.github.selectedOrganization,hostKey=b.address.toLowerCase();
+        if([...managedHostOperations.values()].some(o=>o.hostKey===hostKey&&o.state==="running"))
+          return deny(409,"Host enrollment already in progress");
+        const id=randomBytes(12).toString("hex");
+        const operation={id,hostKey,state:"running",stage:"Connecting",createdAt:Date.now(),result:null,error:null};
+        for(const [key,item] of managedHostOperations)if(Date.now()-item.createdAt>3600000)managedHostOperations.delete(key);
+        managedHostOperations.set(id,operation);
+        const getToken=async()=>{
+          const current=state();
+          if(!githubIdentityCurrent(current.github)||current.github.selectedOrganization!==org)
+            throw new Error("GitHub organization changed during enrollment");
+          const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/registration-token",{
+            method:"POST",headers:{authorization:"Bearer "+unseal(current.github.oauthToken),
+              accept:"application/vnd.github+json","user-agent":"TinkerTunnel",
+              "x-github-api-version":"2022-11-28"},signal:AbortSignal.timeout(15000)});
+          if(!response.ok)throw new Error(response.status===403?
+            "GitHub App requires approved Self-hosted runners: write permission and organization admin access":
+            "GitHub runner registration failed (HTTP "+response.status+")");
+          const json=await response.json();
+          if(typeof json.token!=="string"||json.token.length<20)throw new Error("GitHub did not issue runner registration token");
+          return json.token;
+        };
+        const getInvite=async()=>{
+          const current=state(),token=rnd();
+          current.invites=(current.invites||[]).filter(v=>v.expires>Date.now());
+          current.invites.push({hash:digest(token),expires:Date.now()+10*60000});
+          save(current);return token;
+        };
+        // Credentials are deliberately never persisted. The browser polls only sanitized stages.
+        void enrollHost({address:b.address,username:b.username,password:b.password,
+          approvedFingerprint:b.fingerprint,organization:org,controllerUrl:b.controllerUrl,
+          progress:stage=>{operation.stage=stage;},getToken,getInvite}).then(result=>{
+          operation.state="complete";operation.stage="Managed runner enrolled";operation.result=result;
+          if(result.agentId){
+            const current=state(),agent=current.runners.find(v=>v.id===result.agentId);
+            if(agent){agent.managedHost=result.host;agent.githubRunnerName=result.name;
+              agent.labels=result.labels;agent.hostKeyFingerprint=b.fingerprint;save(current);}
+          }
+        }).catch(error=>{operation.state="failed";operation.error=error.message||"Enrollment failed";
+          operation.stage="Enrollment failed";});
+        return reply({operationId:id,state:"running"},202);
+      }
+      if(path==="/api/local/builders/ssh/status"&&method==="GET"){
+        const id=new URL(req.url).searchParams.get("id");
+        const op=managedHostOperations.get(id);
+        if(!op)return deny(404,"Enrollment session not found");
+        return reply({state:op.state,stage:op.stage,error:op.error,result:op.result});
+      }
+      if(path==="/api/local/builders/github-runners"&&method==="GET"){
+        const gh=state().github,org=gh.selectedOrganization;
+        if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
+        try{
+          const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners?per_page=100",{
+            headers:{authorization:"Bearer "+unseal(gh.oauthToken),accept:"application/vnd.github+json",
+              "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"},
+            signal:AbortSignal.timeout(15000)});
+          if(!response.ok)return deny(response.status===403?403:502,"Unable to list organization runners; check Self-hosted runners: read permission");
+          const data=await response.json();
+          return reply({organization:org,runners:(data.runners||[]).map(r=>({
+            id:r.id,name:r.name,os:r.os,status:r.status,busy:r.busy,
+            labels:(r.labels||[]).map(l=>({name:l.name,type:l.type}))
+          }))});
+        }catch{return deny(502,"GitHub runners are temporarily unavailable");}
+      }
+      if(path==="/api/local/builders/github-runners/labels"&&method==="POST"){
+        const input=await body(req),gh=state().github,org=gh.selectedOrganization;
+        if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
+        if(!Number.isSafeInteger(input.runnerId)||input.runnerId<=0||
+          !Array.isArray(input.labels)||input.labels.length>15||
+          input.labels.some(l=>typeof l!=="string"||!/^[a-zA-Z0-9_-]{1,40}$/.test(l)))
+          return deny(422,"Provide a runner ID and up to 15 valid labels");
+        const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
+        if(!managed||!/^tt-[A-Za-z0-9._-]+$/.test(input.runnerName||""))
+          return deny(403,"Only enrolled TinkerTunnel-managed runner labels can be edited");
+        // Match the claimed managed runner to the GitHub runner ID before mutating any labels.
+        const remote=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId,{
+          headers:{authorization:"Bearer "+unseal(gh.oauthToken),
+            accept:"application/vnd.github+json","user-agent":"TinkerTunnel",
+            "x-github-api-version":"2022-11-28"},signal:AbortSignal.timeout(15000)});
+        if(!remote.ok)return deny(502,"Unable to verify GitHub runner identity");
+        const identity=await remote.json();
+        if(identity.name!==input.runnerName)return deny(403,"GitHub runner ID does not match managed host");
+        const labels=[...new Set(input.labels)].filter(l=>l.startsWith("tt-"));
+        if(labels.length!==input.labels.length)return deny(422,"Custom labels must start with tt-");
+        const current=state().runners.find(r=>r.githubRunnerName===input.runnerName);
+        for(const required of current.labels||[])if(!labels.includes(required))labels.push(required);
+        const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+input.runnerId+"/labels",{
+          method:"PUT",headers:{authorization:"Bearer "+unseal(gh.oauthToken),
+            "content-type":"application/json",accept:"application/vnd.github+json",
+            "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"},
+          body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
+        if(!response.ok)return deny(response.status===403?403:502,"Could not update GitHub runner labels");
+        return reply({updated:true,labels});
+      }
       if(path==="/api/local/runners/invite"&&method==="POST"){
         const s=state(),token=rnd();
         s.invites=(s.invites||[]).filter(x=>x.expires>Date.now());
@@ -722,7 +846,14 @@ export async function localRoute(req) {
       const token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");
       const runner=s.runners.find(x=>x.id===b.id && equal(x.tokenHash, digest(token)));
       if(!runner)return deny(401,"Invalid runner token");
-      runner.lastSeen=new Date().toISOString();save(s);return reply({ok:true,jobExecution:"disabled"});
+      runner.lastSeen=new Date().toISOString();
+      if(Array.isArray(b.packages)&&b.packages.length<=20&&b.packages.every(p=>
+       p&&typeof p.name==="string"&&/^[a-z0-9_-]{1,32}$/.test(p.name)&&
+       typeof p.version==="string"&&p.version.length<=100)){
+        runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
+        runner.packagesObservedAt=runner.lastSeen;
+      }
+      save(s);return reply({ok:true});
     }
     if(path==="/api/agent/devices"&&method==="POST"){
       const b=await body(req),s=state(),token=(req.headers.get("authorization")||"").replace(/^Bearer /i,"");

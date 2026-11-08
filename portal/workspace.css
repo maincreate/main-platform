@@ -126,3 +126,57 @@ body>.main{margin:0 0 0 var(--tt-sidebar-width);width:calc(100% - var(--tt-sideb
 .tt-danger-zone details{padding-top:5px}
 .tt-danger-button{background:#a83d43;color:#fff;border:0;border-radius:9px;padding:11px 15px;cursor:pointer}
 .tt-danger-button:disabled{opacity:.5}
+
+/* Marketplace defaults to visual cards, while retaining full filterable table view. */
+.tt-marketplace-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:16px;margin:22px 0}
+.tt-marketplace-grid[hidden],#marketplaceTable[hidden]{display:none!important}
+.tt-marketplace-tile{min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:19px;display:flex;flex-direction:column;gap:12px;min-height:230px}
+.tt-marketplace-tile-head{display:flex;align-items:center;gap:13px}
+.tt-marketplace-tile h3{font-size:17px;margin:0;line-height:1.3}
+.tt-marketplace-tile small,.tt-marketplace-targets{font-size:12px;color:var(--muted)}
+.tt-marketplace-tile p{font-size:13px;color:var(--muted);line-height:1.6;flex:1;margin:0}
+.tt-marketplace-logo{width:54px;height:54px;display:grid;place-items:center;border-radius:13px;background:var(--soft);color:var(--accent);font-size:24px;flex-shrink:0}
+.tt-marketplace-logo img{width:44px;height:44px;object-fit:contain;border-radius:9px}
+.tt-marketplace-category{font-size:11px;color:var(--accent);font-weight:700}
+.tt-view-switch{display:flex;gap:5px}.tt-view-switch button[aria-pressed="true"]{background:var(--soft);border-color:var(--accent)}
+.tt-refresh-controls .tt-add-builder{margin:0;white-space:nowrap;box-shadow:none;border:0}
+.tt-service-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tt-service-kpis>div{padding:14px;border-radius:10px;background:var(--bg);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.tt-service-kpis span{font-size:11px;color:var(--muted)}.tt-service-kpis strong{font-size:15px;overflow-wrap:anywhere}
+.tt-org-help{padding:15px;border:1px solid var(--line);border-radius:11px;margin:18px 0;display:grid;gap:10px}
+.tt-org-help[hidden]{display:none}.tt-org-help p{margin:0;font-size:13px}.tt-org-help a{justify-self:start}
+#newRepo,.tt-toolbar-actions>.action{outline:0;box-shadow:none}
+#newRepo:focus-visible,.tt-toolbar-actions>.action:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:950px){.tt-service-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:580px){.tt-service-kpis{grid-template-columns:1fr}}
+
+/* Topology: two readable sequential tracks rather than crossing long SVG edges. */
+.tt-topology-flow-wrap{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:22px;margin-top:22px}
+.tt-topology-track-title{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:2px 0 13px}
+.tt-topology-flow{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:30px;overflow-x:auto;padding:5px 0 24px}
+.tt-topology-ai-flow{grid-template-columns:repeat(4,minmax(170px,1fr));border-top:1px solid var(--line);padding-top:23px}
+.tt-topology-stage{position:relative;min-width:0}
+.tt-topology-stage>h3{text-transform:uppercase;font-size:11px;letter-spacing:.07em;color:var(--muted);margin:0 0 18px}
+.tt-topology-stage:not(.tt-topology-final)::after{content:"→";position:absolute;right:-24px;top:64px;font-size:22px;font-weight:700;color:var(--accent)}
+.tt-topology-stage .topology-node{position:relative;min-height:92px;width:100%;z-index:1}
+.tt-topology-stage .topology-node-stack{display:grid;gap:10px}
+.tt-topology-stage .topology-node-stack>.topology-node{margin:0}
+.tt-topology-flow-wrap .topology-node.empty{border-style:dashed}
+.tt-topology-flow-wrap .topology-node.hub{border-color:var(--accent)}
+@media(max-width:1100px){.tt-topology-flow{grid-template-columns:repeat(5,205px)}.tt-topology-ai-flow{grid-template-columns:repeat(4,205px)}}
+
+/* Builder adoption: one modal for host address and credentials. */
+.tt-builder-dialog{max-width:560px;width:calc(100% - 28px);border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:16px;padding:24px}
+.tt-builder-dialog::backdrop{background:rgba(0,0,0,.73)}
+.tt-builder-dialog form{display:grid;gap:11px}
+.tt-builder-dialog h2{margin:0}
+.tt-builder-dialog h3{font-size:15px;margin:0}
+.tt-builder-dialog p{color:var(--muted);font-size:13px;line-height:1.6}
+.tt-builder-dialog label{font-size:12px;font-weight:700}
+.tt-builder-dialog input{font:inherit;width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px}
+.tt-builder-dialog .tt-toolbar-actions{justify-content:flex-end}
+.tt-builder-dialog .tt-cta{margin:0;border:0;box-shadow:none}
+.tt-builder-dialog #hostFingerprint{font-size:12px;display:block;overflow-wrap:anywhere;background:var(--bg);padding:9px;border:1px solid var(--line);border-radius:8px}
+.tt-builder-dialog #builderProgress{min-height:20px;color:var(--accent)}
+.tt-builder-dialog .tt-builder-footnote{font-size:11px}
+.inventory-table details ul{padding-left:16px;margin:8px 0;font-size:12px}
