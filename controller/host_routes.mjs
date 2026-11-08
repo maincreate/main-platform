@@ -73,7 +73,10 @@ export async function adminHostRoute(req,ctx){
   if(limited('builder-remove:'+session(req).username,10))return deny(429,'Too many removal attempts');
   const actions=(start.hostActions||[]).filter(a=>a.runnerId===id);
   if(actions.some(a=>['queued','claimed'].includes(a.status)))return deny(409,'Runner setup is in progress. Wait for it to finish before removing this builder.');
-  const runnerName=host.githubRunnerName||null;
+  // A failed completion report can still leave a registered runner in GitHub.
+  // Inspect the hostname from an actual provisioning action before forgetting it.
+  const issued=actions.filter(a=>a.runnerName===host.name&&a.organization).at(-1);
+  const runnerName=host.githubRunnerName||issued?.runnerName||null;
   let githubResult='not_registered';
   if(runnerName){
    const gh=start.github||{},org=gh.selectedOrganization;
@@ -110,7 +113,8 @@ export async function adminHostRoute(req,ctx){
    }
   }
   const next=state(),entry=next.runners.find(r=>r.id===id);
-  if(!entry||entry.githubRunnerName!==runnerName)return deny(409,'Builder changed during removal. Refresh before retrying.');
+  if(!entry||(entry.githubRunnerName||actions.filter(a=>a.runnerName===host.name&&a.organization).at(-1)?.runnerName||null)!==runnerName)
+   return deny(409,'Builder changed during removal. Refresh before retrying.');
   if((next.hostActions||[]).some(a=>a.runnerId===id&&['queued','claimed'].includes(a.status)))
    return deny(409,'An installation action started during removal. Refresh and retry.');
   next.runners=next.runners.filter(r=>r.id!==id);

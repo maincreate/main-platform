@@ -85,7 +85,7 @@ function renderBuilders(){
       await load();
       const command='curl -fsSLo /tmp/tinkertunnel-uninstall.sh '+location.origin+
         '/uninstall.sh && sudo bash /tmp/tinkertunnel-uninstall.sh --yes --purge-state --purge-unregistered-runner'+
-        (result.githubResult==="removed"||result.githubResult==="already_removed"?' --github-removed="$(hostname)"':'');
+        (["removed","already_removed","not_found"].includes(result.githubResult)?' --github-removed="$(hostname)"':'');
       const output=$("builderRemovalInstructions");
       output.hidden=false;output.replaceChildren();
       output.append(el("strong",result.name+" removed from TinkerTunnel · GitHub: "+result.githubResult));

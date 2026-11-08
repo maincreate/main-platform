@@ -94,8 +94,8 @@ status OK "Host executable and pairing sudo rule removed."
 if "$PURGE_FILES"; then
   if "$REGISTERED_LOCAL"; then
     if [[ -x "$RUNNER_DIR/svc.sh" ]]; then
-      "$RUNNER_DIR/svc.sh" stop || true
-      "$RUNNER_DIR/svc.sh" uninstall
+      (cd "$RUNNER_DIR" && ./svc.sh stop) || true
+      (cd "$RUNNER_DIR" && ./svc.sh uninstall)
       status OK "Previously registered runner service uninstalled."
     elif [[ -e "$RUNNER_DIR/.service" ]]; then
       status FAIL "Runner service exists but svc.sh is unavailable; refusing runner file removal."; exit 4
