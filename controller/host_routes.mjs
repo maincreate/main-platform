@@ -306,6 +306,31 @@ export async function adminHostRoute(req,ctx){
   return audit?reply({...audit,removed:true}):deny(404,'Builder not found');
  }
   if(path==='/api/local/builders/actions'&&method==='GET')return reply({actions:(state().hostActions||[]).slice(-30).map(({id,runnerId,runnerName,status,createdAt,completedAt,message})=>({id,runnerId,runnerName,status,createdAt,completedAt,message}))});
+ if(path==='/api/local/builders/upgrade'&&method==='POST'){
+  const input=await body(req),s=state(),host=s.runners.find(r=>r.id===input.runnerId);
+  if(!host)return deny(404,'Builder not found');
+  if(!host.managedHost||host.os!=='linux'||host.arch!=='arm64')
+   return deny(422,'Remote upgrades require a managed Linux ARM64 builder');
+  if(!builderFresh(host))return deny(409,'Builder must be reachable before upgrading');
+  if(host.decommission)return deny(409,'Finish or reconcile builder removal before upgrading');
+  const release='0.5.0';
+  if(host.hostVersion===release)return deny(409,'Host Service is already up to date');
+  // Existing 0.4.0 agents do not recognize host.upgrade: manual one-time
+  // bootstrap is required; never queue an instruction the host cannot execute.
+  if(!host.hostVersion||host.hostVersion==='0.4.0')
+   return deny(409,'This Host Service does not support remote upgrades yet. Install v0.5.0 once using the upgrade instructions, then future upgrades can be remote.');
+  if(expireStaleHostActions(s,host.id))save(s);
+  if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a)))
+   return deny(409,'Another host operation is active');
+  const binary=readFileSync(new URL('../downloads/tinkertunnel-host-linux-arm64',import.meta.url));
+  const hash=createHash('sha256').update(binary).digest('hex');
+  const action={id:rnd(),runnerId:host.id,runnerName:host.name,type:'host.upgrade',
+   targetVersion:release,sha256:hash,status:'queued',createdAt:new Date().toISOString(),
+   expiresAt:new Date(Date.now()+10*60*1000).toISOString()};
+  s.hostActions=[...(s.hostActions||[]).slice(-99),action];
+  host.upgrade={phase:'queued',targetVersion:release,actionId:action.id,startedAt:action.createdAt};
+  save(s);return reply({queued:true,targetVersion:release,actionId:action.id});
+ }
  if(path==='/api/local/builders/provision'&&method==='POST'){
   const input=await body(req);
   try{
@@ -331,12 +356,17 @@ export async function agentHostRoute(req,ctx){
   if(Date.now()>=Date.parse(action.expiresAt)){action.status='expired';delete action.secret;save(s);return reply({action:null})}
   const secret=action.secret?unseal(action.secret):null;
   action.status='claimed';action.claimedAt=new Date().toISOString();save(s);
-  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt}});
+  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt,target_version:action.targetVersion,sha256:action.sha256}});
  }
  const action=s.hostActions.find(a=>a.id===input.action_id&&a.runnerId===runner.id&&a.status==='claimed');
  if(!action)return deny(409,'Unknown or previously completed host action');
  if(typeof input.success!=='boolean')return deny(422,'Action success required');
  action.status=input.success?'completed':'failed';action.completedAt=new Date().toISOString();
+ if(action.type==='host.upgrade'&&runner.upgrade?.actionId===action.id){
+  runner.upgrade.phase=input.success?'installing':'failed';
+  if(!input.success)runner.upgrade.error=String(input.message||'Upgrade failed').slice(0,250);
+  runner.upgrade.updatedAt=action.completedAt;
+ }
  action.message=String(input.message||'').slice(0,1000);delete action.secret;
  if(input.success&&(!action.type||action.type==='github-runner.provision')){
   runner.githubRunnerName=action.runnerName;runner.labels=action.labels;
