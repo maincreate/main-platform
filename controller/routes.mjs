@@ -5,6 +5,7 @@ import {join} from "node:path";
 import {hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
+import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
@@ -691,8 +692,14 @@ export async function localRoute(req) {
           repositoriesScanned:repos.length,partial:errors.length>0,
           message:errors.length?"Some workflow histories could not be read; check GitHub App Actions read permissions.":null});
       }
+      if(path==="/api/local/microcontrollers"&&method==="GET")return reply(microcontrollerCatalog());
       if(path==="/api/local/devices"&&method==="GET"){
-        try{return reply(listDevices({mode:new URL(req.url).searchParams.get("mode")||"visible"}));}
+        try{
+         const result=listDevices({mode:new URL(req.url).searchParams.get("mode")||"visible"});
+         return reply({...result,devices:result.devices.map(device=>({
+          ...device,compatibility:compatibilityForDevice(device)
+         }))});
+        }
         catch(e){return deny(e.status||503,e.message);}
       }
       if(path==="/api/local/devices/label"&&method==="POST"){
