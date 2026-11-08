@@ -21,12 +21,51 @@ function status(message){$("notification").textContent=message||"";}
 function pairStatus(message){$("pairProgress").textContent=message||"";}
 function currentState(host){return host.lastSeen&&Date.now()-Date.parse(host.lastSeen)<120000?"online":"offline";}
 function recentAction(host){return [...hostActions].reverse().find(a=>a.runnerId===host.id)||null;}
+function builderStage(host){
+ if(host.decommission)return "removing";
+ const action=recentAction(host),connected=currentState(host)==="online";
+ if(!host.githubRunnerName){
+  if(action&&["queued","claimed"].includes(action.status))return "setting-up";
+  return "setup-incomplete";
+ }
+ return connected?"healthy":"unreachable";
+}
+function menuAction(text,callback,disabled=false){
+ const b=el("button",text,"tt-builder-menu-action");
+ b.type="button";b.disabled=disabled;b.setAttribute("role","menuitem");
+ b.addEventListener("click",event=>{
+  const details=event.currentTarget.closest("details");if(details)details.open=false;
+  callback();
+ });
+ return b;
+}
+async function requestRunnerSetup(host){
+ status("Requesting GitHub registration for "+host.name+"…");
+ try{
+  const result=await api("/api/local/builders/provision",{runnerId:host.id});
+  status(result.action.existing?"Registration already in progress: "+host.name:
+    "Registration queued for "+host.name+". Validation will become available when it finishes.");
+  await load();
+ }catch(e){status("Registration failed: "+e.message)}
+}
+async function validateBuilder(host){
+ status("Validating "+host.name+" against controller heartbeat and GitHub…");
+ try{
+  const result=await api("/api/local/builders/validate",{runnerId:host.id});
+  const lines=[host.name+": "+(result.ready?"VALIDATED":"ATTENTION REQUIRED")];
+  for(const item of result.checks||[])lines.push(item.label+": "+item.status+(item.detail?" — "+item.detail:""));
+  status(lines.join(" | "));
+  await load();
+ }catch(e){status("Validation failed: "+e.message)}
+}
+
 
 const removeDialog=$("removeBuilderDialog");
 let removeTarget=null;
-function openRemoveDialog(host){
-  removeTarget=host;
-  const live=currentState(host)==="online";
+let removeMode=null;
+function openRemoveDialog(host,mode){
+  removeTarget=host;removeMode=mode;
+  const live=mode==="managed";
   $("removeBuilderName").value="";$("removeBuilderPassword").value="";
   $("removeBuilderExplanation").textContent=
     "Builder: "+host.name+". "+(live?
@@ -47,7 +86,7 @@ $("removeBuilderPassword").addEventListener("input",syncRemoveConfirmation);
 $("cancelRemoveBuilder").addEventListener("click",()=>removeDialog.close());
 $("removeBuilderForm").addEventListener("submit",async(event)=>{
  event.preventDefault();if(!removeTarget)return;
- const host=removeTarget,mode=currentState(host)==="online"?"managed":"remote";
+ const host=removeTarget,mode=removeMode;
  if($("removeBuilderName").value!==host.name)return;
  const password=$("removeBuilderPassword").value;
  $("confirmRemoveBuilder").disabled=true;
@@ -61,7 +100,7 @@ $("removeBuilderForm").addEventListener("submit",async(event)=>{
     const output=$("builderRemovalInstructions");
     output.hidden=false;output.replaceChildren();
     output.append(el("strong",host.name+" removed from TinkerTunnel"));
-    output.append(el("p","This machine was unreachable. GitHub and controller access were removed. Uninstall or reimage the host before reuse."));
+    output.append(el("p","GitHub and controller access were removed. Local cleanup or reimaging remains your responsibility."));
     status("Remote removal completed for "+host.name+". Local cleanup is still required.");
   }else{
     status(host.name+": decommissioning "+(result.phase||"started")+". Follow status in the Builders table.");
@@ -107,7 +146,7 @@ function renderBuilders(){
   else runnerCell.textContent="Not controller-managed";
   tr.append(runnerCell);
   const controls=el("td");
-  if(host.managedHost&&!host.githubRunnerName){
+  if(false&&host.managedHost&&!host.githubRunnerName){
    if(state==="queued"||state==="claimed")controls.textContent="Setup in progress";
    else{
     const button=el("button",state==="failed"||state==="expired"?"Retry runner setup":"Install & register runner","plain-button");
@@ -123,10 +162,29 @@ function renderBuilders(){
   }else if(host.githubRunnerName)controls.textContent="Registered";
   else controls.textContent="—";
 
-  const remove=el("button",host.decommission?"Removal in progress":"Remove builder","plain-button");
-  remove.type="button";remove.disabled=!!host.decommission;
-  remove.addEventListener("click",()=>openRemoveDialog(host));
-  controls.append(remove);
+  controls.replaceChildren();
+  controls.classList.add("tt-builder-action-cell");
+  const stage=builderStage(host);
+  const menu=el("details",undefined,"tt-builder-action-menu");
+  const trigger=el("summary","⋮","tt-builder-menu-trigger");
+  trigger.setAttribute("aria-label","Actions for "+host.name);
+  trigger.setAttribute("title","Builder actions");
+  const panel=el("div",undefined,"tt-builder-menu-panel");
+  panel.setAttribute("role","menu");
+  if(stage==="setup-incomplete"){
+   panel.append(menuAction("Retry GitHub registration",()=>requestRunnerSetup(host),
+     currentState(host)!=="online"||!host.managedHost));
+   panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote"),false));
+  }else if(stage==="healthy"){
+   panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   panel.append(menuAction("Remove runner",()=>openRemoveDialog(host,"managed")));
+  }else if(stage==="unreachable"){
+   panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
+   panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
+  }else{
+   panel.append(el("span",stage==="removing"?"Removal in progress":"Setup in progress","tt-builder-menu-disabled"));
+  }
+  menu.append(trigger,panel);controls.append(menu);
   tr.append(controls);tbody.append(tr);
  }
  table.append(tbody);holder.append(table);
