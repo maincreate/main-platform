@@ -1,0 +1,313 @@
+{
+  "schema": 1,
+  "version": "2026.11.08",
+  "description": "User-visible workflows, status transitions, recovery and support entry points. This is product documentation, not a workflow execution engine.",
+  "flows": [
+    {
+      "id": "builder-add",
+      "title": "Add a build machine",
+      "audience": "administrator",
+      "route": "/builders",
+      "entry": "Add a Build Machine",
+      "status": "implemented",
+      "owner": "builder-lifecycle",
+      "steps": [
+        {
+          "id": "select",
+          "title": "Choose machine and connection",
+          "userAction": "Choose platform and pairing method, then confirm the SSH fingerprint.",
+          "success": "Pairing request accepted.",
+          "failure": "SSH identity or connection rejected.",
+          "recovery": "Recheck hostname, SSH credentials and fingerprint before retrying."
+        },
+        {
+          "id": "enroll",
+          "title": "Enroll Host Service",
+          "userAction": "Wait for controller enrollment.",
+          "success": "Host enrollment exists and heartbeat is received.",
+          "failure": "Host cannot reach controller or enrollment fails.",
+          "recovery": "Inspect the Host Service and outbound HTTPS connectivity; retry without creating duplicate enrollment."
+        },
+        {
+          "id": "runner-install",
+          "title": "Install GitHub runner",
+          "userAction": "Watch the builder claim the provisioning action.",
+          "success": "Host provisioning action completed.",
+          "failure": "Provisioning action failed or expired.",
+          "recovery": "Review Host Service logs and use Retry GitHub registration after checking action state."
+        },
+        {
+          "id": "runner-register",
+          "title": "Register with GitHub",
+          "userAction": "Wait for GitHub runner inventory to show this runner.",
+          "success": "GitHub runner registered in the selected organization.",
+          "failure": "Registration missing or GitHub authorization expired.",
+          "recovery": "Verify the organization and reconnect GitHub; do not create duplicate runners."
+        },
+        {
+          "id": "ready",
+          "title": "Verify runner online",
+          "userAction": "Wait for both heartbeat and runner online status.",
+          "success": "Runner online and host heartbeat fresh.",
+          "failure": "Runner remains offline.",
+          "recovery": "Inspect runner service and network connection; use View setup progress."
+        }
+      ],
+      "paths": {
+        "success": "/builders",
+        "resume": "Builders → Actions → View setup progress"
+      },
+      "limitations": [
+        "The displayed setup stages are not a persisted event log; they are derived from enrollment and GitHub state.",
+        "An already enrolled host must not be paired twice."
+      ]
+    },
+    {
+      "id": "builder-remove",
+      "title": "Remove a build machine",
+      "audience": "administrator",
+      "route": "/builders",
+      "entry": "Builders → Actions → Remove runner",
+      "status": "implemented",
+      "owner": "builder-lifecycle",
+      "steps": [
+        {
+          "id": "confirm-name",
+          "title": "Confirm machine identity",
+          "userAction": "Copy the read-only hostname and type the exact value.",
+          "success": "Exact match enables Continue.",
+          "failure": "Hostname mismatch.",
+          "recovery": "Use the copy icon in the read-only field; do not substitute a display label."
+        },
+        {
+          "id": "confirm-admin",
+          "title": "Confirm as administrator",
+          "userAction": "Enter administrator password.",
+          "success": "Controller accepts the destructive request.",
+          "failure": "Password rejected or removal preconditions unmet.",
+          "recovery": "Confirm credentials and check running jobs; never bypass controller authorization."
+        },
+        {
+          "id": "stop",
+          "title": "Stop runner",
+          "userAction": "Watch removal status.",
+          "success": "Host reports stop completed; unavailable host may require skipped stage.",
+          "failure": "Runner cannot stop or action expires.",
+          "recovery": "Check GitHub jobs and host service before choosing Retry or Force remove."
+        },
+        {
+          "id": "unregister",
+          "title": "Unregister from GitHub",
+          "userAction": "Watch GitHub removal.",
+          "success": "Runner registration removed.",
+          "failure": "GitHub API or permission failure.",
+          "recovery": "Check organization Actions runners and reconnect GitHub before retrying."
+        },
+        {
+          "id": "cleanup",
+          "title": "Remove software",
+          "userAction": "Watch managed host cleanup.",
+          "success": "Managed software cleanup acknowledged; unreachable hosts require manual cleanup.",
+          "failure": "Cleanup failed or host offline.",
+          "recovery": "Use documented host uninstall instructions; preserve unrelated project files."
+        },
+        {
+          "id": "controller",
+          "title": "Remove from controller",
+          "userAction": "Verify inventory and audit.",
+          "success": "Enrollment removed with audit trail.",
+          "failure": "Controller state failed to finalize.",
+          "recovery": "Check removal audit, reconcile or retry; do not claim successful uninstall from an offline host."
+        }
+      ],
+      "paths": {
+        "success": "/builders",
+        "resume": "Builders → Actions → View removal progress"
+      },
+      "limitations": [
+        "Closing the modal does not cancel removal.",
+        "Force removal does not prove local software cleanup.",
+        "A persisted phase without a live action is stalled, not active."
+      ]
+    },
+    {
+      "id": "builder-upgrade",
+      "title": "Upgrade Host Service",
+      "audience": "administrator",
+      "route": "/builders",
+      "entry": "Builders → Actions → Upgrade Host Service",
+      "status": "implemented",
+      "owner": "builder-lifecycle",
+      "steps": [
+        {
+          "id": "version",
+          "title": "Check installed version",
+          "userAction": "Compare installed and available Host Service versions.",
+          "success": "Version known and upgrade supported.",
+          "failure": "Version unverified or older than remote-upgrade bootstrap.",
+          "recovery": "Run the documented one-time manual bootstrap for pre-v0.5.0 hosts."
+        },
+        {
+          "id": "stage",
+          "title": "Queue and stage upgrade",
+          "userAction": "Choose Upgrade remotely.",
+          "success": "Builder verifies and stages version-pinned binary.",
+          "failure": "Host unavailable or checksum mismatch.",
+          "recovery": "Inspect host logs, artifact digest and controller connection; do not bypass checksum verification."
+        },
+        {
+          "id": "restart",
+          "title": "Restart Host Service",
+          "userAction": "Wait for service restart.",
+          "success": "Host service restarts; rollback attempted on immediate failure.",
+          "failure": "Service did not restart.",
+          "recovery": "Inspect systemd logs and restore backup if necessary."
+        },
+        {
+          "id": "verify",
+          "title": "Verify heartbeat",
+          "userAction": "Watch the modal.",
+          "success": "Fresh heartbeat reports target version; modal closes.",
+          "failure": "Timeout or incorrect version.",
+          "recovery": "Inspect service and controller logs; do not assume an action acknowledgment proves installation."
+        }
+      ],
+      "paths": {
+        "success": "/builders",
+        "resume": "Builders → Actions → Upgrade Host Service"
+      },
+      "limitations": [
+        "Remote upgrades require a compatible installed Host Service.",
+        "Rollback only covers immediate restart failures, not every possible runtime regression."
+      ]
+    },
+    {
+      "id": "device-discover",
+      "title": "Discover attached devices",
+      "audience": "administrator",
+      "route": "/devices",
+      "entry": "Devices → Refresh inventory",
+      "status": "pilot",
+      "owner": "device-inventory",
+      "steps": [
+        {
+          "id": "attach",
+          "title": "Attach board to builder",
+          "userAction": "Connect a USB data cable to an enrolled Linux builder.",
+          "success": "Linux presents a USB serial interface.",
+          "failure": "Charge-only cable or unsupported USB mode.",
+          "recovery": "Check lsusb and /dev/serial/by-id on the physical builder."
+        },
+        {
+          "id": "observe",
+          "title": "Collect USB descriptors",
+          "userAction": "Upgrade Host Service to v0.6.0 or later and refresh inventory.",
+          "success": "Controller receives bounded read-only descriptor report.",
+          "failure": "Sysfs inaccessible or host lacks discovery.",
+          "recovery": "Check journalctl for discovery errors, verify Host Service version and builder heartbeat."
+        },
+        {
+          "id": "associate",
+          "title": "Review candidate MCU and SDK",
+          "userAction": "Select SDK options in the device row.",
+          "success": "Catalog shows candidate families, SDK and evidence status.",
+          "failure": "USB ID unknown or only an adapter is identified.",
+          "recovery": "Treat as unknown; proceed to controlled read-only chip identification when available."
+        }
+      ],
+      "paths": {
+        "success": "/devices",
+        "resume": "Devices → Refresh inventory"
+      },
+      "limitations": [
+        "USB VID/PID cannot establish exact MCU or board identity.",
+        "Current Go scanner covers Linux USB serial interfaces only.",
+        "Discovery never authorizes firmware flashing."
+      ]
+    },
+    {
+      "id": "device-identify",
+      "title": "Verify microcontroller chip",
+      "audience": "administrator",
+      "route": "/devices",
+      "entry": "Devices → Identify chip",
+      "status": "planned",
+      "owner": "device-inventory",
+      "steps": [
+        {
+          "id": "select",
+          "title": "Select connected target",
+          "userAction": "Choose an enrolled builder and connected USB device.",
+          "success": "Fresh identity and port validated.",
+          "failure": "Device absent or moved.",
+          "recovery": "Reconnect device and rescan."
+        },
+        {
+          "id": "probe",
+          "title": "Run read-only chip probe",
+          "userAction": "Approve supported chip identification.",
+          "success": "Supported tool reports chip family and revision.",
+          "failure": "Unsupported probe or port busy.",
+          "recovery": "Inspect connection and supported adapters; never guess from USB IDs."
+        }
+      ],
+      "paths": {
+        "success": "/devices"
+      },
+      "limitations": [
+        "Read-only chip probing is not implemented.",
+        "Chip verification is required before flash eligibility."
+      ]
+    },
+    {
+      "id": "firmware-flash",
+      "title": "Flash verified firmware",
+      "audience": "administrator",
+      "route": "/jobs",
+      "entry": "Jobs → Flash device",
+      "status": "planned",
+      "owner": "firmware-delivery",
+      "steps": [
+        {
+          "id": "artifact",
+          "title": "Select verified artifact",
+          "userAction": "Choose immutable build output.",
+          "success": "Checksum, source commit, SDK and board target verified.",
+          "failure": "Missing or mismatched metadata.",
+          "recovery": "Build a compatible firmware artifact first."
+        },
+        {
+          "id": "target",
+          "title": "Verify connected device",
+          "userAction": "Confirm exact chip and physical port.",
+          "success": "Fresh chip identity and port lock confirmed.",
+          "failure": "Chip mismatch, device moved or port busy.",
+          "recovery": "Reidentify device. Do not override safety gates."
+        },
+        {
+          "id": "approval",
+          "title": "Authorize flash",
+          "userAction": "Approve explicit target and artifact.",
+          "success": "Audited operation approved.",
+          "failure": "Approval missing or expired.",
+          "recovery": "Review selection and request approval again."
+        },
+        {
+          "id": "write",
+          "title": "Flash and verify",
+          "userAction": "Watch controlled flash adapter.",
+          "success": "Adapter verifies written firmware and records deployment.",
+          "failure": "Flash error or disconnect.",
+          "recovery": "Use adapter-specific recovery and bootloader instructions; never assume device is safe to retry blindly."
+        }
+      ],
+      "paths": {
+        "success": "/jobs"
+      },
+      "limitations": [
+        "Flashing is not enabled.",
+        "No automatic flashing on commit."
+      ]
+    }
+  ]
+}
