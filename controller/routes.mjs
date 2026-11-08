@@ -754,16 +754,43 @@ export async function localRoute(req) {
         const gh=state().github,org=gh.selectedOrganization;
         if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
         try{
-          const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners?per_page=100",{
-            headers:{authorization:"Bearer "+unseal(gh.oauthToken),accept:"application/vnd.github+json",
-              "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"},
-            signal:AbortSignal.timeout(15000)});
+          const headers={authorization:"Bearer "+unseal(gh.oauthToken),accept:"application/vnd.github+json",
+            "user-agent":"TinkerTunnel","x-github-api-version":"2022-11-28"};
+          const prefix="https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners";
+          const response=await fetch(prefix+"?per_page=100",{headers,signal:AbortSignal.timeout(15000)});
           if(!response.ok)return deny(response.status===403?403:502,"Unable to list organization runners; check Self-hosted runners: read permission");
           const data=await response.json();
-          return reply({organization:org,runners:(data.runners||[]).map(r=>({
-            id:r.id,name:r.name,os:r.os,status:r.status,busy:r.busy,
-            labels:(r.labels||[]).map(l=>({name:l.name,type:l.type}))
-          }))});
+          // The organization download list reflects GitHub's rollout for this installation,
+          // unlike the globally newest public release, which might not be available yet.
+          const available=new Map();
+          try{
+            const versions=await fetch(prefix+"/downloads",{headers,signal:AbortSignal.timeout(10000)});
+            if(versions.ok){
+              const apps=await versions.json();
+              if(Array.isArray(apps))for(const app of apps){
+                const os=String(app.os||"").toLowerCase(),arch=String(app.architecture||"").toLowerCase();
+                const match=/-(\d+\.\d+\.\d+)\.(?:tar\.gz|zip)$/.exec(String(app.filename||""));
+                if(match&&["linux","osx","win"].includes(os)&&["arm64","x64"].includes(arch))
+                  available.set(os+"/"+arch,match[1]);
+              }
+            }
+          }catch{/* Installed versions still render if the download catalog is unavailable. */}
+          const compare=(a,b)=>{
+            if(!a||!b)return false;
+            const x=a.split(".").map(Number),y=b.split(".").map(Number);
+            return x.some((n,i)=>n!==y[i]&&x.slice(0,i).every((m,j)=>m===y[j])&&n<y[i]);
+          };
+          return reply({organization:org,runners:(data.runners||[]).map(r=>{
+            const labels=(r.labels||[]).map(l=>({name:l.name,type:l.type}));
+            const arch=labels.some(l=>l.name.toLowerCase()==="arm64")?"arm64":
+              labels.some(l=>l.name.toLowerCase()==="x64")?"x64":null;
+            const os=String(r.os||"").toLowerCase();
+            const downloadOs=os==="macos"?"osx":os==="windows"?"win":os;
+            const version=/^\d+\.\d+\.\d+$/.test(String(r.version||""))?r.version:null;
+            const availableVersion=arch?available.get(downloadOs+"/"+arch)||null:null;
+            return {id:r.id,name:r.name,os:r.os,status:r.status,busy:r.busy,version,availableVersion,
+              updateAvailable:compare(version,availableVersion),labels};
+          })});
         }catch{return deny(502,"GitHub runners are temporarily unavailable");}
       }
       if(path==="/api/local/builders/github-runners/labels"&&method==="POST"){

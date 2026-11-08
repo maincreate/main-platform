@@ -74,11 +74,16 @@ function renderGithub(){
  const holder=$("githubRunners");holder.replaceChildren();
  if(!githubRunners.length){holder.textContent="No organization runners returned. Connect GitHub or check runner-management permissions.";return}
  const table=el("table",undefined,"inventory-table"),head=el("tr");
- for(const label of ["Runner","Platform","Status","Labels","Manage"])head.append(el("th",label));
+ for(const label of ["Runner","Platform","Status","Version","Labels","Manage"])head.append(el("th",label));
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
  for(const runner of githubRunners){
   const tr=el("tr");tr.append(el("td",runner.name),el("td",runner.os||"—"),
    el("td",runner.status+(runner.busy?" · Busy":"")));
+  const version=runner.version||null,available=runner.availableVersion||null;
+  const software=version?"v"+version:"Not reported";
+  const update=runner.updateAvailable?" · Update available: v"+available:
+    version&&available&&version===available?" · Current":"";
+  tr.append(el("td",software+update));
   const labels=(runner.labels||[]).map(l=>l.name);tr.append(el("td",labels.join(", ")));
   const controls=el("td");
   if(builders.some(host=>host.githubRunnerName===runner.name)){
