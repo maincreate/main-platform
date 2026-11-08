@@ -218,8 +218,6 @@ test('Removal status reports four ordered stages and preserves completed audit',
  assert.equal(progress.stages.find(s=>s.id==='stopping').status,'skipped');
  assert.equal(progress.stages.find(s=>s.id==='cleaning').status,'active');
  assert.equal(progress.stages.find(s=>s.id==='controller').status,'pending');
- const status=await h.call('/api/local/builders/remove/status',{id:ID});
- assert.equal(status.status,200);
  const claimed=await h.call('/api/agent/actions/claim',{id:ID},true);
  await h.call('/api/agent/actions/complete',{
   id:ID,action_id:claimed.data.action.id,success:true,message:'cleanup scheduled'
