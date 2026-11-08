@@ -455,7 +455,7 @@ export async function localRoute(req) {
           usingDefaultApp:!process.env.TT_GITHUB_CLIENT_ID&&!g.oauthClientId,
           organizations:g.oauthOrganizations||[],organizationsReadable:!!g.oauthOrganizationsReadable,
           selectedOrganization:githubIdentityCurrent(g)?g.selectedOrganization||null:null,
-          hostedRunnerPolicyConfirmation:g.hostedRunnerPolicyConfirmation?.organization===g.selectedOrganization?
+          hostedRunnerPolicyConfirmation:g.hostedRunnerPolicyConfirmation&&g.hostedRunnerPolicyConfirmation.organization===g.selectedOrganization?
             {organization:g.selectedOrganization,confirmedAt:g.hostedRunnerPolicyConfirmation.confirmedAt,
              source:"operator_confirmation_not_github_verified"}:null,
           installationsTotal:g.oauthInstallationsTotal||0,
