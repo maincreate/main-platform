@@ -63,7 +63,7 @@ async function discoverLocalMcp(){
   const response=await fetch(gatewayURL+"/mcp",{
    method:"POST",signal:AbortSignal.timeout(1250),
    headers:{
-    authorization:"Bearer "+mcpToken,
+    "x-maincreate-private-token":mcpToken,
     accept:"application/json, text/event-stream",
     "content-type":"application/json"
    },
@@ -81,7 +81,7 @@ async function ensureGateway(){
   cwd:appRoot,env:{
    ...process.env,HOST:"127.0.0.1",PORT:String(gatewayPort),
    MAIN_CONTROLLER_URL:"http://127.0.0.1:"+String(process.env.PORT||"3000"),
-   MAIN_SERVICE_TOKEN:serviceToken,MAIN_MCP_TOKEN:mcpToken
+   MAIN_SERVICE_TOKEN:serviceToken,MAIN_PRIVATE_MCP_TOKEN:mcpToken
   },stdio:["ignore","ignore","ignore"],shell:false
  });
  gateway.on("error",()=>{lastError="Could not start the private MCP server.";});
@@ -119,13 +119,13 @@ export function startOpenAiTunnel({tunnelId,apiKey}){
    chmodSync(workDir,0o700);
    const keyPath=join(workDir,"runtime-key"),headerPath=join(workDir,"mcp-auth-header");
    writeFileSync(keyPath,apiKey,{mode:0o600,flag:"wx"});
-   writeFileSync(headerPath,"Bearer "+mcpToken,{mode:0o600,flag:"wx"});
+   writeFileSync(headerPath,mcpToken,{mode:0o600,flag:"wx"});
    client=spawn(clientPath,[
     "run","--control-plane.tunnel-id="+tunnelId,
     "--control-plane.api-key=file:"+keyPath,
     "--mcp.server-url="+gatewayURL+"/mcp",
-    "--mcp.extra-headers=Authorization: file:"+headerPath,
-    "--mcp.discovery-extra-headers=Authorization: file:"+headerPath,
+    "--mcp.extra-headers=X-MainCreate-Private-Token: file:"+headerPath,
+    "--mcp.discovery-extra-headers=X-MainCreate-Private-Token: file:"+headerPath,
     "--health.listen-addr=127.0.0.1:"+healthPort,
     "--log.level=warn","--log.format=json"
    ],{
