@@ -9,7 +9,7 @@
  */
 import {spawn} from "node:child_process";
 import {randomBytes} from "node:crypto";
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync,chmodSync} from "node:fs";
+import {mkdtempSync,writeFileSync,rmSync,chmodSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
@@ -41,11 +41,12 @@ function enqueue(operation){
 async function terminate(p){
  if(!p||p.exitCode!==null||p.signalCode!==null)return;
  await new Promise(resolve=>{
-  let finished=false;
-  const done=()=>{if(finished)return;finished=true;clearTimeout(timeout);resolve();};
+  let finished=false,timeout;
+  const done=()=>{if(finished)return;finished=true;if(timeout)clearTimeout(timeout);resolve();};
   p.once("exit",done);
+  p.once("error",done);
   try{p.kill("SIGTERM");}catch{done();return;}
-  const timeout=setTimeout(()=>{if(!finished){try{p.kill("SIGKILL");}catch{}done();}},1500);
+  timeout=setTimeout(()=>{if(!finished){try{p.kill("SIGKILL");}catch{}done();}},1500);
   timeout.unref?.();
  });
 }
