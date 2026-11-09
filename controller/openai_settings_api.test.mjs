@@ -33,7 +33,7 @@ test("OpenAI ID and key validation prevents command injection",()=>{
   assert.equal(validOpenAiTunnelId(id),false);
  }
  assert.equal(validOpenAiRuntimeKey("sk-"+"a".repeat(36)),true);
- for(const k of ["bad","sk-short","sk-"+"a".repeat(25)+"\nMORE"])assert.equal(validOpenAiRuntimeKey(k),false);
+ for(const k of ["bad","sk-short","sk-"+"a".repeat(25)+"\nMORE","sk-admin-"+"a".repeat(36)])assert.equal(validOpenAiRuntimeKey(k),false);
 });
 test("Settings config and lifecycle require admin+CSRF and never disclose secrets",{timeout:30000},async()=>{
  const dir=mkdtempSync(join(tmpdir(),"maincreate-ai-settings-"));
