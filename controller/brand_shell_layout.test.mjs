@@ -56,7 +56,7 @@ test("login wordmark starts at the intro's left edge with PLATFORM centered unde
  assert.match(css,/\.intro\{max-width:500px;container-type:inline-size\}/);
  // Shrink-to-content gives the subtitle the WORDMARK width instead of the full column width.
  assert.match(css,/\.maincreate-auth-lockup\{[^}]*display:flex;flex-direction:column;align-items:center;[^}]*width:max-content;max-width:100%;[^}]*margin:0 0 30px/);
- assert.doesNotMatch(css,/\.maincreate-auth-lockup\{[^}]*width:100%;/);
+ assert.ok(css.match(/\.maincreate-auth-lockup\{([^}]*)\}/)?.[1].split(";").every(declaration=>!declaration.trim().startsWith("width:100%")), "Lockup must not use a full-column width");
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*font-size:clamp\(34px,14cqw,70px\)/);
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*letter-spacing:\.30em;[^}]*text-align:center[^}]*\}/);
  assert.match(html,/\/setup\.css\?v=left-brand-20261109/);
