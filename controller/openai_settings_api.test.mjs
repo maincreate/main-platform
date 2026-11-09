@@ -12,7 +12,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function availablePort(){
  return new Promise((done,fail)=>{
   const sock=createServer();sock.once("error",fail);
-  sock.listen(0,"127.0.0.1",()=>sock.close(()=>done(sock.address().port)));
+  sock.listen(0,"127.0.0.1",()=>{const port=sock.address().port;sock.close(()=>done(port));});
  });
 }
 async function waitForHealth(url){
