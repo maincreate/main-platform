@@ -61,3 +61,32 @@ test("login wordmark starts at the intro's left edge with PLATFORM centered unde
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(16\.5px,3\.6cqw,19\.5px\);[^}]*letter-spacing:\.30em;[^}]*text-align:center[^}]*\}/);
  assert.match(html,/\/setup\.css\?v=platform-150-20261109/);
 });
+
+
+test("all platform and login pages use the approved icon-only PNG favicon",()=>{
+ const img=readFileSync(new URL("maincreate-icon.png",dir));
+ assert.equal(img.subarray(0,8).toString("hex"),"89504e470d0a1a0a");
+ assert.equal(img.readUInt32BE(16),64);
+ assert.equal(img.readUInt32BE(20),64);
+ assert.ok(img.length<10240,"Small favicon should remain under 10 KB");
+ for(const page of [...pages,"setup"]){
+  const html=readFileSync(new URL(page+".html",dir),"utf8");
+  assert.match(html,/<link rel="icon" type="image\/png" sizes="64x64" href="\/maincreate-icon\.png\?v=approved-icon-20261109">/);
+ }
+ const routes=readFileSync(new URL("../controller/routes.mjs",import.meta.url),"utf8");
+ const docker=readFileSync(new URL("../Dockerfile",import.meta.url),"utf8");
+ assert.match(routes,/path==="\/maincreate-icon\.png"&&method==="GET"/);
+ assert.match(docker,/COPY --chown=node:node portal\/maincreate-icon\.png \.\/portal\//);
+});
+test("OpenAI Settings refreshes status, clears stale starting text and discloses the verification boundary",()=>{
+ const html=readFileSync(new URL("settings.html",dir),"utf8");
+ const js=readFileSync(new URL("settings.js",dir),"utf8");
+ assert.match(html,/id="openaiLastChecked"/);
+ assert.match(js,/Last checked /);
+ assert.match(js,/Tunnel ready/);
+ assert.match(js,/ChatGPT installation not verified/);
+ assert.match(js,/openaiConnectionNotice"\)\.textContent=guidance\[state\]/);
+ assert.match(js,/document\.addEventListener\("visibilitychange"/);
+ assert.match(js,/setAiRefreshFailure\(e\)/);
+ assert.doesNotMatch(js,/Settings saved\. The connection is starting;/);
+});

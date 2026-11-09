@@ -292,6 +292,12 @@ export async function localRoute(req) {
   const path=new URL(req.url).pathname,method=req.method;
   const privateApp=process.env.MAIN_REQUIRE_LOGIN!=="0";
   const htmlHeaders={"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://github.com https://avatars.githubusercontent.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"};
+  // Public favicon: login screens need it before there is a session.
+  if(path==="/maincreate-icon.png"&&method==="GET")
+    return new Response(readFileSync(new URL("../portal/maincreate-icon.png",import.meta.url)),{
+      headers:{"content-type":"image/png","cache-control":"public, max-age=86400",
+        "x-content-type-options":"nosniff"}
+    });
   const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
