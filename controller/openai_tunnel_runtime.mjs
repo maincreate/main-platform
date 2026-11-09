@@ -58,8 +58,24 @@ async function probe(url){
   return data?.ready===false?false:data?.ok===false?false:true;
  }catch{return false;}
 }
+async function discoverLocalMcp(){
+ try{
+  const response=await fetch(gatewayURL+"/mcp",{
+   method:"POST",signal:AbortSignal.timeout(1250),
+   headers:{
+    authorization:"Bearer "+mcpToken,
+    accept:"application/json, text/event-stream",
+    "content-type":"application/json"
+   },
+   body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/list",params:{}})
+  });
+  if(!response.ok)return false;
+  const body=await response.json();
+  return Array.isArray(body?.result?.tools)&&body.result.tools.length>0;
+ }catch{return false;}
+}
 async function ensureGateway(){
- if(alive(gateway)&&await probe(gatewayURL+"/healthz"))return;
+ if(alive(gateway)&&await probe(gatewayURL+"/healthz")&&await discoverLocalMcp())return;
  if(gateway)await terminate(gateway);
  gateway=spawn(process.execPath,[join(appRoot,"gateway/server.mjs")],{
   cwd:appRoot,env:{
@@ -74,7 +90,7 @@ async function ensureGateway(){
    lastError="Private MCP server stopped unexpectedly.";
  });
  for(let i=0;i<16;i++){
-  if(await probe(gatewayURL+"/healthz"))return;
+  if(await probe(gatewayURL+"/healthz")&&await discoverLocalMcp())return;
   if(gateway.exitCode!==null)break;
   await new Promise(resolve=>setTimeout(resolve,100));
  }
@@ -133,7 +149,7 @@ export function startOpenAiTunnel({tunnelId,apiKey}){
  });
 }
 export async function openAiRuntimeStatus(){
- const mcpReady=alive(gateway)&&await probe(gatewayURL+"/healthz");
+ const mcpReady=alive(gateway)&&await probe(gatewayURL+"/healthz")&&await discoverLocalMcp();
  const health=alive(client)&&await probe(healthURL+"/healthz");
  const ready=health&&await probe(healthURL+"/readyz");
  return {
