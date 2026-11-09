@@ -50,12 +50,14 @@ test("login and first-run setup share the approved wordmark and PLATFORM caption
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*text-align:center/);
 });
 
-test("login wordmark uses full left-column width and responsive centered lettering",()=>{
+test("login wordmark starts at the intro's left edge with PLATFORM centered under the mark",()=>{
  const css=readFileSync(new URL("setup.css",dir),"utf8");
  const html=readFileSync(new URL("setup.html",dir),"utf8");
  assert.match(css,/\.intro\{max-width:500px;container-type:inline-size\}/);
- assert.match(css,/\.maincreate-auth-lockup\{[^}]*width:100%;[^}]*text-align:center\}/);
- assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*justify-content:center;[^}]*font-size:clamp\(34px,14cqw,70px\)/);
- assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(11px,2.4cqw,13px\);[^}]*text-align:center[^}]*\}/);
- assert.match(html,/\/setup\.css\?v=column-brand-20261109/);
+ // Shrink-to-content gives the subtitle the WORDMARK width instead of the full column width.
+ assert.match(css,/\.maincreate-auth-lockup\{[^}]*display:flex;flex-direction:column;align-items:center;[^}]*width:max-content;max-width:100%;[^}]*margin:0 0 30px/);
+ assert.ok(css.match(/\.maincreate-auth-lockup\{([^}]*)\}/)?.[1].split(";").every(declaration=>!declaration.trim().startsWith("width:100%")), "Lockup must not use a full-column width");
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*font-size:clamp\(34px,14cqw,70px\)/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*letter-spacing:\.30em;[^}]*text-align:center[^}]*\}/);
+ assert.match(html,/\/setup\.css\?v=left-brand-20261109/);
 });
