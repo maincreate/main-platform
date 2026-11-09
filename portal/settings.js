@@ -105,7 +105,7 @@ async function load(){
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
   await loadRepositoryPreferences();
   await loadApprovalPreferences();
-  await loadAiConnection(true);
+  await refreshAiConnection(true);
   $("executionStatus").textContent=(d.jobs?.pending||0)+
    " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
  }catch(e){$("notice").textContent=e.message;}
@@ -209,30 +209,53 @@ $("resetForm").addEventListener("submit",async event=>{
 
 /* Private ChatGPT / OpenAI Secure MCP Tunnel onboarding. All mutations require
    a signed-in admin and the standard Main{Create} CSRF token. */
-let aiConnection=null,aiPending=false;
+let aiConnection=null,aiPending=false,aiRefreshing=false;
+function setAiRefreshFailure(error){
+ const badge=$("openaiTunnelStatus");
+ badge.textContent="Refresh failed";badge.dataset.state="error";
+ $("openaiMcpReadiness").textContent="Current connection status could not be verified.";
+ $("openaiConnectionNotice").textContent=error?.message||"Status unavailable. Please retry.";
+ $("openaiLastChecked").textContent="Last check failed at "+new Date().toLocaleTimeString();
+}
 async function loadAiConnection(initial=false){
- const data=await api("/api/local/ai/openai");
- aiConnection=data;
- if(initial||!$("openaiTunnelId").value)$("openaiTunnelId").value=data.tunnelId||"";
- $("openaiKeySaved").textContent=data.keySaved?"(saved securely — leave blank to reuse)":"(required)";
- $("openaiRuntimeKey").placeholder=data.keySaved?"Leave blank to keep existing key":"sk-…";
- const runtime=data.runtime||{},state=!data.configured?"not-configured":
-  !data.enabled?"disabled":runtime.state||"connecting";
- const labels={"not-configured":"Not configured","disabled":"Disconnected",
-  connecting:"Connecting…",ready:"Ready",error:"Needs attention",stopped:"Stopped"};
- const label=labels[state]||"Checking";
- const badge=$("openaiTunnelStatus");badge.textContent=label;badge.dataset.state=state;
- $("openaiMcpReadiness").textContent=data.enabled?
-  (runtime.mcpReady?"Local MCP ready":"Local MCP not yet ready")+" · "+
-  (runtime.ready?"Secure tunnel ready for ChatGPT":"OpenAI tunnel not ready yet")+
-  " · "+(runtime.clientVersion||"official client"):
-  "Local MCP and tunnel are stopped. No connection is active.";
- $("openaiDisconnect").disabled=aiPending||!data.enabled;
- $("openaiForget").disabled=aiPending||!data.configured;
- $("openaiConnect").textContent=data.keySaved?"Save & reconnect":"Save & connect";
- if(state==="error")$("openaiConnectionNotice").textContent=
-  runtime.error||"Could not start the tunnel. Check the runtime key, tunnel ID and OpenAI permissions.";
- return data;
+ if(aiRefreshing)return aiConnection;
+ aiRefreshing=true;
+ try{
+  const data=await api("/api/local/ai/openai");
+  aiConnection=data;
+  if(initial||!$("openaiTunnelId").value)$("openaiTunnelId").value=data.tunnelId||"";
+  $("openaiKeySaved").textContent=data.keySaved?"(saved securely — leave blank to reuse)":"(required)";
+  $("openaiRuntimeKey").placeholder=data.keySaved?"Leave blank to keep existing key":"sk-…";
+  const runtime=data.runtime||{},state=!data.configured?"not-configured":
+   !data.enabled?"disabled":runtime.state||"connecting";
+  const labels={"not-configured":"Not configured","disabled":"Disconnected",
+   connecting:"Connecting…",ready:"Tunnel ready",error:"Needs attention",stopped:"Stopped"};
+  const badge=$("openaiTunnelStatus");badge.textContent=labels[state]||"Unknown";badge.dataset.state=state;
+  $("openaiMcpReadiness").textContent=data.enabled?
+   (runtime.mcpReady?"Local MCP ready":"Local MCP not yet ready")+" · "+
+   (runtime.ready?"OpenAI tunnel ready":"OpenAI tunnel not yet ready")+
+   " · ChatGPT installation not verified":
+   "Local MCP and tunnel are stopped. No connection is active.";
+  $("openaiDisconnect").disabled=aiPending||!data.enabled;
+  $("openaiForget").disabled=aiPending||!data.configured;
+  $("openaiConnect").textContent=data.keySaved?"Save & reconnect":"Save & connect";
+  // This replaces transient "starting" text on every successful poll.
+  const guidance={
+   "not-configured":"Enter your tunnel ID and a scoped runtime key to connect.",
+   disabled:"Disconnected. Your encrypted credentials are saved for reconnection.",
+   connecting:"Connecting to OpenAI. Main{Create} checks automatically every 8 seconds.",
+   ready:"The tunnel is ready. Add or test your Main{Create} MCP connection in ChatGPT; that step is not verified here.",
+   error:runtime.error||"Tunnel failed. Verify your tunnel ID, runtime key, permissions and network.",
+   stopped:"The tunnel is stopped. Select Save & reconnect to start it again."
+  };
+  $("openaiConnectionNotice").textContent=guidance[state]||"Checking connection…";
+  $("openaiLastChecked").textContent="Last checked "+new Date().toLocaleTimeString()+" · Updates every 8 seconds while this page is visible";
+  return data;
+ }finally{aiRefreshing=false;}
+}
+async function refreshAiConnection(initial=false){
+ try{return await loadAiConnection(initial);}
+ catch(e){setAiRefreshFailure(e);return null;}
 }
 $("openaiConnectionForm").addEventListener("submit",async event=>{
  event.preventDefault();if(aiPending)return;
@@ -243,22 +266,19 @@ $("openaiConnectionForm").addEventListener("submit",async event=>{
   const payload={tunnelId:$("openaiTunnelId").value.trim()};
   const key=$("openaiRuntimeKey").value.trim();
   if(key)payload.apiKey=key;
-  const data=await api("/api/local/ai/openai/configure",payload);
+  await api("/api/local/ai/openai/configure",payload);
   $("openaiRuntimeKey").value="";
-  $("openaiConnectionNotice").textContent=data.runtime?.state==="error"?
-   "Settings saved, but the tunnel could not start. Review connection status.":
-   "Settings saved. The connection is starting; readiness is checked automatically.";
- }catch(e){$("openaiConnectionNotice").textContent=e.message;}
- finally{aiPending=false;button.disabled=false;await loadAiConnection().catch(()=>{});}
+ }catch(e){$("openaiConnectionNotice").textContent=e.message;return;}
+ finally{aiPending=false;button.disabled=false;}
+ await refreshAiConnection();
 });
 $("openaiDisconnect").addEventListener("click",async()=>{
  if(aiPending)return;
  aiPending=true;$("openaiDisconnect").disabled=true;
- try{
-  await api("/api/local/ai/openai/disable",{});
-  $("openaiConnectionNotice").textContent="Disconnected. Your encrypted credentials are retained for reconnection.";
- }catch(e){$("openaiConnectionNotice").textContent=e.message;}
- finally{aiPending=false;await loadAiConnection().catch(()=>{});}
+ try{await api("/api/local/ai/openai/disable",{});}
+ catch(e){$("openaiConnectionNotice").textContent=e.message;return;}
+ finally{aiPending=false;}
+ await refreshAiConnection();
 });
 $("openaiForget").addEventListener("click",async()=>{
  if(aiPending||!confirm("Disconnect and remove the saved OpenAI tunnel credentials from this Main{Create} installation?"))return;
@@ -266,15 +286,18 @@ $("openaiForget").addEventListener("click",async()=>{
  try{
   await api("/api/local/ai/openai/remove",{});
   $("openaiTunnelId").value="";$("openaiRuntimeKey").value="";
-  $("openaiConnectionNotice").textContent="Local tunnel credentials removed.";
- }catch(e){$("openaiConnectionNotice").textContent=e.message;}
- finally{aiPending=false;await loadAiConnection().catch(()=>{});}
+ }catch(e){$("openaiConnectionNotice").textContent=e.message;return;}
+ finally{aiPending=false;}
+ await refreshAiConnection();
 });
-$("openaiRefresh").addEventListener("click",async()=>{
- try{await loadAiConnection();$("openaiConnectionNotice").textContent="Connection status refreshed.";}
- catch(e){$("openaiConnectionNotice").textContent=e.message;}
+$("openaiRefresh").addEventListener("click",()=>refreshAiConnection());
+// Catch up immediately after the user returns from ChatGPT or another browser tab.
+document.addEventListener("visibilitychange",()=>{
+ if(document.visibilityState==="visible"&&csrf&&!aiPending)void refreshAiConnection();
 });
-// Readiness can change after a key or network error. Never re-send secrets during polls.
+window.addEventListener("focus",()=>{
+ if(csrf&&!aiPending)void refreshAiConnection();
+});
 setInterval(()=>{
- if(csrf&&!aiPending&&document.visibilityState==="visible")loadAiConnection().catch(()=>{});
+ if(csrf&&!aiPending&&document.visibilityState==="visible")void refreshAiConnection();
 },8000);
