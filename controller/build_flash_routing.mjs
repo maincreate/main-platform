@@ -64,7 +64,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
    if(!eligible(flashBuilder))throw bad("Choose an enrolled, managed flash machine",409);
  }
  if(deviceId){
-   device=devices.find(d=>d.id===deviceId);
+   device=devices.find(d=>d.id===deviceId||(d.aliases||[]).includes(deviceId));
    if(!device||device.runnerId!==flashBuilderId)throw bad("Device is not associated with the chosen flash machine",409);
  }
  const checks=[
@@ -86,7 +86,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
  return {
   schema:1,repository,organization,
   buildBuilderId,builder:summary(builder),buildTrigger,
-  sdk,flashBuilderId,flashBuilder:summary(flashBuilder),deviceId,
+  sdk,flashBuilderId,flashBuilder:summary(flashBuilder),deviceId:device?.id||deviceId,
   device:device?{id:device.id,label:device.label||device.description||"USB device",runnerId:device.runnerId,
     connected:!!device.connected,identityConfidence:device.identityConfidence||"unknown"}:null,
   autoFlashRequested,
@@ -105,8 +105,8 @@ export function routeSummaries(records=[],organization,projects=[],builders=[],d
   .map(r=>{
    const build=builders.find(b=>b.id===r.buildBuilderId);
    const flash=builders.find(b=>b.id===r.flashBuilderId);
-   const device=devices.find(d=>d.id===r.deviceId);
-   return {...r,builder:summary(build),flashBuilder:summary(flash),
+   const device=devices.find(d=>d.id===r.deviceId||(d.aliases||[]).includes(r.deviceId));
+   return {...r,deviceId:device?.id||r.deviceId,builder:summary(build),flashBuilder:summary(flash),
      device:device?{id:device.id,runnerId:device.runnerId,connected:!!device.connected,
        label:device.label||device.description||"USB device"}:null,
      autoFlashEnabled:false,status:"configuration-only"};
