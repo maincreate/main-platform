@@ -5,6 +5,7 @@ import {join} from "node:path";
 import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
+import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startOpenAiTunnel,stopOpenAiTunnel,openAiRuntimeStatus} from "./openai_tunnel_runtime.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {planBuildFlashRoute,routeSummaries,validateRouteRemoval} from "./build_flash_routing.mjs";
@@ -130,6 +131,13 @@ export function initializeFirstRun() {
   key(); // Provision durable encryption before accepting credentials; fail on unwritable storage.
   state(); // Validate persisted account configuration at startup.
 }
+/** Recover an enabled tunnel on redeployment without asking for credentials again. */
+export async function resumeSavedAiConnection(){
+ const config=state().aiConnections?.openai;
+ if(config?.enabled&&config.runtimeKey)
+  return startOpenAiTunnel({tunnelId:config.tunnelId,apiKey:unseal(config.runtimeKey)});
+ return {state:"disabled"};
+}
 function seal(clear) {
   const iv=randomBytes(12), cipher=createCipheriv("aes-256-gcm",key(),iv);
   const enc=Buffer.concat([cipher.update(String(clear),"utf8"),cipher.final()]);
@@ -156,6 +164,18 @@ function reply(obj,status=200,extra={}) {
   return new Response(JSON.stringify(obj),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff",...extra}});
 }
 function deny(status,reason) {return reply({error:reason},status);}
+function internalServiceAuthorized(req){
+ const auth=req.headers.get("authorization")||"",env=process.env.MAIN_SERVICE_TOKEN||"";
+ return (env.length>=32&&equal(auth,"Bearer "+env))||
+  equal(auth,"Bearer "+internalMcpServiceToken());
+}
+async function aiConnectionSnapshot(){
+ const c=state().aiConnections?.openai||{};
+ return {provider:"openai",tunnelId:c.tunnelId||null,
+  configured:!!(c.tunnelId&&c.runtimeKey),keySaved:!!c.runtimeKey,
+  enabled:c.enabled===true,runtime:await openAiRuntimeStatus(),
+  chatgptPluginConnected:null};
+}
 function session(req) {
   const cookie=req.headers.get("cookie")||"";
   const id=cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("ttsid="))?.slice(6);
@@ -371,6 +391,46 @@ export async function localRoute(req) {
       if(rejected)return rejected;
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
+      if(path==="/api/local/ai/openai"&&method==="GET")
+        return reply(await aiConnectionSnapshot());
+      if(path==="/api/local/ai/openai/configure"&&method==="POST"){
+        const input=await body(req);
+        if(Object.keys(input).some(k=>!["tunnelId","apiKey"].includes(k)))
+          return deny(422,"Unexpected tunnel settings");
+        if(!validOpenAiTunnelId(input.tunnelId))
+          return deny(422,"Paste the exact tunnel ID from OpenAI Platform");
+        if(input.apiKey!==undefined&&typeof input.apiKey!=="string")
+          return deny(422,"Invalid API key");
+        const provided=typeof input.apiKey==="string"&&input.apiKey.length>0;
+        if(provided&&!validOpenAiRuntimeKey(input.apiKey))
+          return deny(422,"Enter a valid OpenAI runtime API key");
+        const stored=state(),previous=stored.aiConnections?.openai;
+        if(!provided&&!previous?.runtimeKey)return deny(422,"Enter your OpenAI runtime API key");
+        const runtimeKey=provided?seal(input.apiKey):previous.runtimeKey;
+        stored.aiConnections??={};
+        stored.aiConnections.openai={
+          tunnelId:input.tunnelId,runtimeKey,enabled:true,
+          updatedAt:new Date().toISOString()
+        };
+        save(stored);
+        await startOpenAiTunnel({tunnelId:input.tunnelId,
+          apiKey:provided?input.apiKey:unseal(runtimeKey)});
+        return reply(await aiConnectionSnapshot());
+      }
+      if(path==="/api/local/ai/openai/disable"&&method==="POST"){
+        const stored=state();
+        if(stored.aiConnections?.openai){
+          stored.aiConnections.openai.enabled=false;save(stored);
+        }
+        await stopOpenAiTunnel();
+        return reply(await aiConnectionSnapshot());
+      }
+      if(path==="/api/local/ai/openai/remove"&&method==="POST"){
+        const stored=state();
+        if(stored.aiConnections?.openai){delete stored.aiConnections.openai;save(stored);}
+        await stopOpenAiTunnel();
+        return reply(await aiConnectionSnapshot());
+      }
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
       if(path==="/api/local/marketplace/plans"&&method==="GET")
@@ -442,6 +502,7 @@ export async function localRoute(req) {
           return deny(401,"Administrator password is incorrect");
         const running=fabricCall("maincreate_jobs",{action:"list"}).jobs.some(j=>j.status==="running");
         if(running)return deny(409,"Stop active local jobs before resetting the installation");
+        await stopOpenAiTunnel(); // Reset revokes the active local OpenAI connection.
         // Preserve a private on-disk recovery snapshot. External GitHub repos, host agents
         // and hosting environment variables are never modified.
         const backupDir=join(dataDir,"reset-backups","reset-"+new Date().toISOString().replace(/[:.]/g,"-")+"-"+randomBytes(4).toString("hex"));
@@ -1065,16 +1126,12 @@ export async function localRoute(req) {
       }catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/github/repository/request"&&method==="POST"){
-      const service=process.env.MAIN_SERVICE_TOKEN||"";
-      if(service.length<32)return deny(503,"Internal service unavailable");
-      if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
+      if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
       try{return reply(requestRepositoryFromMcp(await body(req)),202);}
       catch(e){return deny(e.status||422,e.message||"Request rejected");}
     }
     if(path==="/api/internal/fabric"&&method==="POST"){
-      const service=process.env.MAIN_SERVICE_TOKEN||"";
-      if(service.length<32)return deny(503,"Internal service unavailable");
-      if(!equal(req.headers.get("authorization")||"","Bearer "+service))return deny(401,"Unauthorized");
+      if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
       const b=await body(req),s=state();
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
         runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
@@ -1083,9 +1140,7 @@ export async function localRoute(req) {
       catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/status"&&method==="GET"){
-      const token=process.env.MAIN_SERVICE_TOKEN||"";
-      if(token.length<32)return deny(503,"Internal service token not configured");
-      if(!equal(req.headers.get("authorization")||"","Bearer "+token))return deny(401,"Unauthorized");
+      if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
       const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION==="1",fabric:fabricStats()});
     }
     return deny(404,"Not found");
