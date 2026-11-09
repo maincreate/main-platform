@@ -242,7 +242,6 @@ async function load(){
   const [overview,projects,devices]=await Promise.all([
    api("/api/local/overview"),api("/api/local/projects"),api("/api/local/devices")]);
   $("username").textContent=overview.username||"administrator";
-  $("workspaceOrg").textContent=overview.github?.organization||overview.github?.savedOrganization||"GitHub organization";
   statusText("projectCount",String(projects.repositories?.length||0));
   statusText("projectMeta",projects.updatedAt?"Synced "+relative(projects.updatedAt):"Not synced yet");
   const missing=(projects.repositories||[]).filter(p=>p.alert).length;
