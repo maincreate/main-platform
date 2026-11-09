@@ -31,3 +31,21 @@ test("header and sidebar branding align at 73px and preserve mobile nav",()=>{
 test("Overview no longer updates removed org label",()=>{
  assert.doesNotMatch(readFileSync(new URL("dashboard.js",dir),"utf8"),/workspaceOrg/);
 });
+
+test("sidebar branding spans full width with no vertical line above the 73px boundary",()=>{
+ const css=readFileSync(new URL("workspace.css",dir),"utf8");
+ assert.match(css,/\.maincreate-sidebar\{[^}]*border-right:0/);
+ assert.match(css,/\.maincreate-sidebar::after\{[^}]*top:73px;right:0;bottom:0;width:1px/);
+ assert.match(css,/\.maincreate-brand-lockup\{height:73px;[^}]*margin:0 -14px 4px/);
+ assert.match(css,/\.maincreate-sidebar::after\{display:none\}/);
+});
+test("login and first-run setup share the approved wordmark and PLATFORM caption",()=>{
+ const login=readFileSync(new URL("setup.html",dir),"utf8");
+ const css=readFileSync(new URL("setup.css",dir),"utf8");
+ assert.match(login,/class="maincreate-brand-lockup maincreate-auth-lockup"/);
+ assert.match(login,/class="maincreate-platform-label">PLATFORM<\/span>/);
+ assert.match(login,/class="maincreate-brand-brace">\{<\/span>Create<span class="maincreate-brand-brace">}<\/span>/);
+ assert.doesNotMatch(login,/class="logo"|<p class="eyebrow">Main\{Create\}<\/p>/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand-brace\{color:#0ea5b4\}/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*text-align:center/);
+});
