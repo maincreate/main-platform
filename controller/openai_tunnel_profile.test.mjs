@@ -45,6 +45,10 @@ test("Bundled portal includes the official tunnel-client and private local MCP s
  assert.match(image,/COPY --chown=node:node gateway\/server\.mjs \.\/gateway\//);
  assert.match(runtime,/HOST:"127\.0\.0\.1"/);
  assert.match(runtime,/--control-plane\.api-key=file:/);
- assert.match(runtime,/--mcp\.extra-headers=Authorization: file:/);
+ assert.match(runtime,/--mcp\.extra-headers=X-MainCreate-Private-Token: file:/);
  assert.doesNotMatch(runtime,/shell:true|0\.0\.0\.0/);
+ const gateway=text("gateway/server.mjs");
+ assert.match(gateway,/privateBridgeToken=process\.env\.MAIN_PRIVATE_MCP_TOKEN/);
+ assert.match(gateway,/x-maincreate-private-token/);
+ assert.match(gateway,/authorization\|\|""/);
 });
