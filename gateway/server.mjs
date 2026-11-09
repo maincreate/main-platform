@@ -4,6 +4,9 @@ import {createHash,timingSafeEqual} from "node:crypto";
 const host=process.env.HOST||"0.0.0.0",port=Number(process.env.PORT||"3001");
 const controller=process.env.MAIN_CONTROLLER_URL||"http://portal:3000";
 const serviceToken=process.env.MAIN_SERVICE_TOKEN||"",bearer=process.env.MAIN_MCP_TOKEN||"";
+// Only the bundled loopback gateway uses this dedicated internal header. The normal
+// standalone MCP gateway retains its bearer authorization unchanged.
+const privateBridgeToken=process.env.MAIN_PRIVATE_MCP_TOKEN||"";
 const allowedOrigins=(process.env.MAIN_MCP_ALLOWED_ORIGINS||"").split(",").map(s=>s.trim()).filter(Boolean);
 const version="2025-11-25";
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error("Bad PORT");
@@ -102,15 +105,20 @@ async function processMessage(message){
 createServer(async(req,res)=>{
  try{
   const pathname=new URL(req.url||"/","http://localhost").pathname;
-  if(pathname==="/healthz"&&req.method==="GET")return send(res,200,{ok:true,authConfigured:bearer.length>=32,tools:tools.length});
+  if(pathname==="/healthz"&&req.method==="GET")return send(res,200,{ok:true,authConfigured:bearer.length>=32||privateBridgeToken.length>=32,tools:tools.length});
   if(pathname!=="/mcp")return send(res,404,{error:"Not found"});
   if(!["POST","GET"].includes(req.method))return send(res,405,{error:"Method not allowed"},{allow:"POST, GET"});
   if(req.method==="GET")return send(res,405,{error:"SSE GET unsupported"},{allow:"POST"});
   const origin=req.headers.origin;
   if(origin&&!allowedOrigins.includes(origin))return send(res,403,{error:"Origin rejected"});
-  if(bearer.length<32||serviceToken.length<32)return send(res,503,{error:"MCP gateway not configured"});
-  if(!equal(req.headers.authorization||"","Bearer "+bearer))
-   return send(res,401,{error:"Unauthorized"},{"www-authenticate":'Bearer realm="maincreate-mcp"'});
+  if((bearer.length<32&&privateBridgeToken.length<32)||serviceToken.length<32)
+   return send(res,503,{error:"MCP gateway not configured"});
+  const privateMode=privateBridgeToken.length>=32;
+  const authorized=privateMode?
+   equal(req.headers["x-maincreate-private-token"]||"",privateBridgeToken):
+   equal(req.headers.authorization||"","Bearer "+bearer);
+  if(!authorized)return send(res,401,{error:"Unauthorized"},
+   {"www-authenticate":'Bearer realm="maincreate-mcp"'});
   const accept=req.headers.accept||"";
   if(!accept.includes("application/json")||!accept.includes("text/event-stream"))
    return send(res,406,{error:"Accept must include application/json and text/event-stream"});
