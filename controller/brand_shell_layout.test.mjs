@@ -58,6 +58,6 @@ test("login wordmark starts at the intro's left edge with PLATFORM centered unde
  assert.match(css,/\.maincreate-auth-lockup\{[^}]*display:flex;flex-direction:column;align-items:center;[^}]*width:max-content;max-width:100%;[^}]*margin:0 0 30px/);
  assert.ok(css.match(/\.maincreate-auth-lockup\{([^}]*)\}/)?.[1].split(";").every(declaration=>!declaration.trim().startsWith("width:100%")), "Lockup must not use a full-column width");
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*font-size:clamp\(34px,14cqw,70px\)/);
- assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*letter-spacing:\.30em;[^}]*text-align:center[^}]*\}/);
- assert.match(html,/\/setup\.css\?v=left-brand-20261109/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(16\.5px,3\.6cqw,19\.5px\);[^}]*letter-spacing:\.30em;[^}]*text-align:center[^}]*\}/);
+ assert.match(html,/\/setup\.css\?v=platform-150-20261109/);
 });
