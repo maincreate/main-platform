@@ -49,3 +49,13 @@ test("login and first-run setup share the approved wordmark and PLATFORM caption
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand-brace\{color:#0ea5b4\}/);
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*text-align:center/);
 });
+
+test("login wordmark uses full left-column width and responsive centered lettering",()=>{
+ const css=readFileSync(new URL("setup.css",dir),"utf8");
+ const html=readFileSync(new URL("setup.html",dir),"utf8");
+ assert.match(css,/\.intro\{max-width:500px;container-type:inline-size\}/);
+ assert.match(css,/\.maincreate-auth-lockup\{[^}]*width:100%;[^}]*text-align:center\}/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*justify-content:center;[^}]*font-size:clamp\(34px,14cqw,70px\)/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(11px,2.4cqw,13px\);[^}]*text-align:center\}/);
+ assert.match(html,/\/setup\.css\?v=column-brand-20261109/);
+});
