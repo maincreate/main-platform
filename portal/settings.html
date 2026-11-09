@@ -30,26 +30,66 @@
  <button type="button" id="refreshRepoRequests" class="plain-button">Refresh requests</button></div>
  <div id="repoRequests" aria-live="polite">Loading requests…</div>
 </section>
-<section class="settings-panel" aria-labelledby="aiTitle">
- <h2 id="aiTitle">AI Connections — Tunnel &amp; MCP</h2>
- <p>Connect ChatGPT to your existing Main{Create} MCP gateway without opening inbound ports. The private gateway exposes six scoped tools; execution still requires the existing approval policies.</p>
- <div class="setting-row"><div>
-   <h3>OpenAI Secure MCP Tunnel</h3>
-   <p>Outbound-only connection from a container beside your gateway to OpenAI. Set up a tunnel identity, then use the optional <code>openai-tunnel</code> Compose profile with local secrets.</p>
-   <div class="setting-meta" id="openaiTunnelStatus">Not verified · no live tunnel status is reported by the portal.</div>
-  </div><a class="plain-button" href="https://platform.openai.com/settings/organization/tunnels" target="_blank" rel="noopener noreferrer">OpenAI tunnel settings ↗</a></div>
- <details>
-  <summary>Connect ChatGPT with a private tunnel</summary>
-  <ol>
-   <li>Create a tunnel in OpenAI Platform and grant the runtime principal <strong>Tunnels Read + Use</strong>. Obtain a runtime API key and tunnel ID.</li>
-   <li>Set <code>MAIN_OPENAI_TUNNEL_ID</code> locally. Save the runtime key and a separate <code>Bearer ...</code> MCP gateway authorization header in private secret files, never in the portal or Git.</li>
-   <li>Start the <code>openai-tunnel</code> profile from the Main{Create} Compose deployment. Do not expose gateway or tunnel health ports publicly.</li>
-   <li>Confirm tunnel-client readiness, then add a custom MCP server in ChatGPT Plugins with <strong>Tunnel</strong> selected. Test discovery before requesting a job.</li>
-  </ol>
-  <p><a class="quiet-link" href="https://github.com/maincreate/main-platform/blob/main/docs/openai-secure-mcp-tunnel.md" target="_blank" rel="noopener noreferrer">Full runbook and safety checks ↗</a></p>
+<section class="settings-panel maincreate-ai-connection" aria-labelledby="aiTitle">
+ <div class="setting-row">
+  <div>
+   <h2 id="aiTitle">Connect ChatGPT</h2>
+   <p>Connect your self-hosted Main{Create} MCP tools through a private, outbound-only OpenAI tunnel. No inbound ports or deployment configuration required.</p>
+  </div>
+  <span class="inventory-badge" id="openaiTunnelStatus" role="status" aria-live="polite">Checking…</span>
+ </div>
+ <div class="maincreate-ai-steps">
+  <div class="maincreate-ai-step">
+   <span class="maincreate-ai-step-number" aria-hidden="true">1</span>
+   <div>
+    <h3>Create your tunnel</h3>
+    <p>In your OpenAI account, create a Secure MCP Tunnel and a runtime key with <strong>Tunnels Read + Use</strong>. You don't need an admin key for the connection.</p>
+    <div class="maincreate-ai-actions">
+     <a class="plain-button" href="https://platform.openai.com/settings/organization/tunnels" target="_blank" rel="noopener noreferrer">OpenAI tunnels</a>
+     <a class="quiet-link" href="https://platform.openai.com/settings/organization/api-keys" target="_blank" rel="noopener noreferrer">Create runtime key</a>
+    </div>
+   </div>
+  </div>
+  <div class="maincreate-ai-step">
+   <span class="maincreate-ai-step-number" aria-hidden="true">2</span>
+   <div>
+    <h3>Connect Main{Create}</h3>
+    <p>Paste the tunnel ID and runtime key once. Main{Create} stores the key encrypted, starts the private MCP server, and manages the tunnel automatically.</p>
+    <form class="settings-form maincreate-ai-form" id="openaiConnectionForm" autocomplete="off">
+     <label for="openaiTunnelId">Tunnel ID</label>
+     <input id="openaiTunnelId" type="text" placeholder="tunnel_…" maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+     <label for="openaiRuntimeKey">OpenAI runtime API key <small id="openaiKeySaved"></small></label>
+     <input id="openaiRuntimeKey" type="password" placeholder="sk-…" maxlength="512" autocomplete="new-password" spellcheck="false">
+     <p class="maincreate-ai-privacy">Your key is encrypted locally, never displayed again, and not sent to Main{Create} Cloud.</p>
+     <div class="maincreate-ai-actions">
+      <button class="action" type="submit" id="openaiConnect">Save &amp; connect</button>
+      <button class="plain-button" type="button" id="openaiDisconnect">Disconnect</button>
+      <button class="plain-button" type="button" id="openaiForget">Forget credentials</button>
+     </div>
+    </form>
+    <p id="openaiConnectionNotice" class="setting-meta" role="status" aria-live="polite"></p>
+    <p class="maincreate-ai-details" id="openaiMcpReadiness">Local MCP: checking…</p>
+   </div>
+  </div>
+  <div class="maincreate-ai-step">
+   <span class="maincreate-ai-step-number" aria-hidden="true">3</span>
+   <div>
+    <h3>Add it to ChatGPT</h3>
+    <p>Once the tunnel says <strong>Ready</strong>, add a custom MCP connection in ChatGPT, choose <strong>Tunnel</strong>, and select the tunnel you created in step 1.</p>
+    <div class="maincreate-ai-actions">
+     <a class="plain-button" href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener noreferrer">Open ChatGPT connections</a>
+     <button type="button" class="plain-button" id="openaiRefresh">Refresh connection status</button>
+    </div>
+    <p class="maincreate-ai-privacy">Tunnel readiness does not automatically mean your ChatGPT workspace has installed or authorized the MCP tools.</p>
+   </div>
+  </div>
+ </div>
+ <details class="maincreate-ai-advanced">
+  <summary>Advanced notes and other assistants</summary>
+  <p>The local MCP server only listens inside the Main{Create} container. Its access token is generated automatically, and MCP actions retain Main{Create}'s approval rules. The OpenAI tunnel client only makes outbound HTTPS connections.</p>
+  <p>Claude is deferred; no public MCP endpoint has been enabled. Self-managed Docker/Compose configuration is available for advanced deployments but is not needed for the normal connection flow.</p>
+  <p><a class="quiet-link" href="https://github.com/maincreate/main-platform/blob/main/docs/openai-secure-mcp-tunnel.md" target="_blank" rel="noopener noreferrer">Technical runbook</a></p>
  </details>
- <div class="setting-meta">MCP server: private bearer authentication · 6 structured tools · no arbitrary shell or flashing. Connection health is not automatically inferred.</div>
- <p><strong>Claude:</strong> Deferred. No public MCP route or Claude authentication has been enabled.</p>
 </section>
 <section class="settings-panel" aria-labelledby="appearanceTitle">
  <h2 id="appearanceTitle">Appearance</h2>
