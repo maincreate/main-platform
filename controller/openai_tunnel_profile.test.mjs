@@ -24,9 +24,27 @@ test("OpenAI runtime secrets are file mounted and no runtime credential is in th
  assert.doesNotMatch(settings,/id="openaiApiKey"|id="mainMcpToken"/);
  assert.match(text(".gitignore"),/secrets\//);
 });
-test("UI and runbook do not imply active credentials or Claude support",()=>{
- assert.match(settings,/Not verified · no live tunnel status/);
- assert.match(settings,/Claude:<\/strong> Deferred/);
- assert.match(guide,/Main\{Create\}.*no OpenAI tunnel identity|no OpenAI tunnel identity/);
+test("Settings drives a real three-step connection without user environment variables",()=>{
+ assert.match(settings,/id="openaiConnectionForm"/);
+ assert.match(settings,/id="openaiTunnelId"/);
+ assert.match(settings,/id="openaiRuntimeKey" type="password"/);
+ assert.match(settings,/id="openaiConnect"/);
+ assert.match(settings,/id="openaiDisconnect"/);
+ assert.match(settings,/id="openaiForget"/);
+ assert.match(settings,/id="openaiTunnelStatus"/);
+ assert.doesNotMatch(settings,/MAIN_OPENAI_TUNNEL_ID|docker compose --profile|MAIN_MCP_TOKEN/);
+ assert.match(guide,/Settings → Connect ChatGPT/);
  assert.match(guide,/ChatGPT/);
+ assert.match(settings,/Claude is deferred/);
+});
+test("Bundled portal includes the official tunnel-client and private local MCP service",()=>{
+ const image=text("Dockerfile");
+ const runtime=text("controller/openai_tunnel_runtime.mjs");
+ assert.match(image,/FROM ghcr\.io\/openai\/tunnel-client:v0\.0\.19 AS openai-client/);
+ assert.match(image,/COPY --from=openai-client \/usr\/bin\/tunnel-client \/usr\/bin\/tunnel-client/);
+ assert.match(image,/COPY --chown=node:node gateway\/server\.mjs \.\/gateway\//);
+ assert.match(runtime,/HOST:"127\.0\.0\.1"/);
+ assert.match(runtime,/--control-plane\.api-key=file:/);
+ assert.match(runtime,/--mcp\.extra-headers=Authorization: file:/);
+ assert.doesNotMatch(runtime,/shell:true|0\.0\.0\.0/);
 });
