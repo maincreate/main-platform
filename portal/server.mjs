@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
-import { localRoute, hasLocalAdminSession, initializeFirstRun, refreshProjectMonitoring } from "../controller/routes.mjs";
+import { localRoute, hasLocalAdminSession, initializeFirstRun, refreshProjectMonitoring, resumeSavedAiConnection } from "../controller/routes.mjs";
+import {shutdownOpenAiRuntime} from "../controller/openai_tunnel_runtime.mjs";
 
 const port = Number(process.env.PORT ?? "3000");
 const host = process.env.HOST ?? "127.0.0.1";
@@ -72,6 +73,16 @@ const server = createServer(async (req, res) => {
     else res.end();
   }
 });
-server.listen(port, host, () => console.log("Main{Create} portal listening on " + host + ":" + port));
-process.on("SIGTERM", () => server.close(() => process.exit(0)));
-process.on("SIGINT", () => server.close(() => process.exit(0)));
+server.listen(port, host, () => {
+ console.log("Main{Create} portal listening on " + host + ":" + port);
+ // The private MCP listener depends on the portal being reachable first.
+ if(requireLogin)void resumeSavedAiConnection().catch(()=>{
+  console.error("Saved OpenAI connection could not resume. Review Settings.");
+ });
+});
+async function shutdown(){
+ try{await shutdownOpenAiRuntime();}catch{}
+ server.close(()=>process.exit(0));
+}
+process.on("SIGTERM",()=>{void shutdown();});
+process.on("SIGINT",()=>{void shutdown();});

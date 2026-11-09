@@ -257,3 +257,28 @@ body>.main{margin:0 0 0 var(--maincreate-sidebar-width);width:calc(100% - var(--
   padding:12px;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--text);
   background:var(--surface);border:1px solid var(--line);border-radius:9px}
 .maincreate-workflow-export textarea[hidden],.maincreate-workflow-export label[hidden]{display:none}
+
+
+/* Self-hosted AI connection setup — keep it as an ordinary Settings section. */
+.maincreate-ai-connection .setting-row{align-items:flex-start}
+.maincreate-ai-connection .setting-row>div{max-width:640px}
+.maincreate-ai-connection .setting-row .inventory-badge{white-space:nowrap;margin-top:6px;padding:6px 12px}
+.maincreate-ai-connection .inventory-badge[data-state="ready"]{color:var(--accent);border-color:var(--accent)}
+.maincreate-ai-connection .inventory-badge[data-state="error"]{color:#b45309;border-color:#d6a34f}
+.maincreate-ai-steps{display:grid;gap:0;margin-top:20px}
+.maincreate-ai-step{display:grid;grid-template-columns:34px minmax(0,1fr);gap:16px;padding:21px 0;border-top:1px solid var(--line)}
+.maincreate-ai-step-number{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:var(--bg);font-size:13px;font-weight:800;color:var(--accent)}
+.maincreate-ai-step h3{margin:0 0 6px;font-size:16px;letter-spacing:-.02em}
+.maincreate-ai-step p{max-width:660px;margin:0 0 12px}
+.maincreate-ai-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.maincreate-ai-actions button,.maincreate-ai-actions a{margin:0}
+.maincreate-ai-form{max-width:570px;margin:14px 0 8px}
+.maincreate-ai-form input{width:100%;min-width:0;font:inherit;padding:11px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+.maincreate-ai-form label small{color:var(--muted);font-weight:400}
+.maincreate-ai-form .maincreate-ai-actions{margin-top:7px}
+.settings-panel p.maincreate-ai-privacy{color:var(--muted);font-size:12px;margin:0}
+.settings-panel .maincreate-ai-details{font-size:12px;color:var(--muted);margin-top:10px}
+.maincreate-ai-advanced{border-top:1px solid var(--line);padding-top:16px;margin-top:7px}
+.maincreate-ai-advanced summary{cursor:pointer;color:var(--muted);font-size:13px}
+.maincreate-ai-advanced p{margin-top:12px}
+@media(max-width:650px){.maincreate-ai-connection .setting-row{align-items:flex-start;flex-direction:column;gap:7px}.maincreate-ai-step{grid-template-columns:28px minmax(0,1fr);gap:10px}}

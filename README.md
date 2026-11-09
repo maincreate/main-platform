@@ -44,11 +44,13 @@ The dashboard shows actual connection status rather than pretending integrations
 
 The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Paper** available as alternatives. Each browser remembers its selection.
 
-## Optional OpenAI private MCP tunnel
+## Connect ChatGPT — managed OpenAI Secure MCP Tunnel
 
-Main{Create} has an opt-in `openai-tunnel` Compose profile using the official, version-pinned OpenAI `tunnel-client` image. It makes outbound HTTPS connections to OpenAI while keeping the Main{Create} MCP gateway on the private Compose network. Local file secrets hold the OpenAI runtime API key and the gateway bearer header; neither is stored by the portal or published to a public HTTP endpoint. An OpenAI Platform tunnel ID, runtime key and ChatGPT plugin connection are still required from the operator. The portal does not claim a tunnel is connected until externally verified.
+From **Settings → Connect ChatGPT**, create an OpenAI tunnel in your own account, paste its tunnel ID and scoped runtime key, and press **Save & connect**. Main{Create} encrypts the runtime key in its local state, starts its own loopback-only MCP gateway and official pinned OpenAI tunnel client, and reports genuine health/readiness. Then select the tunnel in ChatGPT's custom MCP connection flow. No terminal commands, inbound ports, or user-managed environment variables are required in the regular self-hosted setup. A healthy tunnel does **not** prove that the ChatGPT plugin has already been installed.
 
-See [OpenAI Secure MCP Tunnel runbook](docs/openai-secure-mcp-tunnel.md). Claude tunnel support is intentionally deferred.
+The separate opt-in Docker Compose `openai-tunnel` profile remains an **advanced manual fallback** for split gateway deployments. Never run both under one tunnel ID. No Main{Create} vendor-hosted relay is involved. Claude tunnel support is deferred.
+
+See [OpenAI Secure MCP Tunnel setup](docs/openai-secure-mcp-tunnel.md).
 
 ## Capability Fabric v0.2
 
