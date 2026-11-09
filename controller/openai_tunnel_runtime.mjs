@@ -29,6 +29,7 @@ export const validOpenAiTunnelId=id=>typeof id==="string"&&
  /^tunnel_(?:[a-z0-9]{4}_)?[a-z0-9]{32}$/.test(id);
 export const validOpenAiRuntimeKey=value=>typeof value==="string"&&
  value.length>=24&&value.length<=512&&value.startsWith("sk-")&&
+ !value.startsWith("sk-admin-")&&
  !/[\s\u0000-\u001f\u007f]/.test(value);
 export const tunnelClientVersion="v0.0.19";
 
