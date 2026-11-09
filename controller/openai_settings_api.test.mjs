@@ -66,6 +66,19 @@ test("Settings config and lifecycle require admin+CSRF and never disclose secret
   assert.equal(configured.result.enabled,true);
   assert.equal(configured.result.tunnelId,tunnelId);
   assert(!JSON.stringify(configured.result).includes(apiKey));
+  // Local MCP is loopback-only and requires a separate random internal token;
+  // a browser/ChatGPT Authorization header cannot substitute for it.
+  const gatewayHealth=await fetch("http://127.0.0.1:18191/healthz");
+  assert.equal(gatewayHealth.status,200);
+  const healthState=await gatewayHealth.json();
+  assert.equal(healthState.authConfigured,true);
+  const unauthenticatedMcp=await fetch("http://127.0.0.1:18191/mcp",{
+   method:"POST",headers:{"content-type":"application/json",
+    accept:"application/json, text/event-stream",
+    authorization:"Bearer "+"q".repeat(64)},
+   body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/list",params:{}})
+  });
+  assert.equal(unauthenticatedMcp.status,401);
   const stored=readFileSync(join(dir,"state.json"),"utf8");
   assert(!stored.includes(apiKey),"Never write plaintext OpenAI keys to controller state");
   assert.match(stored,/"runtimeKey":\s*\{[^}]*"iv"/);
