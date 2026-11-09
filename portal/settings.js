@@ -105,6 +105,7 @@ async function load(){
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
   await loadRepositoryPreferences();
   await loadApprovalPreferences();
+  await loadAiConnection(true);
   $("executionStatus").textContent=(d.jobs?.pending||0)+
    " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
  }catch(e){$("notice").textContent=e.message;}
@@ -204,3 +205,76 @@ $("resetForm").addEventListener("submit",async event=>{
   window.location.replace("/setup");
  }catch(e){$("resetNotice").textContent=e.message;button.disabled=false;}
 });
+
+
+/* Private ChatGPT / OpenAI Secure MCP Tunnel onboarding. All mutations require
+   a signed-in admin and the standard Main{Create} CSRF token. */
+let aiConnection=null,aiPending=false;
+async function loadAiConnection(initial=false){
+ const data=await api("/api/local/ai/openai");
+ aiConnection=data;
+ if(initial||!$("openaiTunnelId").value)$("openaiTunnelId").value=data.tunnelId||"";
+ $("openaiKeySaved").textContent=data.keySaved?"(saved securely — leave blank to reuse)":"(required)";
+ $("openaiRuntimeKey").placeholder=data.keySaved?"Leave blank to keep existing key":"sk-…";
+ const runtime=data.runtime||{},state=!data.configured?"not-configured":
+  !data.enabled?"disabled":runtime.state||"connecting";
+ const labels={"not-configured":"Not configured","disabled":"Disconnected",
+  connecting:"Connecting…",ready:"Ready",error:"Needs attention",stopped:"Stopped"};
+ const label=labels[state]||"Checking";
+ const badge=$("openaiTunnelStatus");badge.textContent=label;badge.dataset.state=state;
+ $("openaiMcpReadiness").textContent=data.enabled?
+  (runtime.mcpReady?"Local MCP ready":"Local MCP not yet ready")+" · "+
+  (runtime.ready?"Secure tunnel ready for ChatGPT":"OpenAI tunnel not ready yet")+
+  " · "+(runtime.clientVersion||"official client"):
+  "Local MCP and tunnel are stopped. No connection is active.";
+ $("openaiDisconnect").disabled=aiPending||!data.enabled;
+ $("openaiForget").disabled=aiPending||!data.configured;
+ $("openaiConnect").textContent=data.keySaved?"Save & reconnect":"Save & connect";
+ if(state==="error")$("openaiConnectionNotice").textContent=
+  runtime.error||"Could not start the tunnel. Check the runtime key, tunnel ID and OpenAI permissions.";
+ return data;
+}
+$("openaiConnectionForm").addEventListener("submit",async event=>{
+ event.preventDefault();if(aiPending)return;
+ aiPending=true;
+ const button=$("openaiConnect");button.disabled=true;
+ $("openaiConnectionNotice").textContent="Saving credentials and starting your private tunnel…";
+ try{
+  const payload={tunnelId:$("openaiTunnelId").value.trim()};
+  const key=$("openaiRuntimeKey").value.trim();
+  if(key)payload.apiKey=key;
+  const data=await api("/api/local/ai/openai/configure",payload);
+  $("openaiRuntimeKey").value="";
+  $("openaiConnectionNotice").textContent=data.runtime?.state==="error"?
+   "Settings saved, but the tunnel could not start. Review connection status.":
+   "Settings saved. The connection is starting; readiness is checked automatically.";
+ }catch(e){$("openaiConnectionNotice").textContent=e.message;}
+ finally{aiPending=false;button.disabled=false;await loadAiConnection().catch(()=>{});}
+});
+$("openaiDisconnect").addEventListener("click",async()=>{
+ if(aiPending)return;
+ aiPending=true;$("openaiDisconnect").disabled=true;
+ try{
+  await api("/api/local/ai/openai/disable",{});
+  $("openaiConnectionNotice").textContent="Disconnected. Your encrypted credentials are retained for reconnection.";
+ }catch(e){$("openaiConnectionNotice").textContent=e.message;}
+ finally{aiPending=false;await loadAiConnection().catch(()=>{});}
+});
+$("openaiForget").addEventListener("click",async()=>{
+ if(aiPending||!confirm("Disconnect and remove the saved OpenAI tunnel credentials from this Main{Create} installation?"))return;
+ aiPending=true;$("openaiForget").disabled=true;
+ try{
+  await api("/api/local/ai/openai/remove",{});
+  $("openaiTunnelId").value="";$("openaiRuntimeKey").value="";
+  $("openaiConnectionNotice").textContent="Local tunnel credentials removed.";
+ }catch(e){$("openaiConnectionNotice").textContent=e.message;}
+ finally{aiPending=false;await loadAiConnection().catch(()=>{});}
+});
+$("openaiRefresh").addEventListener("click",async()=>{
+ try{await loadAiConnection();$("openaiConnectionNotice").textContent="Connection status refreshed.";}
+ catch(e){$("openaiConnectionNotice").textContent=e.message;}
+});
+// Readiness can change after a key or network error. Never re-send secrets during polls.
+setInterval(()=>{
+ if(csrf&&!aiPending&&document.visibilityState==="visible")loadAiConnection().catch(()=>{});
+},8000);
