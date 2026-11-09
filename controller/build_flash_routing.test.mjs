@@ -84,3 +84,18 @@ test("Routing removal is limited to current synchronized organization's known re
  assert.throws(()=>validateRouteRemoval("OtherOrg/foo","MainCreate",projects));
  assert.throws(()=>validateRouteRemoval("MainCreate/missing","MainCreate",projects));
 });
+
+test("legacy device IDs in stored project routes resolve to the surviving original device",()=>{
+ const canonical="c".repeat(32),duplicate="d".repeat(32);
+ const devicesWithAlias=[{...devices[0],id:canonical,aliases:[duplicate]}];
+ const planned=planBuildFlashRoute({...base,flashBuilderId:"pi",deviceId:duplicate},
+  {...ctx,devices:devicesWithAlias});
+ assert.equal(planned.deviceId,canonical);
+ assert.equal(planned.device.id,canonical);
+ const legacy={...planned,deviceId:duplicate};
+ const records=routeSummaries([legacy],"MainCreate",projects,builders,devicesWithAlias);
+ assert.equal(records.length,1);
+ assert.equal(records[0].deviceId,canonical);
+ assert.equal(records[0].device.id,canonical);
+ assert.equal(records[0].autoFlashEnabled,false);
+});
