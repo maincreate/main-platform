@@ -56,6 +56,6 @@ test("login wordmark uses full left-column width and responsive centered letteri
  assert.match(css,/\.intro\{max-width:500px;container-type:inline-size\}/);
  assert.match(css,/\.maincreate-auth-lockup\{[^}]*width:100%;[^}]*text-align:center\}/);
  assert.match(css,/\.maincreate-auth-lockup \.maincreate-brand\{[^}]*justify-content:center;[^}]*font-size:clamp\(34px,14cqw,70px\)/);
- assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(11px,2.4cqw,13px\);[^}]*text-align:center\}/);
+ assert.match(css,/\.maincreate-auth-lockup \.maincreate-platform-label\{[^}]*font-size:clamp\(11px,2.4cqw,13px\);[^}]*text-align:center;?\}/);
  assert.match(html,/\/setup\.css\?v=column-brand-20261109/);
 });
