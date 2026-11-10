@@ -60,6 +60,15 @@ export async function githubInstallations(token) {
   return {organizations,installationsTotal:Number(values.total_count)||0,
     hasMoreInstallations:(Number(values.total_count)||0)>values.installations.length};
 }
+// Restore workspace selection only for the same verified identity and installation.
+export function githubReconnectOrganization(previous, verified) {
+  if (!Number.isSafeInteger(previous.oauthUser?.id) || previous.oauthUser.id !== verified.user?.id)
+    return null;
+  const saved = previous.oauthOrganizations?.find(o => o.login === previous.selectedOrganization);
+  if (!saved || !Number.isSafeInteger(saved.id) || !Number.isSafeInteger(saved.installationId)) return null;
+  const current = verified.organizations.find(o => o.id === saved.id && o.installationId === saved.installationId);
+  return current?.login || null;
+}
 async function githubUser(token) {
   const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
     "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"};
@@ -593,12 +602,15 @@ export async function localRoute(req) {
         if(typeof out.access_token!=="string"||out.access_token.length<20)return deny(502,"GitHub did not return an access token");
         const result=await githubUser(out.access_token);
         const stored=state();
+        const restoredOrganization=githubReconnectOrganization(stored.github,result);
         stored.github.oauthUser=result.user;
         stored.github.oauthOrganizations=result.organizations;
         stored.github.oauthOrganizationsReadable=true;
         stored.github.oauthInstallationsTotal=result.installationsTotal;
         stored.github.oauthHasMoreInstallations=result.hasMoreInstallations;
-        stored.github.selectedOrganization=null;
+        stored.github.selectedOrganization=restoredOrganization;
+        if(stored.github.hostedRunnerPolicyConfirmation?.organization!==restoredOrganization)
+          delete stored.github.hostedRunnerPolicyConfirmation;
         stored.github.oauthToken=seal(out.access_token);
         stored.github.oauthExpiresAt=out.expires_in?new Date(Date.now()+Number(out.expires_in)*1000).toISOString():null;
         if(typeof out.refresh_token==="string")stored.github.oauthRefreshToken=seal(out.refresh_token);
