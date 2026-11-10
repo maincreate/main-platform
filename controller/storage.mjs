@@ -17,11 +17,14 @@ export function validateGroup(input,runners){
  return {id:randomUUID(),name:input.name.trim(),builderIds:[...ids]};
 }
 export function validateDatastore(input,runners=[],groups=[]){
- if(!input||Object.keys(input).some(k=>!['name','server','exportPath','builderIds','groupIds','platformBackups'].includes(k)))throw bad('Invalid storage fields');
+ if(!input||Object.keys(input).some(k=>!['name','server','exportPath','builderIds','groupIds','platformBackups','deviceBackups'].includes(k)))throw bad('Invalid storage fields');
  if(typeof input.name!=='string'||!input.name.trim()||input.name.length>80)throw bad('Enter a storage name');
  if(typeof input.server!=='string'||! /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(input.server))throw bad('Enter an NFS hostname or IPv4 address');
  if(typeof input.exportPath!=='string'||!/^\/[A-Za-z0-9_./-]*$/.test(input.exportPath)||input.exportPath.length>512||input.exportPath.split('/').some(x=>x==='.'||x==='..'))throw bad('Enter an absolute NFS export path without traversal');
  if(typeof input.platformBackups!=='boolean')throw bad('Select platform backup usage');
+ const deviceBackups=input.deviceBackups===undefined?!!(input.builderIds?.length||input.groupIds?.length):input.deviceBackups;
+ if(typeof deviceBackups!=='boolean')throw bad('Select device backup usage');
+ if(!deviceBackups&&(input.builderIds?.length||input.groupIds?.length))throw bad('Enable device backups before selecting builders');
  if(!Array.isArray(input.builderIds)||input.builderIds.length>100||new Set(input.builderIds).size!==input.builderIds.length)throw bad('Select unique builders');
  for(const id of input.builderIds){
   const host=runners.find(r=>r.id===id);
@@ -29,8 +32,9 @@ export function validateDatastore(input,runners=[],groups=[]){
  }
  const groupIds=uniqueIds(input.groupIds||[],'groups');
  if(groupIds.some(id=>!groups.some(g=>g.id===id)))throw bad('Unknown builder group');
- if(!input.platformBackups&&!input.builderIds.length&&!groupIds.length)throw bad('Assign storage to the platform or a builder');
- return {id:randomUUID(),name:input.name.trim(),server:input.server,exportPath:input.exportPath.replace(/\/+$/,'')||'/',builderIds:[...input.builderIds],groupIds:[...groupIds],platformBackups:input.platformBackups,createdAt:new Date().toISOString()};
+ if(deviceBackups&&!input.builderIds.length&&!groupIds.length)throw bad('Select at least one builder or group for device backups');
+ if(!input.platformBackups&&!deviceBackups)throw bad('Assign storage to the platform or a builder');
+ return {id:randomUUID(),name:input.name.trim(),server:input.server,exportPath:input.exportPath.replace(/\/+$/,'')||'/',builderIds:[...input.builderIds],groupIds:[...groupIds],platformBackups:input.platformBackups,deviceBackups,createdAt:new Date().toISOString()};
 }
 export function queueStorageMount(s,store,runnerId){
  if(!effectiveBuilders(s,store).includes(runnerId))throw bad('Builder is not assigned to this datastore');
