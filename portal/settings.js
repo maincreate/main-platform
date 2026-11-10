@@ -304,6 +304,13 @@ setInterval(()=>{
  if(csrf&&!aiPending&&document.visibilityState==="visible")void refreshAiConnection();
 },8000);
 
+function updateDeviceBackupSelection(){
+ const enabled=$('storageDevice').checked;
+ $('storageBuilderSelection').disabled=!enabled;
+ $('storageGroupSelection').disabled=!enabled;
+}
+$('storageDevice').addEventListener('change',updateDeviceBackupSelection);
+updateDeviceBackupSelection();
 async function loadStorage(){
  const data=await api('/api/local/storage');
  const selected=new Set([...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value));
@@ -348,9 +355,14 @@ async function loadStorage(){
 $('storageForm').addEventListener('submit',async event=>{
  event.preventDefault();const button=event.submitter;button.disabled=true;
  try{
+  const deviceBackups=$('storageDevice').checked;
+  const builderIds=deviceBackups?[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value):[];
+  const groupIds=deviceBackups?[...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value):[];
   await api('/api/local/storage',{name:$('storageName').value,server:$('storageServer').value,exportPath:$('storageExport').value,
-   platformBackups:$('storagePlatform').checked,groupIds:[...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value),builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
-  $('storageNotice').textContent='Storage saved. Assigned builders will report their mount result. Device backup and flash execution are not yet enabled.';
+   platformBackups:$('storagePlatform').checked,deviceBackups,groupIds,builderIds});
+  $('storageNotice').textContent=deviceBackups?
+   'Storage saved. Selected builders will mount and validate the NFS export. Device backup execution and flashing are not yet enabled.':
+   'Storage saved. Platform backup selection is configuration only until controller backup/restore is implemented.';
   await loadStorage();
  }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
 });
