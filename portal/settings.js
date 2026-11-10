@@ -307,12 +307,27 @@ setInterval(()=>{
 async function loadStorage(){
  const data=await api('/api/local/storage');
  const selected=new Set([...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value));
+ const selectedGroups=new Set([...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value));
  $('storageBuilders').replaceChildren(...data.builders.map(b=>{
   const label=document.createElement('label'),input=document.createElement('input');
   input.type='checkbox';input.value=b.id;input.checked=selected.has(b.id);
   label.append(input,document.createTextNode(b.name));return label;
  }));
  if(!data.builders.length)$('storageBuilders').textContent='No managed Linux builders available.';
+ $('storageGroups').replaceChildren(...data.groups.map(g=>{
+  const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=g.id;input.checked=selectedGroups.has(g.id);
+  label.append(input,document.createTextNode(g.name+' ('+g.builderIds.length+' builders)'));return label;
+ }));
+ $('storageGroupList').replaceChildren(...data.groups.map(g=>{
+  const box=document.createElement('p'),button=document.createElement('button');
+  box.append(document.createTextNode(g.name+': '+g.builderIds.map(id=>data.builders.find(b=>b.id===id)?.name||id).join(', ')+' '));
+  button.type='button';button.className='plain-button';button.textContent='Add selected builders';
+  button.onclick=async()=>{button.disabled=true;try{
+   await api('/api/local/storage/groups/members',{groupId:g.id,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+   $('storageNotice').textContent='Members added. Group storage assignments apply on their next management poll.';await loadStorage();
+  }catch(e){$('storageNotice').textContent=e.message;button.disabled=false;}};
+  box.append(button);return box;
+ }));
  $('storageList').replaceChildren(...data.datastores.map(d=>{
   const box=document.createElement('section'),title=document.createElement('h3'),info=document.createElement('p');
   title.textContent=d.name;info.textContent=d.server+':'+d.exportPath;
@@ -334,9 +349,16 @@ $('storageForm').addEventListener('submit',async event=>{
  event.preventDefault();const button=event.submitter;button.disabled=true;
  try{
   await api('/api/local/storage',{name:$('storageName').value,server:$('storageServer').value,exportPath:$('storageExport').value,
-   platformBackups:$('storagePlatform').checked,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+   platformBackups:$('storagePlatform').checked,groupIds:[...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value),builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
   $('storageNotice').textContent='Storage saved. Assigned builders will report their mount result. Device backup and flash execution are not yet enabled.';
   await loadStorage();
  }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
 });
 $('storageRefresh').onclick=()=>loadStorage().catch(e=>{$('storageNotice').textContent=e.message;});
+
+$('storageGroupForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=event.submitter;button.disabled=true;
+ try{await api('/api/local/storage/groups',{name:$('storageGroupName').value,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+ $('storageNotice').textContent='Builder group created. Select it above when adding storage.';await loadStorage();
+ }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
+});

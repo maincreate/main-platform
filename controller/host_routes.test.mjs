@@ -29,3 +29,23 @@ test('failed registration is not shown ready',async()=>{
  await agentHostRoute(new Request('http://localhost/api/agent/actions/complete',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer expected'},body:JSON.stringify({id:'host-1',action_id:'action-1',success:false,message:'GitHub rejected'})}),ctx);
  assert.equal(s.hostActions[0].status,'failed');assert.equal(s.runners[0].githubRunnerName,undefined);
 });
+
+test('authenticated group member receives NFS assignment without GitHub secrets',async()=>{
+ const {s,ctx}=harness();s.hostActions=[];
+ Object.assign(s.runners[0],{os:'linux',managedHost:true,hostVersion:'0.8.0'});
+ s.builderGroups=[{id:'group',name:'Lab',builderIds:['host-1']}];
+ s.datastores=[{id:'store',server:'nas.example',exportPath:'/backups',builderIds:[],groupIds:['group']}];
+ const request=token=>new Request('http://localhost/api/agent/actions/claim',{method:'POST',headers:{authorization:'Bearer '+token},body:JSON.stringify({id:'host-1'})});
+ assert.equal((await agentHostRoute(request('bad'),ctx)).status,401);assert.equal(s.hostActions.length,0);
+ const result=await (await agentHostRoute(request('expected'),ctx)).json();
+ assert.equal(result.action.type,'storage.nfs.mount');assert.equal(result.action.storage.export_path,'/backups');
+ assert.equal(result.action.registration_token,null);
+ await agentHostRoute(request('expected'),ctx);assert.equal(s.hostActions.length,1);
+});
+test('storage completion cannot advance a concurrent builder removal',async()=>{
+ const {s,ctx}=harness();s.hostActions[0].type='storage.nfs.mount';s.hostActions[0].status='claimed';
+ s.runners[0].decommission={phase:'stopping'};
+ await agentHostRoute(new Request('http://localhost/api/agent/actions/complete',{method:'POST',headers:{authorization:'Bearer expected'},body:JSON.stringify({id:'host-1',action_id:'action-1',success:true,message:'mounted'})}),ctx);
+ assert.equal(s.runners[0].decommission.phase,'stopping');
+ assert.equal(s.runners[0].githubRunnerName,undefined);
+});

@@ -1,3 +1,4 @@
+import {reconcileStorage} from './storage.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
@@ -408,6 +409,7 @@ export async function agentHostRoute(req,ctx){
  if(path.endsWith('/claim')){
   runner.lastSeen=new Date().toISOString();
   if(expireStaleHostActions(s,runner.id))save(s);
+  reconcileStorage(s,runner.id);
   const action=s.hostActions.find(a=>a.runnerId===runner.id&&a.status==='queued'&&actionLeaseActive(a));
   if(!action){save(s);return reply({action:null})}
   if(Date.now()>=Date.parse(action.expiresAt)){action.status='expired';delete action.secret;save(s);return reply({action:null})}
@@ -428,7 +430,7 @@ export async function agentHostRoute(req,ctx){
  if(input.success&&(!action.type||action.type==='github-runner.provision')){
   runner.githubRunnerName=action.runnerName;runner.labels=action.labels;
  }
- if(action.type&&runner.decommission){
+ if(['github-runner.stop','host.cleanup'].includes(action.type)&&runner.decommission){
   if(!input.success){
    runner.decommission.failedStage=action.type==='github-runner.stop'?'stopping':'cleaning';
    runner.decommission.phase='failed';

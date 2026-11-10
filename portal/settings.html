@@ -17,8 +17,17 @@
   <label><input type="checkbox" id="storagePlatform"> Use for platform backups</label>
   <p>Platform use requires this export mounted on the controller host and exposed to the container. Selecting it does not create a backup.</p>
   <fieldset><legend>Builders for device backups</legend><div id="storageBuilders">Loading…</div></fieldset>
+  <fieldset><legend>Builder groups (includes future members)</legend><div id="storageGroups"></div></fieldset>
   <button type="submit" class="action">Save and mount on builders</button>
  </form>
+ <details><summary>Manage storage builder groups</summary>
+  <form id="storageGroupForm" class="settings-form">
+   <label for="storageGroupName">New group name</label><input id="storageGroupName" maxlength="80" required>
+   <p>Uses the builders selected above. You can create an empty group and add builders later.</p>
+   <button type="submit" class="plain-button">Create group</button>
+  </form>
+  <div id="storageGroupList"></div>
+ </details>
  <p id="storageNotice" role="status" aria-live="polite"></p>
  <button id="storageRefresh" type="button" class="plain-button">Refresh storage status</button>
  <div id="storageList"></div>
