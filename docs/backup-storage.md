@@ -10,8 +10,7 @@ Expected layout:
 - `Device Backups/{serial}_{device name}_{builder host}/{timestamp}-{id}/`:
   `flash.bin` and `manifest.json` (writer implemented; device reader not yet connected).
 
-Settings → Backup storage saves an NFS server/export, platform-use intent and
-explicit builder and group assignments. New group members inherit the export. Mount requests use the existing authenticated host
+Settings → Backup storage saves an NFS server/export and two independent usage checkboxes: Platform backups and Device backups. Enabling Device backups requires at least one eligible managed Linux builder or builder group; the controller sends authenticated NFS mount requests only to those builders. Enabling Platform backups alone does not trigger builder mounts. Explicit builder and group assignments are supported. New group members inherit the export. Mount requests use the existing authenticated host
 action queue. Results describe the most recent mount/write check, not continuous
 mount health. Retry revalidates a completed or failed request. Authenticated management polls from Host Service 0.8.0+ reconcile assignments every five minutes, recovering mounts after reboot. Completed checks older than six minutes display as stale. Platform selection
 is explicitly pending host mount integration, not a claim of backup readiness.
@@ -29,7 +28,7 @@ flashing remains unavailable.
 
 ## Remaining implementation and validation
 
-- Storage editing/removal and active-job interlocks.
+- Storage editing/removal and active-job interlocks (the current UI adds new datastores; it cannot safely change assignments after creation).
 - Group member removal with safe mount-detachment handling (creation and additive membership implemented).
 - Live reboot-recovery validation, capacity reporting and storage action history retention.
 - Controller host mount integration and encrypted platform backup/restore.
