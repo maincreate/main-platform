@@ -33,6 +33,44 @@ function githubIdentityCurrent(g) {
   return !!g.oauthUser && !!g.oauthToken &&
     (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
 }
+// One in-flight rotation per process. Refresh tokens may be single-use; avoid
+// simultaneous rotations from dashboard polling and authenticated API requests.
+let githubRefreshInFlight=null;
+async function refreshGithubAuthorization() {
+  const existing=state().github||{};
+  if(!existing.oauthToken||!existing.oauthRefreshToken||!existing.oauthExpiresAt)return false;
+  const expiry=Date.parse(existing.oauthExpiresAt);
+  if(!Number.isFinite(expiry))return false;
+  if(expiry>Date.now()+5*60*1000)return true;
+  if(githubRefreshInFlight)return githubRefreshInFlight;
+  const priorToken=JSON.stringify(existing.oauthRefreshToken);
+  const task=(async()=>{
+    try {
+      const out=await githubDevicePost("https://github.com/login/oauth/access_token",{
+        client_id:githubClientId(),grant_type:"refresh_token",
+        refresh_token:unseal(existing.oauthRefreshToken)
+      });
+      if(out.error||typeof out.access_token!=="string"||out.access_token.length<20||
+         typeof out.refresh_token!=="string"||out.refresh_token.length<20||
+         !Number.isFinite(Number(out.expires_in))||Number(out.expires_in)<=0)
+        return false;
+      const latest=state();
+      // Explicit disconnect, reauthorization, or another process's refresh wins.
+      if(JSON.stringify(latest.github?.oauthRefreshToken)!==priorToken||
+         !latest.github?.oauthToken)return false;
+      latest.github.oauthToken=seal(out.access_token);
+      latest.github.oauthRefreshToken=seal(out.refresh_token);
+      latest.github.oauthExpiresAt=new Date(Date.now()+Number(out.expires_in)*1000).toISOString();
+      save(latest);
+      return true;
+    } catch {
+      // Keep existing credentials: transient GitHub/network errors are not logout.
+      return false;
+    }
+  })();
+  githubRefreshInFlight=task;
+  try{return await task;}finally{if(githubRefreshInFlight===task)githubRefreshInFlight=null;}
+}
 async function githubDevicePost(url,params) {
   const response=await fetch(url,{method:"POST",headers:{"accept":"application/json","content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params),signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw new Error("GitHub authorization service unavailable");
@@ -310,6 +348,7 @@ export async function localRoute(req) {
   const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    await refreshGithubAuthorization();
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
@@ -352,6 +391,7 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":type+"; charset=utf-8","cache-control":"no-store"}});
   }
   if(path==="/setup"&&method==="GET"){
+    if(privateApp&&session(req))await refreshGithubAuthorization();
     if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":githubOnboardingReady(state().github||{})?"/":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
@@ -404,6 +444,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+      // Rotate before exposing connection state or using the credential.
+      await refreshGithubAuthorization();
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
       if(path==="/api/local/ai/openai"&&method==="GET")
