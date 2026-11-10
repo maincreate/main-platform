@@ -33,6 +33,44 @@ function githubIdentityCurrent(g) {
   return !!g.oauthUser && !!g.oauthToken &&
     (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
 }
+// One in-flight rotation per process. Refresh tokens may be single-use; avoid
+// simultaneous rotations from dashboard polling and authenticated API requests.
+let githubRefreshInFlight=null;
+async function refreshGithubAuthorization() {
+  const existing=state().github||{};
+  if(!existing.oauthToken||!existing.oauthRefreshToken||!existing.oauthExpiresAt)return false;
+  const expiry=Date.parse(existing.oauthExpiresAt);
+  if(!Number.isFinite(expiry))return false;
+  if(expiry>Date.now()+5*60*1000)return true;
+  if(githubRefreshInFlight)return githubRefreshInFlight;
+  const priorToken=JSON.stringify(existing.oauthRefreshToken);
+  const task=(async()=>{
+    try {
+      const out=await githubDevicePost("https://github.com/login/oauth/access_token",{
+        client_id:githubClientId(),grant_type:"refresh_token",
+        refresh_token:unseal(existing.oauthRefreshToken)
+      });
+      if(out.error||typeof out.access_token!=="string"||out.access_token.length<20||
+         typeof out.refresh_token!=="string"||out.refresh_token.length<20||
+         !Number.isFinite(Number(out.expires_in))||Number(out.expires_in)<=0)
+        return false;
+      const latest=state();
+      // Explicit disconnect, reauthorization, or another process's refresh wins.
+      if(JSON.stringify(latest.github?.oauthRefreshToken)!==priorToken||
+         !latest.github?.oauthToken)return false;
+      latest.github.oauthToken=seal(out.access_token);
+      latest.github.oauthRefreshToken=seal(out.refresh_token);
+      latest.github.oauthExpiresAt=new Date(Date.now()+Number(out.expires_in)*1000).toISOString();
+      save(latest);
+      return true;
+    } catch {
+      // Keep existing credentials: transient GitHub/network errors are not logout.
+      return false;
+    }
+  })();
+  githubRefreshInFlight=task;
+  try{return await task;}finally{if(githubRefreshInFlight===task)githubRefreshInFlight=null;}
+}
 async function githubDevicePost(url,params) {
   const response=await fetch(url,{method:"POST",headers:{"accept":"application/json","content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(params),signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw new Error("GitHub authorization service unavailable");
@@ -59,6 +97,15 @@ export async function githubInstallations(token) {
   }
   return {organizations,installationsTotal:Number(values.total_count)||0,
     hasMoreInstallations:(Number(values.total_count)||0)>values.installations.length};
+}
+// Restore workspace selection only for the same verified identity and installation.
+export function githubReconnectOrganization(previous, verified) {
+  if (!Number.isSafeInteger(previous.oauthUser?.id) || previous.oauthUser.id !== verified.user?.id)
+    return null;
+  const saved = previous.oauthOrganizations?.find(o => o.login === previous.selectedOrganization);
+  if (!saved || !Number.isSafeInteger(saved.id) || !Number.isSafeInteger(saved.installationId)) return null;
+  const current = verified.organizations.find(o => o.id === saved.id && o.installationId === saved.installationId);
+  return current?.login || null;
 }
 async function githubUser(token) {
   const headers={"accept":"application/vnd.github+json","authorization":"Bearer "+token,
@@ -301,6 +348,7 @@ export async function localRoute(req) {
   const distributedHostAsset=hostDistributionRoute(req);if(distributedHostAsset)return distributedHostAsset;
   if(path==="/"&&method==="GET"&&privateApp){
     if(!session(req))return new Response(null,{status:302,headers:{"location":"/setup","cache-control":"no-store"}});
+    await refreshGithubAuthorization();
     if(!githubOnboardingReady(state().github||{}))return new Response(null,{status:302,headers:{"location":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/dashboard.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
@@ -343,6 +391,7 @@ export async function localRoute(req) {
     return new Response(readFileSync(new URL("../portal"+path,import.meta.url),"utf8"),{headers:{"content-type":type+"; charset=utf-8","cache-control":"no-store"}});
   }
   if(path==="/setup"&&method==="GET"){
+    if(privateApp&&session(req))await refreshGithubAuthorization();
     if(privateApp&&session(req))return new Response(null,{status:302,headers:{"location":githubOnboardingReady(state().github||{})?"/":"/github","cache-control":"no-store"}});
     return new Response(readFileSync(new URL("../portal/setup.html",import.meta.url),"utf8"),{headers:htmlHeaders});
   }
@@ -395,6 +444,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+      // Rotate before exposing connection state or using the credential.
+      await refreshGithubAuthorization();
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
       if(path==="/api/local/ai/openai"&&method==="GET")
@@ -593,12 +644,15 @@ export async function localRoute(req) {
         if(typeof out.access_token!=="string"||out.access_token.length<20)return deny(502,"GitHub did not return an access token");
         const result=await githubUser(out.access_token);
         const stored=state();
+        const restoredOrganization=githubReconnectOrganization(stored.github,result);
         stored.github.oauthUser=result.user;
         stored.github.oauthOrganizations=result.organizations;
         stored.github.oauthOrganizationsReadable=true;
         stored.github.oauthInstallationsTotal=result.installationsTotal;
         stored.github.oauthHasMoreInstallations=result.hasMoreInstallations;
-        stored.github.selectedOrganization=null;
+        stored.github.selectedOrganization=restoredOrganization;
+        if(stored.github.hostedRunnerPolicyConfirmation?.organization!==restoredOrganization)
+          delete stored.github.hostedRunnerPolicyConfirmation;
         stored.github.oauthToken=seal(out.access_token);
         stored.github.oauthExpiresAt=out.expires_in?new Date(Date.now()+Number(out.expires_in)*1000).toISOString():null;
         if(typeof out.refresh_token==="string")stored.github.oauthRefreshToken=seal(out.refresh_token);

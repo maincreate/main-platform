@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {githubInstallations} from "./routes.mjs";
+import {githubInstallations,githubReconnectOrganization} from "./routes.mjs";
 
 test("GitHub App installation discovery includes only accessible organizations", async ()=>{
   const original=globalThis.fetch;
@@ -34,4 +34,20 @@ test("GitHub App installation discovery rejects unauthorized responses",async()=
     globalThis.fetch=async()=>new Response(JSON.stringify({message:"Forbidden"}),{status:403});
     await assert.rejects(githubInstallations("example-authentication-value"),/installations/);
   }finally{globalThis.fetch=original;}
+});
+
+const previous={oauthUser:{id:12},selectedOrganization:"TinkerTunnel",
+  oauthOrganizations:[{login:"TinkerTunnel",id:17,installationId:101}]};
+const verified={user:{id:12},organizations:[{login:"TinkerTunnel",id:17,installationId:101}]};
+test("reauthorization restores the same verified workspace",()=>{
+  assert.equal(githubReconnectOrganization(previous,verified),"TinkerTunnel");
+});
+test("reauthorization cannot inherit another account's workspace",()=>{
+  assert.equal(githubReconnectOrganization(previous,{...verified,user:{id:13}}),null);
+});
+test("removed or replaced installations require workspace selection",()=>{
+  for(const organizations of [[],[{login:"TinkerTunnel",id:17,installationId:102}],
+    [{login:"TinkerTunnel",id:18,installationId:101}]])
+    assert.equal(githubReconnectOrganization(previous,{...verified,organizations}),null);
+  assert.equal(githubReconnectOrganization({},verified),null);
 });
