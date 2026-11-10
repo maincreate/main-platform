@@ -62,3 +62,22 @@ test('group API creates groups and adds only eligible members',async()=>{
  assert.equal((await storageRoute(request('groups/members',{groupId,builderIds:['unknown']}),ctx)).status,422);
  assert.equal(saves,2);
 });
+
+test('platform-only NFS does not enqueue builder mounts',async()=>{
+ let saved={runners:[runner]};
+ const ctx={state:()=>saved,save:v=>{saved=v},body:r=>r.json(),reply:(data,status=200)=>({data,status}),deny:(status,error)=>({status,error})};
+ const platformOnly={name:'Controller NAS',server:'nas.example',exportPath:'/volume1/controller',platformBackups:true,deviceBackups:false,builderIds:[],groupIds:[]};
+ const req=new Request('http://localhost/api/local/storage',{method:'POST',body:JSON.stringify(platformOnly)});
+ const result=await storageRoute(req,ctx);
+ assert.equal(result.status,201);
+ assert.equal(result.data.datastore.deviceBackups,false);
+ assert.equal(saved.hostActions,undefined);
+});
+test('device backup checkbox requires assignments and excludes platform use independently',()=>{
+ assert.throws(()=>validateDatastore({...input,deviceBackups:false},[runner]),/Enable device backups/);
+ assert.throws(()=>validateDatastore({...input,platformBackups:false,deviceBackups:true,builderIds:[]},[runner]),/at least one builder/);
+ const deviceOnly=validateDatastore({...input,platformBackups:false,deviceBackups:true},[runner]);
+ assert.equal(deviceOnly.platformBackups,false);
+ assert.equal(deviceOnly.deviceBackups,true);
+ assert.throws(()=>validateDatastore({...input,deviceBackups:'yes'},[runner]),/Select device backup usage/);
+});
