@@ -21,7 +21,7 @@ import (
  "time"
 )
 
-const version="0.7.0"
+const version="0.8.0"
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -29,6 +29,7 @@ var httpClient=&http.Client{Timeout:35*time.Second}
 type config struct {ID string `json:"id"`; Token string `json:"token"`; Controller string `json:"controller"`; Name string `json:"name"`}
 type joinRequest struct {Controller string `json:"controller"`; Invitation string `json:"invitation"`}
 type action struct {
+ Storage *storageSpec `json:"storage,omitempty"`
  ID string `json:"id"`
  Type string `json:"type"`
  Organization string `json:"organization"`
@@ -95,6 +96,7 @@ func run()error{
  if _,e:=load();e!=nil{log.Print("Unpaired; waiting for controller enrollment")}
  sig:=make(chan os.Signal,1);signal.Notify(sig,syscall.SIGTERM,syscall.SIGINT);stopAdvertising:=advertise();defer stopAdvertising()
  tick:=time.NewTicker(10*time.Second);defer tick.Stop()
+ storageBusy:=make(chan struct{},1)
  lastHeartbeat:=time.Time{};lastInventory:=time.Time{};lastDevices:=time.Time{}
  for {select{
  case <-sig:return nil
@@ -118,10 +120,21 @@ func run()error{
    }
    lastDevices=time.Now()
   }
+  if len(storageBusy)>0{continue}
   var out struct{Action *action `json:"action"`}
   if e=post(c.Controller,"/api/agent/actions/claim",c.Token,map[string]string{"id":c.ID},&out);e!=nil{log.Printf("action polling: %v",e);continue}
   if out.Action==nil{continue}
   a:=out.Action
+  if a.Type=="storage.nfs.mount"{
+   storageBusy<-struct{}{}
+   go func(task action,host config){
+    defer func(){<-storageBusy}()
+    err:=execute(&task);message:="NFS mount and write check completed"
+    if err!=nil{message=err.Error()}
+    if err=report(host,task.ID,err==nil,message);err!=nil{log.Printf("storage report: %v",err)}
+   }(*a,c)
+   continue
+  }
   if a.Type=="host.upgrade"{e=stageUpgrade(c,*a)}else{e=execute(a)}
   message:="completed"
   if e!=nil{message=e.Error();log.Printf("action %s failed: %s",a.ID,message)}
@@ -141,6 +154,8 @@ func execute(a *action)error{
  expires,e:=time.Parse(time.RFC3339,a.ExpiresAt)
  if e!=nil||time.Now().After(expires){return errors.New("host instruction expired")}
  switch a.Type{
+ case "storage.nfs.mount":
+  return mountStorage(a.Storage)
  case "github-runner.provision":
   if !safeOrg(a.Organization)||!safeName(a.RunnerName)||len(a.RegistrationToken)<15{
    return errors.New("invalid runner registration instruction")

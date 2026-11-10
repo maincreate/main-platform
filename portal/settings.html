@@ -7,6 +7,22 @@
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
+<section class="settings-panel" aria-labelledby="storageTitle">
+ <h2 id="storageTitle">Backup storage</h2>
+ <p>Add an NFS export and assign Linux builders. Device backups are written directly to the share. Each builder validates its own mount.</p>
+ <form id="storageForm" class="settings-form">
+  <label for="storageName">Name</label><input id="storageName" maxlength="80" required>
+  <label for="storageServer">NFS server</label><input id="storageServer" placeholder="nas.home.example" required>
+  <label for="storageExport">Export path</label><input id="storageExport" placeholder="/volume1/maincreate" required>
+  <label><input type="checkbox" id="storagePlatform"> Use for platform backups</label>
+  <p>Platform use requires this export mounted on the controller host and exposed to the container. Selecting it does not create a backup.</p>
+  <fieldset><legend>Builders for device backups</legend><div id="storageBuilders">Loading…</div></fieldset>
+  <button type="submit" class="action">Save and mount on builders</button>
+ </form>
+ <p id="storageNotice" role="status" aria-live="polite"></p>
+ <button id="storageRefresh" type="button" class="plain-button">Refresh storage status</button>
+ <div id="storageList"></div>
+</section>
 <section class="settings-panel" aria-labelledby="githubTitle">
  <div class="setting-row"><div><h2 id="githubTitle">GitHub connection</h2>
  <p>Source repository access is configured independently from AI. A GitHub App installation determines available repositories.</p>

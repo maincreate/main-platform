@@ -1,3 +1,4 @@
+import {storageRoute} from "./storage.mjs";
 import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipheriv, createSign, scrypt} from "node:crypto";
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
@@ -395,6 +396,8 @@ export async function localRoute(req) {
     if(path.startsWith("/api/local/")) {
       const rejected=authorized(req,method!=="GET");
       if(rejected)return rejected;
+      const storageResponse=await storageRoute(req,{state,save,body,reply,deny});
+      if(storageResponse)return storageResponse;
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
       if(path==="/api/local/ai/openai"&&method==="GET")

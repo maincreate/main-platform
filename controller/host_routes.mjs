@@ -21,7 +21,7 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.7.0";
+export const HOST_RELEASE = "0.8.0";
 const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
 const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
 export function supportsRemoteHostUpgrade(version) {
@@ -413,7 +413,7 @@ export async function agentHostRoute(req,ctx){
   if(Date.now()>=Date.parse(action.expiresAt)){action.status='expired';delete action.secret;save(s);return reply({action:null})}
   const secret=action.secret?unseal(action.secret):null;
   action.status='claimed';action.claimedAt=new Date().toISOString();save(s);
-  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt,target_version:action.targetVersion,sha256:action.sha256}});
+  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt,target_version:action.targetVersion,sha256:action.sha256,storage:action.storage}});
  }
  const action=s.hostActions.find(a=>a.id===input.action_id&&a.runnerId===runner.id&&a.status==='claimed');
  if(!action)return deny(409,'Unknown or previously completed host action');

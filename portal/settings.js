@@ -103,6 +103,7 @@ async function load(){
    "Connected to "+d.github.organization+" as @"+(d.github.login||"GitHub user"):
    d.github?.authorizationExpired?"Authorization expired — reconnect required":
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
+  await loadStorage();
   await loadRepositoryPreferences();
   await loadApprovalPreferences();
   await refreshAiConnection(true);
@@ -145,7 +146,8 @@ async function loadRepositoryPreferences(){
            requestId:request.id,decision,organization:request.organization,
            name:request.name,visibility:request.visibility});
           $("visibilityNotice").textContent="Request "+decision+"d: "+summary;
-          await loadRepositoryPreferences();
+          await loadStorage();
+  await loadRepositoryPreferences();
         }catch(e){$("visibilityNotice").textContent=e.message;button.disabled=false;}
       });
       actions.append(button);
@@ -301,3 +303,40 @@ window.addEventListener("focus",()=>{
 setInterval(()=>{
  if(csrf&&!aiPending&&document.visibilityState==="visible")void refreshAiConnection();
 },8000);
+
+async function loadStorage(){
+ const data=await api('/api/local/storage');
+ const selected=new Set([...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value));
+ $('storageBuilders').replaceChildren(...data.builders.map(b=>{
+  const label=document.createElement('label'),input=document.createElement('input');
+  input.type='checkbox';input.value=b.id;input.checked=selected.has(b.id);
+  label.append(input,document.createTextNode(b.name));return label;
+ }));
+ if(!data.builders.length)$('storageBuilders').textContent='No managed Linux builders available.';
+ $('storageList').replaceChildren(...data.datastores.map(d=>{
+  const box=document.createElement('section'),title=document.createElement('h3'),info=document.createElement('p');
+  title.textContent=d.name;info.textContent=d.server+':'+d.exportPath;
+  box.append(title,info);
+  if(d.platformBackups){const p=document.createElement('p');p.textContent='Platform: host mount required; backup execution not yet available.';box.append(p);}
+  for(const host of d.hosts){
+   const p=document.createElement('p');p.textContent=host.name+': '+host.status+(host.message?' — '+host.message:'');box.append(p);
+   if(!['queued','claimed'].includes(host.status)){
+    const button=document.createElement('button');button.type='button';button.className='plain-button';button.textContent='Validate mount again';
+    button.onclick=async()=>{button.disabled=true;try{await api('/api/local/storage/retry',{datastoreId:d.id,builderId:host.id});await loadStorage();}catch(e){$('storageNotice').textContent=e.message;button.disabled=false;}};
+    box.append(button);
+   }
+  }
+  return box;
+ }));
+ if(!data.datastores.length)$('storageList').textContent='No backup storage configured.';
+}
+$('storageForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=event.submitter;button.disabled=true;
+ try{
+  await api('/api/local/storage',{name:$('storageName').value,server:$('storageServer').value,exportPath:$('storageExport').value,
+   platformBackups:$('storagePlatform').checked,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+  $('storageNotice').textContent='Storage saved. Assigned builders will report their mount result. Device backup and flash execution are not yet enabled.';
+  await loadStorage();
+ }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
+});
+$('storageRefresh').onclick=()=>loadStorage().catch(e=>{$('storageNotice').textContent=e.message;});
