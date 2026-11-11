@@ -103,6 +103,7 @@ async function load(){
    "Connected to "+d.github.organization+" as @"+(d.github.login||"GitHub user"):
    d.github?.authorizationExpired?"Authorization expired — reconnect required":
    d.github?.identityConnected?"Account linked, no organization selected":"Not connected";
+  await loadStorage();
   await loadRepositoryPreferences();
   await loadApprovalPreferences();
   await refreshAiConnection(true);
@@ -145,7 +146,8 @@ async function loadRepositoryPreferences(){
            requestId:request.id,decision,organization:request.organization,
            name:request.name,visibility:request.visibility});
           $("visibilityNotice").textContent="Request "+decision+"d: "+summary;
-          await loadRepositoryPreferences();
+          await loadStorage();
+  await loadRepositoryPreferences();
         }catch(e){$("visibilityNotice").textContent=e.message;button.disabled=false;}
       });
       actions.append(button);
@@ -301,3 +303,74 @@ window.addEventListener("focus",()=>{
 setInterval(()=>{
  if(csrf&&!aiPending&&document.visibilityState==="visible")void refreshAiConnection();
 },8000);
+
+function updateDeviceBackupSelection(){
+ const enabled=$('storageDevice').checked;
+ $('storageBuilderSelection').disabled=!enabled;
+ $('storageGroupSelection').disabled=!enabled;
+}
+$('storageDevice').addEventListener('change',updateDeviceBackupSelection);
+updateDeviceBackupSelection();
+async function loadStorage(){
+ const data=await api('/api/local/storage');
+ const selected=new Set([...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value));
+ const selectedGroups=new Set([...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value));
+ $('storageBuilders').replaceChildren(...data.builders.map(b=>{
+  const label=document.createElement('label'),input=document.createElement('input');
+  input.type='checkbox';input.value=b.id;input.checked=selected.has(b.id);
+  label.append(input,document.createTextNode(b.name));return label;
+ }));
+ if(!data.builders.length)$('storageBuilders').textContent='No managed Linux builders available.';
+ $('storageGroups').replaceChildren(...data.groups.map(g=>{
+  const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=g.id;input.checked=selectedGroups.has(g.id);
+  label.append(input,document.createTextNode(g.name+' ('+g.builderIds.length+' builders)'));return label;
+ }));
+ $('storageGroupList').replaceChildren(...data.groups.map(g=>{
+  const box=document.createElement('p'),button=document.createElement('button');
+  box.append(document.createTextNode(g.name+': '+g.builderIds.map(id=>data.builders.find(b=>b.id===id)?.name||id).join(', ')+' '));
+  button.type='button';button.className='plain-button';button.textContent='Add selected builders';
+  button.onclick=async()=>{button.disabled=true;try{
+   await api('/api/local/storage/groups/members',{groupId:g.id,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+   $('storageNotice').textContent='Members added. Group storage assignments apply on their next management poll.';await loadStorage();
+  }catch(e){$('storageNotice').textContent=e.message;button.disabled=false;}};
+  box.append(button);return box;
+ }));
+ $('storageList').replaceChildren(...data.datastores.map(d=>{
+  const box=document.createElement('section'),title=document.createElement('h3'),info=document.createElement('p');
+  title.textContent=d.name;info.textContent=d.server+':'+d.exportPath;
+  box.append(title,info);
+  if(d.platformBackups){const p=document.createElement('p');p.textContent='Platform: host mount required; backup execution not yet available.';box.append(p);}
+  for(const host of d.hosts){
+   const p=document.createElement('p');p.textContent=host.name+': '+host.status+(host.message?' — '+host.message:'');box.append(p);
+   if(!['queued','claimed'].includes(host.status)){
+    const button=document.createElement('button');button.type='button';button.className='plain-button';button.textContent='Validate mount again';
+    button.onclick=async()=>{button.disabled=true;try{await api('/api/local/storage/retry',{datastoreId:d.id,builderId:host.id});await loadStorage();}catch(e){$('storageNotice').textContent=e.message;button.disabled=false;}};
+    box.append(button);
+   }
+  }
+  return box;
+ }));
+ if(!data.datastores.length)$('storageList').textContent='No backup storage configured.';
+}
+$('storageForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=event.submitter;button.disabled=true;
+ try{
+  const deviceBackups=$('storageDevice').checked;
+  const builderIds=deviceBackups?[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value):[];
+  const groupIds=deviceBackups?[...document.querySelectorAll('#storageGroups input:checked')].map(e=>e.value):[];
+  await api('/api/local/storage',{name:$('storageName').value,server:$('storageServer').value,exportPath:$('storageExport').value,
+   platformBackups:$('storagePlatform').checked,deviceBackups,groupIds,builderIds});
+  $('storageNotice').textContent=deviceBackups?
+   'Storage saved. Selected builders will mount and validate the NFS export. Device backup execution and flashing are not yet enabled.':
+   'Storage saved. Platform backup selection is configuration only until controller backup/restore is implemented.';
+  await loadStorage();
+ }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
+});
+$('storageRefresh').onclick=()=>loadStorage().catch(e=>{$('storageNotice').textContent=e.message;});
+
+$('storageGroupForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=event.submitter;button.disabled=true;
+ try{await api('/api/local/storage/groups',{name:$('storageGroupName').value,builderIds:[...document.querySelectorAll('#storageBuilders input:checked')].map(e=>e.value)});
+ $('storageNotice').textContent='Builder group created. Select it above when adding storage.';await loadStorage();
+ }catch(e){$('storageNotice').textContent=e.message;}finally{button.disabled=false;}
+});
