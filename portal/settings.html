@@ -7,6 +7,35 @@
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
+<section class="settings-panel" aria-labelledby="storageTitle">
+ <h2 id="storageTitle">Backup storage</h2>
+ <p>Add an NFS export and assign Linux builders. Device backups are written directly to the share. Each builder validates its own mount.</p>
+ <form id="storageForm" class="settings-form">
+  <label for="storageName">Name</label><input id="storageName" maxlength="80" required>
+  <label for="storageServer">NFS server</label><input id="storageServer" placeholder="nas.home.example" required>
+  <label for="storageExport">Export path</label><input id="storageExport" placeholder="/volume1/maincreate" required>
+  <fieldset><legend>Backup use</legend>
+   <label><input type="checkbox" id="storagePlatform"> Platform backups</label>
+   <p>Reserves this NFS export for platform backups. Controller mounting and backup/restore are not yet available.</p>
+   <label><input type="checkbox" id="storageDevice"> Device backups</label>
+   <p>Selected builders mount the same export directly; backup images do not pass through the controller.</p>
+  </fieldset>
+  <fieldset id="storageBuilderSelection" disabled><legend>Builders for device backups</legend><div id="storageBuilders">Loading…</div></fieldset>
+  <fieldset id="storageGroupSelection" disabled><legend>Builder groups (includes future members)</legend><div id="storageGroups"></div></fieldset>
+  <button type="submit" class="action">Save backup storage</button>
+ </form>
+ <details><summary>Manage storage builder groups</summary>
+  <form id="storageGroupForm" class="settings-form">
+   <label for="storageGroupName">New group name</label><input id="storageGroupName" maxlength="80" required>
+   <p>Uses the builders selected above. You can create an empty group and add builders later.</p>
+   <button type="submit" class="plain-button">Create group</button>
+  </form>
+  <div id="storageGroupList"></div>
+ </details>
+ <p id="storageNotice" role="status" aria-live="polite"></p>
+ <button id="storageRefresh" type="button" class="plain-button">Refresh storage status</button>
+ <div id="storageList"></div>
+</section>
 <section class="settings-panel" aria-labelledby="githubTitle">
  <div class="setting-row"><div><h2 id="githubTitle">GitHub connection</h2>
  <p>Source repository access is configured independently from AI. A GitHub App installation determines available repositories.</p>
@@ -26,7 +55,7 @@
  </form>
  <p id="visibilityNotice" role="status" aria-live="polite"></p>
  <div class="panel-heading"><div><h3>AI repository requests</h3>
- <p>ChatGPT and other MCP clients can request a repository; only a signed-in administrator can approve its creation.</p></div>
+ <p>Authorized ChatGPT and other MCP requests now create repositories directly using the connected GitHub organization, without a second portal approval. Older pending requests appear here for review.</p></div>
  <button type="button" id="refreshRepoRequests" class="plain-button">Refresh requests</button></div>
  <div id="repoRequests" aria-live="polite">Loading requests…</div>
 </section>
@@ -87,7 +116,7 @@
  </div>
  <details class="maincreate-ai-advanced">
   <summary>Advanced notes and other assistants</summary>
-  <p>The local MCP server only listens inside the Main{Create} container. Its access token is generated automatically, and MCP actions retain Main{Create}'s approval rules. The OpenAI tunnel client only makes outbound HTTPS connections.</p>
+  <p>The local MCP server only listens inside the Main{Create} container. Its access token is generated automatically. Repository creation runs directly for authorized clients; device flashing remains separately approval-gated. The OpenAI tunnel client only makes outbound HTTPS connections.</p>
   <p>Claude is deferred; no public MCP endpoint has been enabled. Self-managed Docker/Compose configuration is available for advanced deployments but is not needed for the normal connection flow.</p>
   <p><a class="quiet-link" href="https://github.com/maincreate/main-platform/blob/main/docs/openai-secure-mcp-tunnel.md" target="_blank" rel="noopener noreferrer">Technical runbook</a></p>
  </details>

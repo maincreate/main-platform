@@ -79,7 +79,7 @@ install_dependencies() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates
   fi
   DEBIAN_FRONTEND=noninteractive apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get install -y avahi-daemon avahi-utils openssh-server
+  DEBIAN_FRONTEND=noninteractive apt-get install -y avahi-daemon avahi-utils openssh-server nfs-common util-linux
   systemctl enable --now avahi-daemon ssh
   systemctl is-active --quiet avahi-daemon
   systemctl is-active --quiet ssh
