@@ -3,6 +3,7 @@ import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
 import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
+import {storageRoute} from "./storage.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startOpenAiTunnel,stopOpenAiTunnel,openAiRuntimeStatus} from "./openai_tunnel_runtime.mjs";
@@ -307,21 +308,6 @@ async function provisionRepository(input,actor){
  }finally{provisioningNames.delete(lock);}
 }
 function repositoryRequests(s){return Array.isArray(s.github?.repositoryRequests)?s.github.repositoryRequests:[];}
-function requestRepositoryFromMcp(input){
- const stored=state(),org=selectedRepositoryOrganization(stored);
- const spec=validateRepositoryRequest(input,org,stored.github.defaultVisibility);
- const queued=repositoryRequests(stored).filter(r=>r.status==="pending");
- if(queued.length>=25)throw Object.assign(new Error("Too many pending repository approvals"),{status:429});
- if(queued.some(r=>r.organization.toLowerCase()===org.toLowerCase()&&r.name.toLowerCase()===spec.name.toLowerCase()))
-   throw Object.assign(new Error("An approval request already exists for this repository"),{status:409});
- const request={id:randomBytes(16).toString("hex"),...spec,status:"pending",source:"mcp",requestedAt:new Date().toISOString()};
- stored.github.repositoryRequests=[...repositoryRequests(stored).slice(-99),request];
- save(stored);
- return {requestId:request.id,repository:spec.organization+"/"+spec.name,
-   visibility:spec.visibility,status:"awaiting_admin_approval",
-   instruction:"Open Main{Create} > Settings > GitHub to approve. An MCP client cannot approve its own request."};
-}
-
 function applyApprovalPreference(tool,args,context){
   const result=fabricCall(tool,args,context);
   // No device flashing or arbitrary shell capability can inherit automatic approval.
@@ -448,6 +434,8 @@ export async function localRoute(req) {
       await refreshGithubAuthorization();
        const hostResponse=await adminHostRoute(req,{state,save,body,reply,deny,rnd,digest,session,seal,unseal,githubIdentityCurrent,limited,verifyPassword});
        if(hostResponse)return hostResponse;
+       const storageResponse=await storageRoute(req,{state,save,body,reply,deny});
+       if(storageResponse)return storageResponse;
       if(path==="/api/local/ai/openai"&&method==="GET")
         return reply(await aiConnectionSnapshot());
       if(path==="/api/local/ai/openai/configure"&&method==="POST"){
@@ -1187,8 +1175,12 @@ export async function localRoute(req) {
     }
     if(path==="/api/internal/github/repository/request"&&method==="POST"){
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
-      try{return reply(requestRepositoryFromMcp(await body(req)),202);}
-      catch(e){return deny(e.status||422,e.message||"Request rejected");}
+      if(limited("repository-create:mcp",12))return deny(429,"Too many repository creation requests");
+      try{
+        await refreshGithubAuthorization();
+        const repository=await provisionRepository(await body(req),"mcp:authorized-client");
+        return reply({status:"created",requires_approval:false,repository},201);
+      }catch(e){return deny(e.status||502,e.message||"Repository creation failed");}
     }
     if(path==="/api/internal/fabric"&&method==="POST"){
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
