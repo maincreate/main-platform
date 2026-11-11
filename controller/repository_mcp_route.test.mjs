@@ -20,7 +20,10 @@ test("Authenticated MCP repository creation goes straight to GitHub without a po
       selectedOrganization:"TinkerTunnel",
       defaultVisibility:"private",
       oauthOrganizations:[{login:"TinkerTunnel",id:555,installationId:999}],
-      repositoryRequests:[{id:"c".repeat(32),organization:"TinkerTunnel",name:"old-project",status:"pending"}]
+      repositoryRequests:[
+        {id:"c".repeat(32),organization:"TinkerTunnel",name:"old-project",status:"pending"},
+        {id:"d".repeat(32),organization:"TinkerTunnel",name:"esp32-expression",visibility:"private",status:"pending"}
+      ]
     },runners:[],invites:[]
   };
   writeFileSync(join(dir,"master.key"),key);
@@ -62,8 +65,10 @@ test("Authenticated MCP repository creation goes straight to GitHub without a po
     assert.equal(calls,1);
     const saved=JSON.parse(readFileSync(join(dir,"state.json"),"utf8"));
     assert.equal(saved.github.repositoryAudit.at(-1).repository,"TinkerTunnel/esp32-expression");
-    assert.equal(saved.github.repositoryRequests.length,1);
-    assert.equal(saved.github.repositoryRequests[0].name,"old-project");
+    assert.equal(saved.github.repositoryRequests.length,2);
+    assert.equal(saved.github.repositoryRequests[0].status,"pending");
+    assert.equal(saved.github.repositoryRequests[1].status,"created");
+    assert.equal(saved.github.repositoryRequests[1].result.fullName,"TinkerTunnel/esp32-expression");
     // No delete-repository route exists even when using the authenticated service token.
     const deletion=await localRoute(new Request("http://localhost/api/internal/github/repository/delete",{
       method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},
