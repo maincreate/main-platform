@@ -1,3 +1,4 @@
+import {reconcileStorage} from './storage.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {discoverHosts,hostFingerprint,pairOverSsh,validHost} from './hosts.mjs';
@@ -21,7 +22,7 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.7.0";
+export const HOST_RELEASE = "0.8.0";
 const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
 const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
 export function supportsRemoteHostUpgrade(version) {
@@ -408,12 +409,13 @@ export async function agentHostRoute(req,ctx){
  if(path.endsWith('/claim')){
   runner.lastSeen=new Date().toISOString();
   if(expireStaleHostActions(s,runner.id))save(s);
+  reconcileStorage(s,runner.id);
   const action=s.hostActions.find(a=>a.runnerId===runner.id&&a.status==='queued'&&actionLeaseActive(a));
   if(!action){save(s);return reply({action:null})}
   if(Date.now()>=Date.parse(action.expiresAt)){action.status='expired';delete action.secret;save(s);return reply({action:null})}
   const secret=action.secret?unseal(action.secret):null;
   action.status='claimed';action.claimedAt=new Date().toISOString();save(s);
-  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt,target_version:action.targetVersion,sha256:action.sha256}});
+  return reply({action:{id:action.id,type:action.type||'github-runner.provision',organization:action.organization,runner_name:action.runnerName,labels:action.labels,registration_token:secret,expires_at:action.expiresAt,target_version:action.targetVersion,sha256:action.sha256,storage:action.storage}});
  }
  const action=s.hostActions.find(a=>a.id===input.action_id&&a.runnerId===runner.id&&a.status==='claimed');
  if(!action)return deny(409,'Unknown or previously completed host action');
@@ -428,7 +430,7 @@ export async function agentHostRoute(req,ctx){
  if(input.success&&(!action.type||action.type==='github-runner.provision')){
   runner.githubRunnerName=action.runnerName;runner.labels=action.labels;
  }
- if(action.type&&runner.decommission){
+ if(['github-runner.stop','host.cleanup'].includes(action.type)&&runner.decommission){
   if(!input.success){
    runner.decommission.failedStage=action.type==='github-runner.stop'?'stopping':'cleaning';
    runner.decommission.phase='failed';
