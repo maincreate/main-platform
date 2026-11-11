@@ -55,7 +55,7 @@
  </form>
  <p id="visibilityNotice" role="status" aria-live="polite"></p>
  <div class="panel-heading"><div><h3>AI repository requests</h3>
- <p>ChatGPT and other MCP clients can request a repository; only a signed-in administrator can approve its creation.</p></div>
+ <p>Authorized ChatGPT and other MCP requests now create repositories directly using the connected GitHub organization, without a second portal approval. Older pending requests appear here for review.</p></div>
  <button type="button" id="refreshRepoRequests" class="plain-button">Refresh requests</button></div>
  <div id="repoRequests" aria-live="polite">Loading requests…</div>
 </section>
@@ -116,7 +116,7 @@
  </div>
  <details class="maincreate-ai-advanced">
   <summary>Advanced notes and other assistants</summary>
-  <p>The local MCP server only listens inside the Main{Create} container. Its access token is generated automatically, and MCP actions retain Main{Create}'s approval rules. The OpenAI tunnel client only makes outbound HTTPS connections.</p>
+  <p>The local MCP server only listens inside the Main{Create} container. Its access token is generated automatically. Repository creation runs directly for authorized clients; device flashing remains separately approval-gated. The OpenAI tunnel client only makes outbound HTTPS connections.</p>
   <p>Claude is deferred; no public MCP endpoint has been enabled. Self-managed Docker/Compose configuration is available for advanced deployments but is not needed for the normal connection flow.</p>
   <p><a class="quiet-link" href="https://github.com/maincreate/main-platform/blob/main/docs/openai-secure-mcp-tunnel.md" target="_blank" rel="noopener noreferrer">Technical runbook</a></p>
  </details>
