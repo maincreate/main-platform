@@ -302,7 +302,18 @@ async function provisionRepository(input,actor){
    const created=await createOrganizationRepository(request,unseal(stored.github.oauthToken));
    const next=state();
    next.github.repositoryAudit=(next.github.repositoryAudit||[]).slice(-99);
-   next.github.repositoryAudit.push({at:new Date().toISOString(),actor,repository:created.fullName,visibility:created.visibility});
+   const createdAt=new Date().toISOString();
+   next.github.repositoryAudit.push({at:createdAt,actor,repository:created.fullName,visibility:created.visibility});
+   // Reconcile matching requests left pending by older MCP releases. Never
+   // execute an old request just because the server was upgraded.
+   for(const old of repositoryRequests(next)){
+     if(old.status!=="pending"||old.organization.toLowerCase()!==created.organization.toLowerCase()||
+       old.name.toLowerCase()!==created.name.toLowerCase())continue;
+     old.status=old.visibility===created.visibility?"created":"superseded";
+     old.decidedAt=createdAt;
+     old.decidedBy="direct-create-reconciliation";
+     if(old.status==="created")old.result=created;
+   }
    save(next);
    return created;
  }finally{provisioningNames.delete(lock);}
