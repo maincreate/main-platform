@@ -7,6 +7,35 @@
 <main class="main settings-page">
 <p class="eyebrow">WORKSPACE / SETTINGS</p><h1>Settings</h1><p>Connections, preferences, authentication and execution policy. None are required to use the local workspace.</p>
 <p id="notice" class="home-error" role="status" aria-live="polite"></p>
+<section class="settings-panel" aria-labelledby="storageTitle">
+ <h2 id="storageTitle">Backup storage</h2>
+ <p>Add an NFS export and assign Linux builders. Device backups are written directly to the share. Each builder validates its own mount.</p>
+ <form id="storageForm" class="settings-form">
+  <label for="storageName">Name</label><input id="storageName" maxlength="80" required>
+  <label for="storageServer">NFS server</label><input id="storageServer" placeholder="nas.home.example" required>
+  <label for="storageExport">Export path</label><input id="storageExport" placeholder="/volume1/maincreate" required>
+  <fieldset><legend>Backup use</legend>
+   <label><input type="checkbox" id="storagePlatform"> Platform backups</label>
+   <p>Reserves this NFS export for platform backups. Controller mounting and backup/restore are not yet available.</p>
+   <label><input type="checkbox" id="storageDevice"> Device backups</label>
+   <p>Selected builders mount the same export directly; backup images do not pass through the controller.</p>
+  </fieldset>
+  <fieldset id="storageBuilderSelection" disabled><legend>Builders for device backups</legend><div id="storageBuilders">Loading…</div></fieldset>
+  <fieldset id="storageGroupSelection" disabled><legend>Builder groups (includes future members)</legend><div id="storageGroups"></div></fieldset>
+  <button type="submit" class="action">Save backup storage</button>
+ </form>
+ <details><summary>Manage storage builder groups</summary>
+  <form id="storageGroupForm" class="settings-form">
+   <label for="storageGroupName">New group name</label><input id="storageGroupName" maxlength="80" required>
+   <p>Uses the builders selected above. You can create an empty group and add builders later.</p>
+   <button type="submit" class="plain-button">Create group</button>
+  </form>
+  <div id="storageGroupList"></div>
+ </details>
+ <p id="storageNotice" role="status" aria-live="polite"></p>
+ <button id="storageRefresh" type="button" class="plain-button">Refresh storage status</button>
+ <div id="storageList"></div>
+</section>
 <section class="settings-panel" aria-labelledby="githubTitle">
  <div class="setting-row"><div><h2 id="githubTitle">GitHub connection</h2>
  <p>Source repository access is configured independently from AI. A GitHub App installation determines available repositories.</p>
