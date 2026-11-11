@@ -1,12 +1,20 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "305f19aace62d96713515fd3c2897007907ad74c",
-    "paths": ["host", "runner", "scripts/install-linux.sh", "scripts/uninstall-linux.sh"]
+    "revision": "f7f0ca390f6789c83275761c96136b65b5987b37",
+    "paths": [
+      "host",
+      "runner",
+      "scripts/install-linux.sh",
+      "scripts/uninstall-linux.sh"
+    ]
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
     "revision": "136efc8e3db23c7e500de487f312ff3812d66a11",
-    "paths": ["registry/toolkits.json", "registry/microcontrollers.json"]
+    "paths": [
+      "registry/toolkits.json",
+      "registry/microcontrollers.json"
+    ]
   }
 }
