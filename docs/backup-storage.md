@@ -33,6 +33,7 @@ flashing remains unavailable.
 - Live reboot-recovery validation, capacity reporting and storage action history retention.
 - Controller host mount integration and encrypted platform backup/restore.
 - Device probe/read adapter, exclusive device lock and security compatibility gates.
+- Integrate marketplace installation profiles with backup descriptors (flash chip/regions, partitions, external storage scope, firmware family and restore compatibility) so backups are understood at the same level as installation and flashing; do not infer restore coverage from generic binary dumps.
 - Wire backup policy and writer into approved manual flash jobs.
 - Restore, retention, backup inventory and schedules.
 - Live tests: root squash, server loss, full share, partial reads, device disconnect,
