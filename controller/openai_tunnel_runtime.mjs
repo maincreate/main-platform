@@ -4,8 +4,8 @@
  * Admin-controlled, outbound-only OpenAI tunnel. Secrets are encrypted in the
  * controller state; during execution they are materialized ONLY as mode 0600
  * ephemeral files inside the portal container, never in process arguments.
- * The MCP gateway listens exclusively on loopback and cannot be reached from
- * the LAN or through the public application proxy.
+ * The MCP gateway defaults to loopback-only. An operator can explicitly expose
+ * its authenticated listener on a private network without enabling a tunnel.
  */
 import {spawn} from "node:child_process";
 import {randomBytes} from "node:crypto";
@@ -17,6 +17,8 @@ import {fileURLToPath} from "node:url";
 const appRoot=fileURLToPath(new URL("../",import.meta.url));
 const clientPath="/usr/bin/tunnel-client";
 const gatewayPort=18191,healthPort=18192;
+// The standalone MCP endpoint is loopback-only unless explicitly enabled for a private network.
+const gatewayBindHost=process.env.MAIN_MCP_LISTEN_HOST==="0.0.0.0"?"0.0.0.0":"127.0.0.1";
 const gatewayURL="http://127.0.0.1:"+gatewayPort;
 const healthURL="http://127.0.0.1:"+healthPort;
 const serviceToken=randomBytes(32).toString("hex");
@@ -76,11 +78,13 @@ async function discoverLocalMcp(){
  }catch{return false;}
 }
 async function ensureGateway(){
+ if(gatewayBindHost==="0.0.0.0"&&(process.env.MAIN_MCP_TOKEN||"").length<32)
+  throw Error("Private-network MCP listener requires MAIN_MCP_TOKEN of at least 32 characters.");
  if(alive(gateway)&&await probe(gatewayURL+"/healthz")&&await discoverLocalMcp())return;
  if(gateway)await terminate(gateway);
  gateway=spawn(process.execPath,[join(appRoot,"gateway/server.mjs")],{
   cwd:appRoot,env:{
-   ...process.env,HOST:"127.0.0.1",PORT:String(gatewayPort),
+   ...process.env,HOST:gatewayBindHost,PORT:String(gatewayPort),
    MAIN_CONTROLLER_URL:"http://127.0.0.1:"+String(process.env.PORT||"3000"),
    MAIN_SERVICE_TOKEN:serviceToken,MAIN_PRIVATE_MCP_TOKEN:mcpToken
   },stdio:["ignore","ignore","ignore"],shell:false
@@ -97,22 +101,29 @@ async function ensureGateway(){
  }
  throw Error("Private MCP listener did not become healthy.");
 }
-async function stopInternal(){
+async function stopClient(){
  const oldClient=client;client=null;
  await terminate(oldClient);
- const oldGateway=gateway;gateway=null;
- await terminate(oldGateway);
  if(workDir){try{rmSync(workDir,{recursive:true,force:true});}catch{}workDir=null;}
  startedAt=null;
 }
+async function stopInternal(){
+ await stopClient();
+ const oldGateway=gateway;gateway=null;
+ await terminate(oldGateway);
+}
+// The MCP server is a first-class platform service, independent of optional OpenAI transport.
+export function startStandaloneMcp(){return enqueue(async()=>{
+ await ensureGateway();return {state:"ready"};
+});}
 export function stopOpenAiTunnel(){return enqueue(async()=>{
- await stopInternal();lastError=null;return {state:"disabled"};
+ await stopClient();lastError=null;return {state:"disabled"};
 });}
 export function startOpenAiTunnel({tunnelId,apiKey}){
  return enqueue(async()=>{
   if(!validOpenAiTunnelId(tunnelId))throw Error("Invalid OpenAI tunnel ID.");
   if(!validOpenAiRuntimeKey(apiKey))throw Error("Invalid OpenAI runtime API key.");
-  await stopInternal();
+  await stopClient();
   lastError=null;
   try{
    await ensureGateway();
@@ -143,7 +154,7 @@ export function startOpenAiTunnel({tunnelId,apiKey}){
    startedAt=new Date().toISOString();
    return {state:"starting"};
   }catch{
-   await stopInternal();
+   await stopClient();
    lastError="Could not start the private MCP tunnel. Check local health and package.";
    return {state:"error"};
   }
@@ -162,5 +173,5 @@ export async function openAiRuntimeStatus(){
  };
 }
 export async function shutdownOpenAiRuntime(){
- await stopOpenAiTunnel();
+ await enqueue(()=>stopInternal());
 }
