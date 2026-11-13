@@ -113,10 +113,11 @@ createServer(async(req,res)=>{
   if(origin&&!allowedOrigins.includes(origin))return send(res,403,{error:"Origin rejected"});
   if((bearer.length<32&&privateBridgeToken.length<32)||serviceToken.length<32)
    return send(res,503,{error:"MCP gateway not configured"});
-  const privateMode=privateBridgeToken.length>=32;
-  const authorized=privateMode?
-   equal(req.headers["x-maincreate-private-token"]||"",privateBridgeToken):
-   equal(req.headers.authorization||"","Bearer "+bearer);
+  // Bundled tunnel uses an ephemeral private header; independent MetaMCP uses
+  // the configured bearer. Either path works without enabling the other.
+  const authorized=(privateBridgeToken.length>=32&&
+    equal(req.headers["x-maincreate-private-token"]||"",privateBridgeToken))||
+    (bearer.length>=32&&equal(req.headers.authorization||"","Bearer "+bearer));
   if(!authorized)return send(res,401,{error:"Unauthorized"},
    {"www-authenticate":'Bearer realm="maincreate-mcp"'});
   const accept=req.headers.accept||"";
