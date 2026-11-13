@@ -50,6 +50,8 @@ From **Settings → Connect ChatGPT**, create an OpenAI tunnel in your own accou
 
 The separate opt-in Docker Compose `openai-tunnel` profile remains an **advanced manual fallback** for split gateway deployments. Never run both under one tunnel ID. No Main{Create} vendor-hosted relay is involved. Claude tunnel support is deferred.
 
+**Using an external MCP aggregator (MetaMCP):** The Main{Create} authenticated MCP listener starts independently of the optional bundled OpenAI tunnel. In Settings, disabling the bundled tunnel stops only that transport; the MCP tools remain available to an authenticated private-network aggregator. The MCP listener binds to loopback by default. Operators may set `MAIN_MCP_LISTEN_HOST=0.0.0.0` *only with a strong `MAIN_MCP_TOKEN`* and privately map container port `18191` to an internal LAN address; do not publish this MCP listener through an unauthenticated public proxy. Standalone MetaMCP installations should not create a second OpenAI tunnel in Main{Create}.
+
 See [OpenAI Secure MCP Tunnel setup](docs/openai-secure-mcp-tunnel.md).
 
 ## Capability Fabric v0.2
