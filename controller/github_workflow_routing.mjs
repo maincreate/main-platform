@@ -218,6 +218,9 @@ export function firmwareWorkflowPreview({route,project,builder,organization,flas
    needsLabelProvisioning:true,workflow:null};
  if(!/^[A-Za-z0-9._/-]{1,80}$/.test(maincreateRef)||maincreateRef.includes(".."))
   throw bad("Invalid Main{Create} reusable workflow ref");
+ const defaultBranch=project.defaultBranch||"main";
+ if(!/^[A-Za-z0-9._/-]{1,100}$/.test(defaultBranch)||defaultBranch.includes(".."))
+  throw bad("Invalid project default branch");
  let deviceLabel=null;
  if(route.flashBuilderId){
   if(!flashBuilder||!flashBuilder.managedHost||flashBuilder.decommission||!flashBuilder.githubRunnerName)
@@ -232,7 +235,7 @@ export function firmwareWorkflowPreview({route,project,builder,organization,flas
     needsLabelProvisioning:true,workflow:null};
   deviceLabel=route.githubFlashRunnerLabel;
  }
- const workflow=projectWorkflow({route,release,buildLabel:route.githubRunnerLabel,deviceLabel,maincreateRef,defaultBranch:project.defaultBranch||"main"});
+ const workflow=projectWorkflow({route,release,buildLabel:route.githubRunnerLabel,deviceLabel,maincreateRef,defaultBranch});
  return {ready:true,reason:null,needsLabelProvisioning:false,workflow,
   filePath:".github/workflows/maincreate-device-pipeline.yml",runnerLabel:route.githubRunnerLabel,
   deviceRunnerLabel:deviceLabel,toolkitLabel:toolkitLabel(release),
