@@ -491,6 +491,7 @@ export async function localRoute(req) {
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
       if(path==="/api/local/marketplace/plans"&&method==="GET"){
+        await refreshGithubAuthorization();
         const s=state(),gh=s.github||{};
         if(githubIdentityCurrent(gh)){
           try{
