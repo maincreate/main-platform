@@ -17,7 +17,7 @@ on:
         description: Optional ESP32 USB serial port
         required: false
         type: string
-        default: "/dev/ttyUSB0"
+        default: ""
 
 permissions:
   contents: read
@@ -34,6 +34,7 @@ jobs:
       - name: List stable serial paths
         run: bash scripts/maincreate-toolkit.sh list-serial
       - name: Probe ESP32 chip identity (read-only)
+        if: inputs.device_port != ""
         env:
           TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
           DEVICE_PORT: ${{ inputs.device_port }}
