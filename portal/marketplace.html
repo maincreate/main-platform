@@ -19,9 +19,9 @@
 <p><strong>Install target policy</strong></p>
 <label><input type="radio" name="placement" id="placementSelected" checked> Select builders (default)</label>
 <label><input type="radio" name="placement" id="placementAll"> All compatible builders</label>
-<div id="marketplaceTargets"></div><p id="marketplaceTargetCount"></p>
+<div id="marketplaceTargets"></div><p id="marketplaceTargetCount"></p><label id="androidLicenseRow" hidden><input type="checkbox" id="androidLicense"> I accept the Google Android SDK license terms for this installation.</label>
 <button id="marketplaceSubmit" class="action maincreate-cta" type="button">Save installation plan</button>
-<button id="marketplaceRequest" class="action maincreate-cta" type="button" hidden>Request installation</button>
-<p>Saving is planning only. Request installation separately; it creates approval-pending fabric jobs and never installs directly.</p></div></section>
+<button id="marketplaceRequest" class="action maincreate-cta" type="button" hidden>Install on selected builders</button>
+<p>Saving is planning only. Installing dispatches a version-pinned GitHub Actions job to each selected builder. It does not flash or deploy to devices.</p></div></section>
 <section class="inventory-panel"><h2>Installation plans</h2><div id="marketplacePlans"></div></section>
 </main></body></html>
