@@ -25,6 +25,21 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
 });
+test("MCP discovery exposes versioned ESP-IDF and Android artifact lifecycle profiles",()=>{
+ const {toolkits}=invoke("maincreate_discover",{resource:"toolkits"});
+ const esp=toolkits.find(x=>x.id==="esp-idf");
+ const android=toolkits.find(x=>x.id==="android-sdk");
+ assert.deepEqual(esp.versions.map(x=>x.version),["5.5.6","6.1.1"]);
+ for(const version of esp.versions){
+  assert.deepEqual(Object.keys(version.operations).sort(),["backup","build","deploy","restore"]);
+  assert.equal(version.lifecycle.cleanup.state,"planned");
+ }
+ const androidVersion=android.versions[0];
+ assert.equal(androidVersion.deviceSupport.targetProfiles.find(x=>x.id==="android-legacy-api22-eink").apiLevel,22);
+ assert.equal(androidVersion.operations.deploy.operationType,"adb-install-apk");
+ assert.equal(androidVersion.operations.backup.objectType,"android-application-package-artifact");
+ assert.equal(androidVersion.operations.restore.objectType,"android-application-package-artifact");
+});
 test("plans validate schemas and do not execute or accept arbitrary commands",()=>{
  const p=invoke("maincreate_plan",snapshot);
  assert.equal(p.requires_approval,true);
