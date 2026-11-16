@@ -235,7 +235,7 @@ if profile=="android-legacy-api22-eink":
  if target is None or int(target)>22: raise SystemExit("Legacy E Ink APK targetSdk must be 22 or lower")
  if abis and "armeabi-v7a" not in abis: raise SystemExit("Native APK must include armeabi-v7a for the E Ink device")
 elif profile=="android-current-api37":
- if target is None or int(target)>37: raise SystemExit("Current Android APK targetSdk must be 37 or lower")
+ if target is None or int(target)!=37: raise SystemExit("Current Android APK targetSdk must be exactly 37")
 else: raise SystemExit("Unknown Android target profile")
 digest=hashlib.sha256(open(apk,"rb").read()).hexdigest()
 json.dump({"schema":1,"artifactType":"android-application-apk","toolkit":"android-sdk",
@@ -320,6 +320,12 @@ flash_esp32(){
   valid_mac "$expected_mac" || die "Expected eFuse MAC is required"
   [[ -s "$artifact_dir/maincreate-firmware.bin" && -s "$artifact_dir/maincreate-manifest.json" ]] || die "Firmware artifact and manifest are required"
   local manifest_chip manifest_flash manifest_hash observed chip mac p file
+  python3 - "$artifact_dir/maincreate-manifest.json" "$version" <<'PY'
+import json,sys
+m=json.load(open(sys.argv[1]))
+if m.get("artifactType")!="esp32-firmware-bundle" or m.get("toolkit")!="esp-idf" or m.get("toolkitVersion")!=sys.argv[2]:
+ raise SystemExit("Firmware manifest type or exact toolkit version mismatch")
+PY
   manifest_chip="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("targetChip","unknown"))' "$artifact_dir/maincreate-manifest.json")"
   manifest_flash="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("flashSize","auto"))' "$artifact_dir/maincreate-manifest.json")"
   manifest_hash="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("sha256",""))' "$artifact_dir/maincreate-manifest.json")"
@@ -404,9 +410,11 @@ restore_esp32(){
   chip="$(sed -n 's/^MAINCREATE_CHIP=//p' <<< "$observed" | tail -n1)"
   mac="$(sed -n 's/^MAINCREATE_MAC=//p' <<< "$observed" | tail -n1)"
   [[ "$mac" == "\${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch"
-  read -r recorded_mac recorded_chip recorded_size digest < <(python3 - "$backup_dir/backup-manifest.json" <<'PY'
+  read -r recorded_mac recorded_chip recorded_size digest < <(python3 - "$backup_dir/backup-manifest.json" "$version" <<'PY'
 import json,sys
 m=json.load(open(sys.argv[1]))
+if m.get("artifactType")!="esp32-full-flash-backup" or m.get("toolkit")!="esp-idf" or m.get("toolkitVersion")!=sys.argv[2]:
+ raise SystemExit("Backup manifest type or exact toolkit version mismatch")
 print(m.get("sourceDeviceMac",""),m.get("chip",""),m.get("flashSizeBytes",""),m.get("sha256",""))
 PY
 )
@@ -437,14 +445,29 @@ install_android_app(){
   local device; device="$(probe_android "$serial")"
   api="$(sed -n 's/^api=//p' <<< "$device" | head -n1)"
   abi="$(sed -n 's/^abi=//p' <<< "$device" | head -n1)"
+  python3 - "$manifest" "$profile" <<'PY'
+import json,sys
+m=json.load(open(sys.argv[1]))
+if m.get("artifactType")!="android-application-apk" or m.get("toolkit")!="android-sdk" or m.get("toolkitVersion")!="2026.2.2-patch1":
+ raise SystemExit("APK manifest type or toolkit version mismatch")
+if m.get("targetProfile")!=sys.argv[2]: raise SystemExit("APK was built for a different Android target profile")
+PY
   package="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("packageName",""))' "$manifest")"
+  local expected_hash
+  expected_hash="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("sha256",""))' "$manifest")"
+  [[ -n "$expected_hash" && "$(sha256 "$apk")" == "$expected_hash" ]] || die "APK SHA-256 does not match its build manifest"
   local min target
   min="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("minSdk") or 1)' "$manifest")"
   target="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("targetSdk") or 0)' "$manifest")"
   [[ -n "$package" && "$min" -le "$api" ]] || die "APK package or minSdk is incompatible with the Android device"
   if [[ "$profile" == "android-legacy-api22-eink" ]]; then
-    [[ "$api" == "22" && "$target" -le 22 ]] || die "Legacy E Ink deployment requires Android API 22 and targetSdk <= 22"
+    [[ "$api" == "22" && "$target" == "22" ]] || die "Legacy E Ink deployment requires Android API 22 and targetSdk 22"
     [[ "$abi" == "armeabi-v7a" ]] || die "E Ink device ABI is not armeabi-v7a"
+    local product model
+    product="$(sed -n 's/^product=//p' <<< "$device" | head -n1)"
+    model="$(sed -n 's/^model=//p' <<< "$device" | head -n1)"
+    [[ "$product" == "sabresd_7d_eink" || "$model" == "SABRESD_MX7D" ]] ||
+      die "Connected device is not the registered Avalue EPD-42S / SABRESD_MX7D target"
   elif [[ "$profile" != "android-current-api37" ]]; then die "Unknown Android target profile"; fi
   "$adb" -s "$serial" install -r "$apk"
   printf 'Installed %s on Android device %s (API %s, ABI %s)\n' "$package" "$serial" "$api" "$abi"
@@ -496,10 +519,7 @@ cleanup_toolkit(){
   case "$family" in
     arduino-cli)
       [[ "$version" == "1.5.1" ]] || die "Unsupported Arduino CLI version"
-      local arch; case "$(uname -m)" in x86_64|amd64) arch="x64";;aarch64|arm64) arch="arm64";;*) die "Unsupported architecture";;esac
-      local binary="$HOME/.local/share/maincreate/sdks/arduino-cli/1.5.1/linux-$arch/arduino-cli"
-      [[ -x "$binary" ]] || die "Arduino CLI 1.5.1 is not installed"
-      rm -f "$binary"
+      rm -rf "$HOME/.local/share/maincreate/sdks/arduino-cli/1.5.1"
       ;;
     esp-idf)
       valid_version "$version" || die "Invalid ESP-IDF version"
@@ -512,8 +532,10 @@ cleanup_toolkit(){
       [[ "$version" == "$ANDROID_VERSION" ]] || die "Unsupported Android SDK toolkit version"
       [[ -x "$(sdkmanager_path)" ]] || die "Android SDK manager is missing"
       # Keep shared command-line tools, platform-tools, and API 22 legacy target.
+      set +o pipefail
       yes | "$(sdkmanager_path)" --sdk_root="$ANDROID_ROOT" --uninstall \
         "platforms;android-$ANDROID_API_CURRENT" "build-tools;$ANDROID_BUILD_TOOLS"
+      set -o pipefail
       ;;
     *) die "Unknown toolkit family" ;;
   esac
