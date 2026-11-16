@@ -109,7 +109,6 @@ function renderPlans(){
       const result=await api("/api/local/marketplace/cleanup",{plan_id:plan.id,builder_id:target.builderId,confirm_cleanup:true});
       $("marketplaceNotice").textContent="Cleanup dispatched. The runner label will be removed after the workflow succeeds.";
       target.cleanupStatus="dispatched";target.cleanupId=result.cleanup.cleanupId;await load();
-setInterval(()=>{if(!document.hidden)load();},10000);
      }catch(e){$("marketplaceNotice").textContent=e.message;cleanup.disabled=false;}
     });
     item.append(cleanup);
@@ -154,3 +153,5 @@ $("marketplaceRequest").addEventListener("click",async()=>{
  catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
 load();
+load();
+setInterval(()=>{if(!document.hidden)load();},10000);
