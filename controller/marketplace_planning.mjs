@@ -88,7 +88,7 @@ export function validateAssignment(input){
  const fields=["displayName","location","assignedTo","accessGroup"];
  const out={};for(const key of fields){
   const value=input[key];if(typeof value!=="string"||value.length>100||
-   /[\\x00-\\x1f\\x7f]/.test(value))throw bad("Invalid "+key);
+   /[\x00-\x1f\x7f]/.test(value))throw bad("Invalid "+key);
   out[key]=value.trim();
  }
  return out;
