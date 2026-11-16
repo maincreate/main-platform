@@ -143,12 +143,15 @@ export async function refreshMarketplaceCleanups({requests,plans,organization,to
    request.workflowConclusion=run.conclusion||null;request.status=next;changed=true;
   }
   if(next==="completed"&&!request.labelsRemoved){
-   const other=plans.some(p=>p.id!==request.planId&&p.family===request.family&&
+   const otherFamily=plans.some(p=>p.id!==request.planId&&p.family===request.family&&
+    (p.targets||[]).some(t=>t.builderId===request.builderId&&t.status==="completed"&&t.labelsRegistered));
+   const otherSameVersion=plans.some(p=>p.id!==request.planId&&p.family===request.family&&p.version===request.version&&
     (p.targets||[]).some(t=>t.builderId===request.builderId&&t.status==="completed"&&t.labelsRegistered));
    const allLabels=labelsFor(request.family,request.version);
    const versionLabel="maincreate-toolkit-"+slug(request.family)+"-"+slug(request.version);
-   const remove=[versionLabel];
-   if(!other)remove.push(...allLabels.filter(label=>label!==versionLabel));
+   const remove=[];
+   if(!otherSameVersion)remove.push(versionLabel);
+   if(!otherFamily)remove.push(...allLabels.filter(label=>label!==versionLabel));
    try{await changeLabels({organization,runnerId:request.githubRunnerId,token,remove,fetchImpl});request.labelsRemoved=true;changed=true;}
    catch(e){request.labelError=String(e.message||e).slice(0,300);changed=true;}
    const plan=plans.find(p=>p.id===request.planId);
