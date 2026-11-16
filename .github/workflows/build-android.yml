@@ -1,0 +1,63 @@
+name: Main{Create} Android application build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      toolkit_version:
+        required: true
+        type: string
+      build_runner_label:
+        required: true
+        type: string
+      toolkit_label:
+        required: true
+        type: string
+      maincreate_ref:
+        required: true
+        type: string
+      target_profile:
+        required: true
+        type: string
+      build_variant:
+        required: false
+        type: string
+        default: debug
+      artifact_name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  android:
+    runs-on: [self-hosted, linux, "${{ inputs.build_runner_label }}", "${{ inputs.toolkit_label }}", maincreate-capability-android-app-build]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: maincreate/main-platform
+          ref: ${{ inputs.maincreate_ref }}
+          path: .maincreate
+          persist-credentials: false
+      - name: Build APK for selected Android API target
+        shell: bash
+        env:
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          TARGET_PROFILE: ${{ inputs.target_profile }}
+          BUILD_VARIANT: ${{ inputs.build_variant }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh build android-sdk "$TOOLKIT_VERSION" "$TARGET_PROFILE" "$BUILD_VARIANT"
+      - name: Upload APK and app manifest
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: |
+            build/maincreate-artifacts/app.apk
+            build/maincreate-artifacts/maincreate-manifest.json
+          if-no-files-found: error
+          retention-days: 30
