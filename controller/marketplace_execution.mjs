@@ -145,12 +145,10 @@ export async function refreshMarketplaceCleanups({requests,plans,organization,to
   if(next==="completed"&&!request.labelsRemoved){
    const other=plans.some(p=>p.id!==request.planId&&p.family===request.family&&
     (p.targets||[]).some(t=>t.builderId===request.builderId&&t.status==="completed"&&t.labelsRegistered));
-   const remove=["maincreate-toolkit-"+slug(request.family)+"-"+slug(request.version)];
-   if(!other){
-    if(request.family==="esp-idf")remove.push("maincreate-capability-firmware-build","maincreate-capability-firmware-device-io");
-    if(request.family==="android-sdk")remove.push("maincreate-capability-android-app-build");
-    if(request.family==="arduino-cli")remove.push("maincreate-capability-arduino-cli");
-   }
+   const allLabels=labelsFor(request.family,request.version);
+   const versionLabel="maincreate-toolkit-"+slug(request.family)+"-"+slug(request.version);
+   const remove=[versionLabel];
+   if(!other)remove.push(...allLabels.filter(label=>label!==versionLabel));
    try{await changeLabels({organization,runnerId:request.githubRunnerId,token,remove,fetchImpl});request.labelsRemoved=true;changed=true;}
    catch(e){request.labelError=String(e.message||e).slice(0,300);changed=true;}
    const plan=plans.find(p=>p.id===request.planId);
