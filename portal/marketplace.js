@@ -61,6 +61,17 @@ function openFamily(family){
 function openRelease(release){
  current=release;selection=new Set();placement="selected";
  $("marketplaceReleaseTitle").textContent=release.name+" "+release.version;
+ const operations=$("marketplaceOperations");operations.replaceChildren();
+ const labels={build:"Build",deploy:"Deploy",backup:"Backup",restore:"Restore"};
+ for(const key of ["build","deploy","backup","restore"]){
+  const op=release.operations?.[key];if(!op)continue;
+  const detail=op.operationType||op.artifactType||op.objectType||op.capabilityId||"Defined by toolkit adapter";
+  const row=esc("p",undefined,"maincreate-marketplace-operation");
+  row.append(esc("strong",labels[key]+": "),document.createTextNode(detail));
+  operations.append(row);
+ }
+ const cleanup=release.lifecycle?.cleanup?.instructions;
+ if(cleanup)operations.append(esc("small","Cleanup: "+cleanup));
  $("placementSelected").checked=true;$("placementAll").checked=false;
  $("marketplacePlan").hidden=false;$("androidLicenseRow").hidden=release.family!=="android-sdk";$("androidLicense").checked=false;renderTargets();
 }
