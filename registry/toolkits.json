@@ -1109,17 +1109,15 @@
           },
           "backup": {
             "capabilityId": "android.app.backup",
-            "objectType": "android-application-artifact-and-app-owned-data",
+            "objectType": "android-application-package-artifact",
             "methods": [
-              "verified-apk-artifact-export",
-              "installed-apk-export-when-readable",
-              "app-provided-data-export"
+              "installed-base-and-split-apk-export"
             ],
             "requiresConnectedDevice": true,
             "limitations": [
-              "This backs up an application artifact and optionally application-owned exported data; it is not a full-device backup.",
-              "Private app data is not generally extractable from a stock device without app cooperation, an applicable Android backup mechanism, or elevated privileges.",
-              "An AAB is a build/distribution artifact; direct device restore requires an APK or APK set."
+              "This backs up installed APK/split-APK package artifacts only; it is not a full-device backup.",
+              "Private app data, app databases and settings are not included.",
+              "APK export from /data/app may be blocked by device policy or package manager behavior."
             ],
             "runnerLabels": [
               "toolkit-android-sdk-2026-2-2-patch1",
@@ -1132,16 +1130,15 @@
           },
           "restore": {
             "capabilityId": "android.app.restore",
-            "objectType": "android-application-artifact-and-app-owned-data",
+            "objectType": "android-application-package-artifact",
             "methods": [
-              "adb-reinstall-verified-apk",
-              "app-provided-data-import"
+              "adb-install-or-install-multiple-verified-apks"
             ],
             "requiresConnectedDevice": true,
             "requiresPackageAndSignatureValidation": true,
             "limitations": [
-              "Restore reinstalls the app and optionally imports app-owned data; it does not restore Android OS firmware or the entire device.",
-              "Require compatible minSdk, ABI, signing certificate and package identity."
+              "Restore reinstalls the verified APK/split-APK package only; it does not restore private app data or Android OS firmware.",
+              "Require the same ADB device serial, package identity and compatible signing certificate."
             ],
             "runnerLabels": [
               "toolkit-android-sdk-2026-2-2-patch1",
@@ -1214,27 +1211,6 @@
             "architecture": "x64",
             "artifact": "commandlinetools-linux-15859902_latest.zip",
             "sha256": "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583",
-            "source": "https://developer.android.com/studio/releases"
-          },
-          {
-            "os": "macos",
-            "architecture": "x64",
-            "artifact": "commandlinetools-mac_x86_64-15859902_latest.zip",
-            "sha256": "c5a6378ab5cf7e0d5701921405115befff13e9ff7417fb588389338f8bd050f3",
-            "source": "https://developer.android.com/studio/releases"
-          },
-          {
-            "os": "macos",
-            "architecture": "arm64",
-            "artifact": "commandlinetools-mac_arm64-15859902_latest.zip",
-            "sha256": "835b62a26162b229b441d1f6d4680383815a270809eb33522c0d480fa5002c4e",
-            "source": "https://developer.android.com/studio/releases"
-          },
-          {
-            "os": "windows",
-            "architecture": "x64",
-            "artifact": "commandlinetools-win-15859902_latest.zip",
-            "sha256": "90ae805d20434428bffcb699c290860f19bb5f66a67e6b330067e3de801fb04a",
             "source": "https://developer.android.com/studio/releases"
           }
         ],
