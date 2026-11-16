@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "description": "Android application deployment targets. Device OS/ABI compatibility is independent of builder host OS/architecture.",
+  "devices": [
+    {
+      "id": "avalue-epd-42s",
+      "manufacturer": "Avalue",
+      "model": "EPD-42S / SABRESD_MX7D",
+      "product": "sabresd_7d_eink",
+      "soc": "NXP/Freescale i.MX7D",
+      "cpuArchitecture": "armv7",
+      "androidVersion": "5.1.1",
+      "apiLevel": 22,
+      "abi": "armeabi-v7a",
+      "kernel": "3.14.52",
+      "display": {
+        "technology": "e-ink",
+        "resolution": "2880x2160",
+        "controller": "mxc_epdc_fb",
+        "touch": true
+      },
+      "deployment": {
+        "transport": "adb-usb",
+        "artifactType": "apk",
+        "operation": "install-application",
+        "fastbootFirmwareFlash": false
+      },
+      "applicationCompatibility": {
+        "minimumApi": 22,
+        "preferredTargetApi": 22,
+        "requiredNativeAbi": "armeabi-v7a",
+        "directSideloadApk": true
+      },
+      "notes": [
+        "This profile is for Android application deployment, not Android OS or device firmware flashing.",
+        "The E Ink panel and waveform/EPDC integration are BSP-specific; the generic Android SDK does not provide the vendor display driver or HAL.",
+        "Native libraries must include armeabi-v7a; Java/Kotlin-only APKs do not need a native ABI payload."
+      ]
+    }
+  ]
+}

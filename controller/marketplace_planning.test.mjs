@@ -5,7 +5,7 @@ const pi={id:'a',name:'pi-desk',os:'linux',arch:'arm64',managedHost:{host:'pi.lo
  assignment:{location:'Orlando / desk',assignedTo:'Engineer A'}};
 const unmanaged={id:'b',name:'unmanaged',os:'linux',arch:'arm64'};
 const mac={id:'c',name:'mac',os:'macos',arch:'arm64',managedHost:{host:'mac.local'}};
-const hosts=[pi,unmanaged,mac];
+const x64={id:'d',name:'builder-linux-x64-01',os:'linux',arch:'x64',managedHost:{host:'builder.local'}};\nconst hosts=[pi,unmanaged,mac,x64];
 test('Versioned registry returns releases and recognized host compatibility',()=>{
  const esp=releases().find(x=>x.id==='esp-idf@5.5.6');
  assert(esp);assert.equal(classifyBuilder(pi,esp).compatible,true);

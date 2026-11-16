@@ -14,6 +14,7 @@ import {firmwareWorkflowPreview,provisionRunnerLabel} from "./github_workflow_ro
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
+import {runnerLabels} from "./runner_provisioning.mjs";
 
 const dataDir = process.env.MAIN_DATA_DIR || "./.maincreate-data";
 const dataFile = join(dataDir, "state.json");
@@ -33,6 +34,23 @@ function githubIdentityCurrent(g) {
   // A saved profile/organization alone is not proof of a usable authorization.
   return !!g.oauthUser && !!g.oauthToken &&
     (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
+}
+
+async function syncRunnerLabels(runner,s){
+ const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...(runner.githubRunnerLabel?[runner.githubRunnerLabel]:[]),...runnerLabels(runner)])];
+ const gh=s.github||{},org=gh.selectedOrganization;
+ if(!runner.githubRunnerId||!runner.githubRunnerName||!githubIdentityCurrent(gh)||!org||
+  JSON.stringify(labels.slice().sort())===JSON.stringify((runner.labels||[]).slice().sort()))return;
+ try{
+  const identity=gh;
+  if(!githubIdentityCurrent(identity)||identity.selectedOrganization!==org)return;
+  const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
+   method:"PUT",headers:{authorization:"Bearer "+unseal(identity.oauthToken),"content-type":"application/json",
+    accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
+   body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
+  if(response.ok){runner.labels=labels;runner.labelsSyncedAt=new Date().toISOString();delete runner.labelsSyncError;}
+  else runner.labelsSyncError="GitHub label update HTTP "+response.status;
+ }catch(e){runner.labelsSyncError=String(e.message||e).slice(0,180);}
 }
 // One in-flight rotation per process. Refresh tokens may be single-use; avoid
 // simultaneous rotations from dashboard polling and authenticated API requests.
@@ -503,16 +521,26 @@ export async function localRoute(req) {
         try{
           const input=await body(req),s=state(),plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
           if(!plan)return deny(404,"Installation plan not found");
-          if(plan.family!=="arduino-cli"||plan.version!=="1.5.1")return deny(422,"This plan has no enabled installer");
+          const installCapability=plan.family==="arduino-cli"&&plan.version==="1.5.1"?"sdk.arduino_cli.install":
+            plan.family==="esp-idf"&&["5.5.6","6.1.1"].includes(plan.version)?"toolkit.esp_idf.install":
+            plan.family==="android-sdk"&&plan.version==="2026.2.2-patch1"?"toolkit.android.install":null;
+          if(!installCapability)return deny(422,"This plan has no enabled installer");
+          if(plan.family==="android-sdk"&&input.license_accepted!==true)return deny(422,"Accept the Google Android SDK license before installation");
           if(!Array.isArray(plan.targets)||!plan.targets.length)return deny(422,"Installation plan has no targets");
           const jobs=plan.job_ids||[],statuses=jobs.map(id=>{try{return fabricCall("maincreate_jobs",{action:"get",job_id:id}).job.status}catch{return "unknown"}});
           if(statuses.some(x=>["awaiting_approval","queued","running","completed"].includes(x)))return deny(409,"This plan already has requested or completed builder jobs");
           plan.job_ids=[];const failures=[];
           for(const target of plan.targets){
             const runner=s.runners.find(r=>r.id===target.builderId);
-            if(!runner||runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)){target.status="failed";target.error="Runner is not a supported Linux Arduino CLI target";failures.push(target.builderId);continue;}
+            const supported=runner&&runner.os==="linux"&&
+              (plan.family==="esp-idf"?["arm64","x64"].includes(runner.arch):
+               plan.family==="android-sdk"?runner.arch==="x64":
+               ["arm64","x64"].includes(runner.arch));
+            if(!supported){target.status="failed";target.error="Runner OS/architecture is not supported by this exact toolkit version";failures.push(target.builderId);continue;}
             try{
-              const fabricPlan=fabricCall("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}},{runners:s.runners});
+              const parameters=plan.family==="esp-idf"?{version:plan.version}:
+                plan.family==="android-sdk"?{license_accepted:"true"}:{};
+              const fabricPlan=fabricCall("maincreate_plan",{capability:installCapability,runner_id:runner.id,parameters},{runners:s.runners});
               const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
               plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
             }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
@@ -830,6 +858,13 @@ export async function localRoute(req) {
           current.githubRunnerName=binding.runnerName;
           current.githubRunnerLabel=binding.label;
           current.githubRunnerBindingAt=binding.at;
+          const pairedBuilder=next.runners.find(r=>r.id===current.buildBuilderId);
+          if(pairedBuilder){
+           pairedBuilder.githubRunnerId=binding.runnerId;
+           pairedBuilder.githubRunnerName=binding.runnerName;
+           pairedBuilder.githubRunnerLabel=binding.label;
+           pairedBuilder.labels=[...new Set([...(pairedBuilder.labels||[]),binding.label])];
+          }
           save(next);
           return reply({configured:true,repository:current.repository,runnerName:binding.runnerName,label:binding.label});
         }catch(e){return deny(e.status||422,e.message);}
@@ -1095,9 +1130,9 @@ export async function localRoute(req) {
         const input=await body(req),gh=state().github,org=gh.selectedOrganization;
         if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
         if(!Number.isSafeInteger(input.runnerId)||input.runnerId<=0||
-          !Array.isArray(input.labels)||input.labels.length>15||
+          !Array.isArray(input.labels)||input.labels.length>30||
           input.labels.some(l=>typeof l!=="string"||!/^[a-zA-Z0-9_-]{1,40}$/.test(l)))
-          return deny(422,"Provide a runner ID and up to 15 valid labels");
+          return deny(422,"Provide a runner ID and up to 30 valid labels");
         const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
         if(!managed||typeof input.runnerName!=="string"||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}$/.test(input.runnerName))
           return deny(403,"Only enrolled Main{Create}-managed runner labels can be edited");
@@ -1119,6 +1154,8 @@ export async function localRoute(req) {
             "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
           body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
         if(!response.ok)return deny(response.status===403?403:502,"Could not update GitHub runner labels");
+        const saved=state(),managedRunner=saved.runners.find(r=>r.githubRunnerName===input.runnerName);
+        if(managedRunner){managedRunner.githubRunnerId=input.runnerId;managedRunner.labels=labels;managedRunner.labelsSyncedAt=new Date().toISOString();delete managedRunner.labelsSyncError;save(saved);}
         return reply({updated:true,labels});
       }
       if(path==="/api/local/runners/invite"&&method==="POST"){
@@ -1160,6 +1197,21 @@ export async function localRoute(req) {
         runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
         runner.packagesObservedAt=runner.lastSeen;
       }
+      if(Array.isArray(b.android_devices)&&b.android_devices.length<=16&&b.android_devices.every(d=>
+       d&&typeof d.serial==="string"&&/^[A-Za-z0-9._:-]{3,128}$/.test(d.serial)&&
+       Number.isInteger(d.apiLevel)&&d.apiLevel>=1&&d.apiLevel<=100&&
+       typeof d.abi==="string"&&d.abi.length<=40&&typeof d.model==="string"&&d.model.length<=120&&
+       typeof d.product==="string"&&d.product.length<=120&&typeof d.release==="string"&&d.release.length<=40)){
+        runner.androidDevices=b.android_devices.map(d=>({serial:d.serial,apiLevel:d.apiLevel,abi:d.abi,
+         model:d.model,product:d.product,release:d.release,connected:true}));
+        runner.androidDevicesObservedAt=runner.lastSeen;
+        if(Array.isArray(runner.packages)&&runner.packages.some(p=>p.name==="adb")){
+         runner.packages=runner.packages.filter(p=>p.name!=="android-device-api22");
+         if(runner.androidDevices.some(d=>d.apiLevel===22&&d.abi==="armeabi-v7a"))
+          runner.packages.push({name:"android-device-api22",version:"connected"});
+        }
+      }
+      if(Array.isArray(b.packages)||Array.isArray(b.android_devices))await syncRunnerLabels(runner,s);
       save(s);return reply({ok:true});
     }
     if(path==="/api/agent/devices"&&method==="POST"){

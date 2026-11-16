@@ -1,7 +1,7 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "b6c75f1a9556869803e03d3d9e521f145e1e5ed1",
+    "revision": "1b9905e900471fd6d409f353529a664f62a65f52",
     "paths": [
       "host",
       "runner",
@@ -11,10 +11,11 @@
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "136efc8e3db23c7e500de487f312ff3812d66a11",
+    "revision": "64f0ae8dcd491c9dc42a4219b6c46447823aa6d7",
     "paths": [
       "registry/toolkits.json",
-      "registry/microcontrollers.json"
+      "registry/microcontrollers.json",
+      "registry/android-devices.json"
     ]
   }
 }

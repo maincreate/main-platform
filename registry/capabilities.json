@@ -6,9 +6,20 @@
     "risk": "host-modify",
     "state": "available",
     "description": "Install Arduino CLI 1.5.1 from an immutable official GitHub release tarball with an architecture-specific SHA-256 pin. Explicit runner opt-in and portal approval are required; installation is per-user and never flashes devices.",
-    "platforms": ["linux"],
-    "parameters": {"type":"object","properties":{},"required":[],"additionalProperties":false},
-    "steps": [{"capability":"sdk.arduino_cli.install"}]
+    "platforms": [
+      "linux"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "sdk.arduino_cli.install"
+      }
+    ]
   },
   {
     "id": "host.snapshot",
@@ -35,15 +46,15 @@
   },
   {
     "id": "firmware.esp_idf.build",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kind": "action",
     "risk": "build",
     "state": "available",
-    "description": "Compile an operator-allowlisted local ESP-IDF checkout without downloading, flashing or changing its revision. Runner opt-in required. The exact 40-character local checkout revision is mandatory.",
-    "platforms": [
-      "linux",
-      "macos",
-      "windows"
+    "description": "Build an allowlisted clean ESP-IDF checkout with the exact selected marketplace version and target chip; upload a checksum-manifested firmware bundle. No device write.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
     ],
     "parameters": {
       "type": "object",
@@ -55,11 +66,21 @@
         "revision": {
           "type": "string",
           "pattern": "^[a-fA-F0-9]{40}$"
+        },
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
         }
       },
       "required": [
         "repository",
-        "revision"
+        "revision",
+        "toolkit_version",
+        "target_chip"
       ],
       "additionalProperties": false
     },
@@ -71,11 +92,11 @@
   },
   {
     "id": "workflow.esp_idf.preflight_build",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kind": "workflow",
     "risk": "build",
     "state": "available",
-    "description": "Run a host snapshot followed by an approved ESP-IDF build on the same allowlisted machine. The exact 40-character local checkout revision is mandatory.",
+    "description": "Run a host snapshot followed by a pinned-version ESP-IDF build on the same allowlisted machine. The exact 40-character local checkout revision, toolkit version and target chip are mandatory.",
     "platforms": [
       "linux",
       "macos",
@@ -91,11 +112,21 @@
         "revision": {
           "type": "string",
           "pattern": "^[a-fA-F0-9]{40}$"
+        },
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
         }
       },
       "required": [
         "repository",
-        "revision"
+        "revision",
+        "toolkit_version",
+        "target_chip"
       ],
       "additionalProperties": false
     },
@@ -125,18 +156,49 @@
   },
   {
     "id": "firmware.esp_idf.flash",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "kind": "action",
     "risk": "device-write",
-    "state": "unavailable",
-    "description": "Reserved for future explicit-approval USB flashing adapter. Not executable.",
-    "platforms": [],
+    "state": "available",
+    "description": "Flash a completed Main{Create} firmware bundle to a connected ESP32 only after an active chip probe matches the approved target. Requires an explicitly approved job.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
     "parameters": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB|ttyACM)[0-9]+$"
+        },
+        "source_asset_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        }
+      },
+      "required": [
+        "toolkit_version",
+        "target_chip",
+        "port",
+        "source_asset_id"
+      ],
       "additionalProperties": false
     },
-    "steps": []
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.flash"
+      }
+    ]
   },
   {
     "id": "deployment.release",
@@ -212,5 +274,373 @@
       "additionalProperties": false
     },
     "steps": []
+  },
+  {
+    "id": "toolkit.esp_idf.install",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "available",
+    "description": "Install an exact approved ESP-IDF release using checksum-pinned Espressif Installation Manager. Requires explicit runner opt-in and portal approval.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "toolkit.esp_idf.install"
+      }
+    ]
+  },
+  {
+    "id": "toolkit.android.install",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "available",
+    "description": "Install the pinned Android command-line toolchain on Linux x64. Requires explicit acceptance of Google SDK licenses, runner opt-in and portal approval.",
+    "platforms": "linux",
+    "architectures": [
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "license_accepted": {
+          "type": "string",
+          "pattern": "^true$"
+        }
+      },
+      "required": [
+        "license_accepted"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "toolkit.android.install"
+      }
+    ]
+  },
+  {
+    "id": "firmware.esp_idf.backup",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-read",
+    "state": "available",
+    "description": "Read back the full flash image from a probed ESP32 and preserve its chip MAC, flash size, partition-table hash and security observations. Not a generic device backup.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB|ttyACM)[0-9]+$"
+        },
+        "partition_table_offset": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{1,8}$"
+        }
+      },
+      "required": [
+        "toolkit_version",
+        "target_chip",
+        "port"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.backup"
+      }
+    ]
+  },
+  {
+    "id": "firmware.esp_idf.restore",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-write",
+    "state": "available",
+    "description": "Restore an ESP32 flash-image backup only to the exact source chip MAC with matching chip family, flash size and partition-table hash. Requires explicit approval.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB|ttyACM)[0-9]+$"
+        },
+        "source_asset_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        }
+      },
+      "required": [
+        "toolkit_version",
+        "target_chip",
+        "port",
+        "source_asset_id"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.restore"
+      }
+    ]
+  },
+  {
+    "id": "android.app.build",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "build",
+    "state": "available",
+    "description": "Build a pinned Android application checkout with the versioned Android SDK; produce APK application artifacts for the selected Android API target. Does not build OS firmware.",
+    "platforms": "linux",
+    "architectures": [
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{40}$"
+        },
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^2026\\\\.2\\\\.2-patch1$"
+        },
+        "target_profile": {
+          "type": "string",
+          "pattern": "^(android-current-api37|android-legacy-api22-eink)$"
+        }
+      },
+      "required": [
+        "repository",
+        "revision",
+        "toolkit_version",
+        "target_profile"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "android.app.build"
+      }
+    ]
+  },
+  {
+    "id": "android.app.deploy",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-write",
+    "state": "available",
+    "description": "Install a verified APK on the selected ADB-authorized Android 5.1.1/API22 E Ink device. This deploys an application, not firmware.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "source_asset_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "device_serial": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{3,128}$"
+        },
+        "package_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z][A-Za-z0-9_]*)+$"
+        },
+        "device_profile": {
+          "type": "string",
+          "pattern": "^avalue-epd-42s$"
+        }
+      },
+      "required": [
+        "source_asset_id",
+        "device_serial",
+        "package_name",
+        "device_profile"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "android.app.deploy"
+      }
+    ]
+  },
+  {
+    "id": "android.app.backup",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-read",
+    "state": "available",
+    "description": "Export the installed APK artifact from the selected Android device. Does not include private app data or perform a whole-device backup.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "device_serial": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{3,128}$"
+        },
+        "package_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z][A-Za-z0-9_]*)+$"
+        }
+      },
+      "required": [
+        "device_serial",
+        "package_name"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "android.app.backup"
+      }
+    ]
+  },
+  {
+    "id": "android.app.restore",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-write",
+    "state": "available",
+    "description": "Reinstall a verified APK artifact on the selected Android 5.1.1/API22 E Ink device using ADB. Does not restore OS firmware or private app data.",
+    "platforms": "linux",
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "source_asset_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "device_serial": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{3,128}$"
+        },
+        "package_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z][A-Za-z0-9_]*)+$"
+        },
+        "device_profile": {
+          "type": "string",
+          "pattern": "^avalue-epd-42s$"
+        }
+      },
+      "required": [
+        "source_asset_id",
+        "device_serial",
+        "package_name",
+        "device_profile"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "android.app.restore"
+      }
+    ]
+  },
+  {
+    "id": "toolkit.cleanup",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "available",
+    "description": "Remove one exact Main{Create}-managed toolkit version after a dry-run inventory and active-job check. Explicit portal approval required; other versions and project data are preserved.",
+    "platforms": [
+      "linux"
+    ],
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "pattern": "^(esp-idf|android-sdk)$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1|2026\\\\.2\\\\.2-patch1)$"
+        },
+        "dry_run": {
+          "type": "string",
+          "pattern": "^(true|false)$"
+        }
+      },
+      "required": [
+        "family",
+        "version",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "toolkit.cleanup"
+      }
+    ]
   }
 ]

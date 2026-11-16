@@ -4,13 +4,13 @@ import {join} from "node:path";
 
 const root=process.env.MAIN_DATA_DIR||"./.maincreate-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
-const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
+const MAX_ASSET=128*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=2*1024*1024*1024;
 // The MCP surface is stable. These versioned, curated files define what it can discover.
 // Only adapters implemented in the runner may be marked executable.
 const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
 const CAPS=readManifest("capabilities.json");
 const TOOLKITS=readManifest("toolkits.json");
-const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install"]);
+const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install","toolkit.esp_idf.install","toolkit.android.install","toolkit.cleanup","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore","android.app.build","android.app.deploy","android.app.backup","android.app.restore"]);
 function validateRegistry(){
  const ids=new Set();
  for(const c of CAPS){
@@ -72,8 +72,24 @@ function createPlan(args,ctx) {
  const runner=runnerBy(ctx,args.runner_id);
  if(!runner)throw error(404,"Runner not enrolled");
  if(!cap.platforms.includes(runner.os))throw error(422,"Runner operating system not supported");
+ if(Array.isArray(cap.architectures)&&!cap.architectures.includes(runner.arch))throw error(422,"Runner architecture not supported for this capability");
  const params=validParams(cap.parameters,clean(args.parameters));
- const s=store();s.plans=s.plans.filter(p=>Date.now()-Date.parse(p.createdAt)<24*3600e3).slice(-99);
+ const hasPackage=(name,version)=>Array.isArray(runner.packages)&&runner.packages.some(p=>p.name===name&&(!version||p.version===version));
+ if(["firmware.esp_idf.build","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore","workflow.esp_idf.preflight_build"].includes(id)&&
+   !hasPackage("esp-idf",params.toolkit_version))
+  throw error(409,"This builder does not have the exact selected ESP-IDF version installed and verified");
+ if(id==="firmware.esp_idf.flash"||id==="firmware.esp_idf.backup"||id==="firmware.esp_idf.restore"){
+  if(!hasPackage("usb-serial-device","connected"))throw error(409,"No USB serial device is currently connected to this builder");
+ }
+ if(id==="android.app.build"&&!hasPackage("android-sdk",params.toolkit_version))
+  throw error(409,"This builder does not have the exact selected Android SDK version installed and verified");
+ if(["android.app.deploy","android.app.backup","android.app.restore"].includes(id)&&
+   (!hasPackage("adb")||!hasPackage("android-device-api22","connected")))
+  throw error(409,"An ADB-authorized Android 5.1.1/API22 device must be connected to this builder");
+ const s=store();
+ if(id==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===runner.id&&["awaiting_approval","queued","running"].includes(j.status)))
+  throw error(409,"Toolkit cleanup is blocked while this builder has pending or active jobs");
+ s.plans=s.plans.filter(p=>Date.now()-Date.parse(p.createdAt)<24*3600e3).slice(-99);
  const p={id:uid(),capability:id,version:cap.version,runnerId:runner.id,parameters:params,
   steps:cap.steps.map((step,i)=>({index:i,capability:step.capability,status:"pending"})),
   createdAt:new Date().toISOString(),expiresAt:Date.now()+30*60e3};
@@ -87,6 +103,11 @@ function createJob(args,ctx){
  const s=store(),p=s.plans.find(x=>x.id===args.plan_id);
  if(!p||Date.now()>p.expiresAt)throw error(404,"Plan missing or expired; re-plan");
  if(!runnerBy(ctx,p.runnerId))throw error(404,"Runner no longer enrolled");
+ const activeStatuses=["awaiting_approval","queued","running"];
+ if(p.capability==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===p.runnerId&&j.planId!==p.id&&activeStatuses.includes(j.status)))
+  throw error(409,"Toolkit cleanup is blocked while another job is pending or active on this builder");
+ if(s.jobs.some(j=>j.runnerId===p.runnerId&&j.capability==="toolkit.cleanup"&&j.planId!==p.id&&activeStatuses.includes(j.status)))
+  throw error(409,"This builder has a toolkit cleanup job pending or active");
  const existing=s.jobs.find(j=>j.planId===p.id);
  if(existing)return {job:publicJob(existing),created:false,requires_approval:existing.status==="awaiting_approval"};
  if(s.jobs.length>=200)throw error(409,"Job history limit reached; archive required");
@@ -120,7 +141,7 @@ function inspect(args,ctx){
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
-  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)};
+  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),packages:r.packages||[],androidDevices:r.androidDevices||[]};
  }
  if(kind==="job"){
   const j=store().jobs.find(x=>x.id===id);
@@ -137,7 +158,8 @@ function discover(args,ctx){
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="toolkits")result.toolkits=TOOLKITS.filter(t=>!q||(t.id+" "+t.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
-  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)
+  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
+  packages:r.packages||[],androidDevices:r.androidDevices||[]
  })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
  if(resource==="all"||resource==="devices")result.devices=(ctx.devices||[]).filter(d=>
   !q||((d.label||"")+" "+(d.product||"")+" "+(d.port||"")+" "+(d.runnerName||"")).toLowerCase().includes(q))
@@ -288,6 +310,21 @@ export function agentAsset(runner,args){
  const jobId=args.job_id,s=store(),j=s.jobs.find(x=>x.id===jobId);
  if(!j||j.runnerId!==runner.id||j.status!=="running")throw error(403,"Runner does not own this running job");
  if(args.action==="begin")return beginAsset(args,{jobId});
+ if(args.action==="download"){
+  const source=s.assets.find(a=>a.id===args.asset_id&&a.complete);
+  const sourceJob=source&&s.jobs.find(x=>x.id===source.jobId);
+  const allowedSources={
+   "firmware.esp_idf.flash":["firmware.esp_idf.build"],
+   "firmware.esp_idf.restore":["firmware.esp_idf.backup"],
+   "android.app.deploy":["android.app.build"],
+   "android.app.restore":["android.app.backup","android.app.build"]
+  };
+  if(!source||!sourceJob||sourceJob.status!=="completed"||
+     j.parameters?.source_asset_id!==source.id||
+     !allowedSources[j.capability]?.includes(sourceJob.capability))
+   throw error(403,"Artifact is not an approved output type from a compatible completed source job");
+  return getAsset(args);
+ }
  const asset=s.assets.find(a=>a.id===args.asset_id&&a.jobId===jobId);
  if(!asset)throw error(403,"Asset not owned by running job");
  if(args.action==="chunk")return chunkAsset(args);

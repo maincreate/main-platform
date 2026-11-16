@@ -8,13 +8,13 @@ import {createHash} from "node:crypto";
 const dir=mkdtempSync(join(tmpdir(),"maincreate-fabric-"));
 process.env.MAIN_DATA_DIR=dir;
 const {fabricCall,approveJob,claimJob,reportJob,agentAsset}=await import("./fabric.mjs");
-const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
-const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
+const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString(),packages:[{name:"esp-idf",version:"6.1.1"},{name:"usb-serial-device",version:"connected"}]};
+const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString(),packages:[{name:"esp-idf",version:"6.1.1"},{name:"usb-serial-device",version:"connected"}]};
 const ctx={runners:[runner,other],workspace:{name:"Test",githubOrganization:"Example"}};
 const invoke=(tool,args)=>fabricCall(tool,args,ctx);
 const snapshot={capability:"host.snapshot",runner_id:runner.id,parameters:{}};
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
-test("stable registry discovers real capabilities and marks flashing unavailable",()=>{
+test("stable registry exposes versioned toolkit build, deployment and object operations",()=>{
  const {capabilities,workspace,runners}=invoke("maincreate_discover",{resource:"all"});
  assert.equal(workspace.githubOrganization,"Example");
  assert.equal(runners.length,2);
@@ -22,8 +22,9 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.build"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="sdk.arduino_cli.install"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="workflow.esp_idf.preflight_build"&&c.kind==="workflow"));
- assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
- assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
+ assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="available"));
+ assert(capabilities.some(c=>c.id==="toolkit.cleanup"&&c.state==="available"));
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/Invalid parameter/);
 });
 test("plans validate schemas and do not execute or accept arbitrary commands",()=>{
  const p=invoke("maincreate_plan",snapshot);
@@ -63,7 +64,7 @@ test("Arduino install requests create one approval-pending job per builder and d
 });
 test("composed workflow is one approval with pinned ordered actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
-  parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});
+  parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40),toolkit_version:"6.1.1",target_chip:"esp32s3"}});
  assert.deepEqual(p.steps.map(x=>x.capability),["host.snapshot","firmware.esp_idf.build"]);
  const j=invoke("maincreate_execute",{plan_id:p.plan_id}).job;
  assert.equal(claimJob(other).job,null);
@@ -99,7 +100,7 @@ test("assets preserve offsets, digests, ownership and access boundaries",()=>{
  assert.equal(invoke("maincreate_assets",{action:"finish",asset_id:asset.id,sha256:digest}).asset.complete,true);
  assert.equal(Buffer.from(invoke("maincreate_assets",{action:"get",asset_id:asset.id,offset:0}).content_base64,"base64").toString(),payload.toString());
  assert.throws(()=>invoke("maincreate_assets",{action:"begin",name:"../escape",size:4}),/filename/);
- assert.throws(()=>invoke("maincreate_assets",{action:"begin",name:"bad",size:9*1024*1024}),/asset size/);
+ assert.throws(()=>invoke("maincreate_assets",{action:"begin",name:"bad",size:129*1024*1024}),/asset size/);
  assert(existsSync(join(dir,"fabric.json")));
  assert(!readFileSync(join(dir,"fabric.json"),"utf8").includes(payload.toString()));
 });
@@ -116,4 +117,36 @@ test("runner artifacts can be uploaded only to its own running job",()=>{
  const completed=reportJob(runner,{job_id:j.id,success:true,logs:"ok",
   steps:[{capability:"host.snapshot",status:"completed"}]}).job;
  assert(completed.asset_ids.includes(a.id));
+});
+
+test("cross-runner artifact download is limited to a completed source job and explicit source_asset_id",()=>{
+ const sourcePlan=invoke("maincreate_plan",{capability:"firmware.esp_idf.build",runner_id:runner.id,
+  parameters:{repository:"maincreate/test-firmware",revision:"a".repeat(40),toolkit_version:"6.1.1",target_chip:"esp32s3"}});
+ const sourceJob=invoke("maincreate_execute",{plan_id:sourcePlan.plan_id}).job;
+ approveJob(sourceJob.id,"approve");const sourceClaim=claimJob(runner).job;
+ const payload=Buffer.from("signed firmware bundle");
+ const asset=agentAsset(runner,{job_id:sourceJob.id,action:"begin",name:"firmware-bundle.tar.gz",mime:"application/gzip",size:payload.length}).asset;
+ agentAsset(runner,{job_id:sourceJob.id,action:"chunk",asset_id:asset.id,offset:0,content_base64:payload.toString("base64")});
+ agentAsset(runner,{job_id:sourceJob.id,action:"finish",asset_id:asset.id,sha256:createHash("sha256").update(payload).digest("hex")});
+ reportJob(runner,{job_id:sourceJob.id,success:true,logs:"built",steps:sourceClaim.steps.map(x=>({...x,status:"completed"}))});
+ const targetPlan=invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:other.id,
+  parameters:{toolkit_version:"6.1.1",target_chip:"esp32s3",port:"/dev/ttyUSB0",source_asset_id:asset.id}});
+ const targetJob=invoke("maincreate_execute",{plan_id:targetPlan.plan_id}).job;
+ approveJob(targetJob.id,"approve");claimJob(other);
+ const chunk=agentAsset(other,{job_id:targetJob.id,action:"download",asset_id:asset.id,offset:0,length:48*1024});
+ assert.equal(Buffer.from(chunk.content_base64,"base64").toString(),payload.toString());
+ const unauthorized=invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:other.id,
+  parameters:{toolkit_version:"6.1.1",target_chip:"esp32s3",port:"/dev/ttyUSB0",source_asset_id:"f".repeat(32)}});
+ const badJob=invoke("maincreate_execute",{plan_id:unauthorized.plan_id}).job;approveJob(badJob.id,"approve");claimJob(other);
+ assert.throws(()=>agentAsset(other,{job_id:badJob.id,action:"download",asset_id:asset.id,offset:0,length:48*1024}),/not an approved output/);
+});
+
+test("toolkit cleanup requires a clean builder job queue and explicit dry-run choice",()=>{
+ const plan=invoke("maincreate_plan",{capability:"toolkit.cleanup",runner_id:runner.id,
+  parameters:{family:"esp-idf",version:"6.1.1",dry_run:"true"}});
+ assert.equal(plan.requires_approval,true);
+ const active=invoke("maincreate_plan",snapshot),job=invoke("maincreate_execute",{plan_id:active.plan_id}).job;
+ assert.equal(job.status,"awaiting_approval");
+ assert.throws(()=>invoke("maincreate_plan",{capability:"toolkit.cleanup",runner_id:runner.id,
+  parameters:{family:"esp-idf",version:"6.1.1",dry_run:"false"}}),/pending or active jobs/);
 });
