@@ -25,10 +25,10 @@ test("Workflow preview waits for a unique GitHub runner label",()=>{
 });
 
 test("ESP-IDF workflow separates build and manually dispatched device operations",()=>{
- const preview=firmwareWorkflowPreview(ctx({
+ const preview=firmwareWorkflowPreview({...ctx({
   githubRunnerId:1234,githubRunnerName:"pi-builder",githubRunnerLabel:"maincreate-host-1234",
   flashBuilderId:"pi",githubFlashRunnerId:1234,githubFlashRunnerName:"pi-builder",githubFlashRunnerLabel:"maincreate-host-1234"
- }),);
+ }),flashBuilder:pi});
  assert.equal(preview.ready,true);
  assert.equal(preview.filePath,".github/workflows/maincreate-device-pipeline.yml");
  assert.match(preview.workflow,/uses: maincreate\/main-platform\/\.github\/workflows\/build-esp-idf\.yml@main/);
