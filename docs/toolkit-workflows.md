@@ -68,7 +68,7 @@ The generic Android SDK does not include the E Ink vendor HAL, EPDC driver, wave
 1. Install ESP-IDF 6.1.1 on both Linux builders using Marketplace (choose all compatible builders).
 2. Install Android SDK 2026.2.2 Patch 1 on the Linux x64 builder. Explicitly accept the Google SDK license in the Marketplace UI.
 3. Ensure the Pi host has `adb` and `android-sdk-platform-tools-common`. If its host installer predates this change, run `sudo apt-get update && sudo apt-get install -y adb android-sdk-platform-tools-common unzip python3-venv`.
-4. Ensure the x64 builder has JDK 17 or newer. If missing, run `sudo apt-get install -y openjdk-17-jdk-headless`.
+4. Ensure the x64 builder has JDK 17 or newer. If missing, run `sudo apt-get install -y default-jdk-headless`.
 5. Open the Main{Create} Platform repository's Actions tab and dispatch `device-preflight.yml` to the Pi runner using its unique host label. Supply `/dev/ttyUSB0` for the ESP32 probe. The workflow lists stable serial paths and authorized ADB devices.
 6. Record the ESP32 chip family and eFuse MAC from the probe; record the EPD-42S ADB serial from `list-android`.
 7. Configure the project build route to use the x64 builder for builds and the Pi builder for device operations. Provision both unique runner labels and commit the generated project workflow.
