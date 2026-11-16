@@ -10,10 +10,11 @@ import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startO
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
 import {listProjects,syncProjects} from "./projects.mjs";
 import {planBuildFlashRoute,routeSummaries,validateRouteRemoval} from "./build_flash_routing.mjs";
-import {firmwareWorkflowPreview,provisionRunnerLabel} from "./github_workflow_routing.mjs";
+import {firmwareWorkflowPreview,provisionRunnerLabel,ensureRunnerLabel} from "./github_workflow_routing.mjs";
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
+import {dispatchToolkitInstall,refreshMarketplacePlans,dispatchToolkitCleanup,refreshMarketplaceCleanups} from "./marketplace_execution.mjs";
 
 const dataDir = process.env.MAIN_DATA_DIR || "./.maincreate-data";
 const dataFile = join(dataDir, "state.json");
@@ -489,8 +490,20 @@ export async function localRoute(req) {
       }
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});
-      if(path==="/api/local/marketplace/plans"&&method==="GET")
-        return reply({plans:(state().marketplacePlans||[]).slice(-30).reverse().map(p=>({...p,job_statuses:(p.job_ids||[]).map(id=>{try{return fabricCall('maincreate_jobs',{action:'get',job_id:id}).job.status}catch{return 'unknown'}})}))});
+      if(path==="/api/local/marketplace/plans"&&method==="GET"){
+        await refreshGithubAuthorization();
+        const s=state(),gh=s.github||{};
+        if(githubIdentityCurrent(gh)){
+          try{
+            const token=unseal(gh.oauthToken);
+            const installs=await refreshMarketplacePlans({plans:s.marketplacePlans||[],organization:gh.selectedOrganization,token});
+            const cleanups=await refreshMarketplaceCleanups({requests:s.marketplaceCleanups||[],plans:s.marketplacePlans||[],organization:gh.selectedOrganization,token});
+            if(installs.changed||cleanups.changed)save(s);
+          }catch{/* Preserve the last known installation state if GitHub is temporarily unavailable. */}
+        }
+        return reply({plans:(s.marketplacePlans||[]).slice(-30).reverse(),
+          cleanups:(s.marketplaceCleanups||[]).slice(-30).reverse()});
+      }
       if(path==="/api/local/marketplace/plan"&&method==="POST"){
         try{
           const input=await body(req),s=state();
@@ -501,24 +514,48 @@ export async function localRoute(req) {
       }
       if(path==="/api/local/marketplace/request"&&method==="POST"){
         try{
-          const input=await body(req),s=state(),plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
+          await refreshGithubAuthorization();
+          const input=await body(req),s=state(),gh=s.github||{},plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
           if(!plan)return deny(404,"Installation plan not found");
-          if(plan.family!=="arduino-cli"||plan.version!=="1.5.1")return deny(422,"This plan has no enabled installer");
+          if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)return deny(409,"Connect and authorize the GitHub organization first");
           if(!Array.isArray(plan.targets)||!plan.targets.length)return deny(422,"Installation plan has no targets");
-          const jobs=plan.job_ids||[],statuses=jobs.map(id=>{try{return fabricCall("maincreate_jobs",{action:"get",job_id:id}).job.status}catch{return "unknown"}});
-          if(statuses.some(x=>["awaiting_approval","queued","running","completed"].includes(x)))return deny(409,"This plan already has requested or completed builder jobs");
-          plan.job_ids=[];const failures=[];
+          if(plan.family==="android-sdk"&&!plan.acceptAndroidSdkLicense)return deny(422,"Google Android SDK license acceptance is required");
+          const failures=[];
           for(const target of plan.targets){
+            if(["dispatched","running","completed"].includes(target.status))continue;
             const runner=s.runners.find(r=>r.id===target.builderId);
-            if(!runner||runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)){target.status="failed";target.error="Runner is not a supported Linux Arduino CLI target";failures.push(target.builderId);continue;}
+            if(!runner){target.status="dispatch_failed";target.error="Builder no longer exists";failures.push(target.builderId);continue;}
             try{
-              const fabricPlan=fabricCall("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}},{runners:s.runners});
-              const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
-              plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
-            }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
+              const dispatched=await dispatchToolkitInstall({plan,target,builder:runner,organization:gh.selectedOrganization,token:unseal(gh.oauthToken)});
+              Object.assign(target,dispatched,{githubRunnerId:dispatched.runnerId,status:"dispatched"});
+              delete target.error;
+            }catch(e){target.status="dispatch_failed";target.error=String(e.message||e).slice(0,300);failures.push(target.builderId);}
           }
-          plan.execution=plan.job_ids.length?"awaiting_approval":"failed";plan.requestedAt=new Date().toISOString();save(s);
-          return reply({plan,partial:failures.length>0,failed_builders:failures},plan.job_ids.length?202:422);
+          plan.execution=plan.targets.every(t=>["dispatched","running","completed"].includes(t.status))?"dispatched":
+            plan.targets.some(t=>["dispatched","running","completed"].includes(t.status))?"partial":"failed";
+          plan.requestedAt=new Date().toISOString();save(s);
+          return reply({plan,partial:failures.length>0,failed_builders:failures},plan.execution==="failed"?422:202);
+        }catch(e){return deny(e.status||422,e.message)}
+      }
+      if(path==="/api/local/marketplace/cleanup"&&method==="POST"){
+        try{
+          await refreshGithubAuthorization();
+          const input=await body(req),s=state(),gh=s.github||{};
+          const plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
+          if(!plan)return deny(404,"Installation plan not found");
+          if(!githubIdentityCurrent(gh)||!gh.selectedOrganization)return deny(409,"Connect and authorize the GitHub organization first");
+          if(input.confirm_cleanup!==true)return deny(422,"Explicit cleanup confirmation is required");
+          const target=plan.targets?.find(t=>t.builderId===input.builder_id);
+          if(!target)return deny(404,"Installed builder target not found");
+          const runner=s.runners.find(r=>r.id===target.builderId);
+          if(!runner)return deny(404,"Builder no longer exists");
+          const cleanup=await dispatchToolkitCleanup({plan,target,builder:runner,organization:gh.selectedOrganization,
+            token:unseal(gh.oauthToken),confirmCleanup:true});
+          const record={...cleanup,planId:plan.id,family:plan.family,version:plan.version,builderId:runner.id,
+            githubRunnerId:cleanup.runnerId,createdBy:session(req).username};
+          s.marketplaceCleanups=[...(s.marketplaceCleanups||[]).slice(-99),record];
+          target.cleanupStatus="dispatched";target.cleanupId=cleanup.cleanupId;save(s);
+          return reply({cleanup:record},202);
         }catch(e){return deny(e.status||422,e.message)}
       }
       if(path==="/api/local/builders/assignment"&&method==="POST"){
@@ -799,6 +836,13 @@ export async function localRoute(req) {
             route.githubRunnerLabel=old.githubRunnerLabel;
             route.githubRunnerBindingAt=old.githubRunnerBindingAt;
           }
+          if(old&&route.flashBuilderId&&old.flashBuilderId===route.flashBuilderId&&
+            old.githubFlashRunnerLabel&&old.githubFlashRunnerName){
+            route.githubFlashRunnerId=old.githubFlashRunnerId;
+            route.githubFlashRunnerName=old.githubFlashRunnerName;
+            route.githubFlashRunnerLabel=old.githubFlashRunnerLabel;
+            route.githubFlashRunnerBindingAt=old.githubFlashRunnerBindingAt;
+          }
           const others=(stored.projectRoutes||[]).filter(r=>r.organization!==org||r.repository!==route.repository);
           stored.projectRoutes=[...others,route].slice(-500);save(stored);
           return reply({route},201);
@@ -811,7 +855,8 @@ export async function localRoute(req) {
         const route=(stored.projectRoutes||[]).find(r=>r.organization===org&&r.repository===repo);
         const project=listProjects(org).repositories.find(r=>r.fullName===repo);
         const builder=stored.runners.find(b=>b.id===route?.buildBuilderId);
-        try{return reply(firmwareWorkflowPreview({route,project,builder,organization:org}));}
+        const flashBuilder=stored.runners.find(b=>b.id===route?.flashBuilderId);
+        try{return reply(firmwareWorkflowPreview({route,project,builder,flashBuilder,organization:org,maincreateRef:"main"}));}
         catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/projects/routes/runner-label"&&method==="POST"){
@@ -822,16 +867,26 @@ export async function localRoute(req) {
         const builder=stored.runners.find(b=>b.id===route?.buildBuilderId);
         try{
           const binding=await provisionRunnerLabel({route,project,builder,organization:org,token:unseal(gh.oauthToken)});
+          const flashBuilder=stored.runners.find(b=>b.id===route.flashBuilderId);
+          const flashBinding=flashBuilder?await ensureRunnerLabel({builder:flashBuilder,organization:org,token:unseal(gh.oauthToken)}):null;
           // A new route may have been assigned while awaiting GitHub; do not apply stale labels.
           const next=state(),current=(next.projectRoutes||[]).find(r=>r.organization===org&&r.repository===input.repository);
           if(!current||current.buildBuilderId!==route.buildBuilderId||current.buildTrigger!=="github-actions"||
-            next.github?.selectedOrganization!==org)return deny(409,"Routing changed while provisioning runner; re-open the project");
+            current.flashBuilderId!==route.flashBuilderId||next.github?.selectedOrganization!==org)
+            return deny(409,"Routing changed while provisioning runner; re-open the project");
           current.githubRunnerId=binding.runnerId;
           current.githubRunnerName=binding.runnerName;
           current.githubRunnerLabel=binding.label;
           current.githubRunnerBindingAt=binding.at;
+          if(flashBinding){
+            current.githubFlashRunnerId=flashBinding.runnerId;
+            current.githubFlashRunnerName=flashBinding.runnerName;
+            current.githubFlashRunnerLabel=flashBinding.label;
+            current.githubFlashRunnerBindingAt=flashBinding.at;
+          }
           save(next);
-          return reply({configured:true,repository:current.repository,runnerName:binding.runnerName,label:binding.label});
+          return reply({configured:true,repository:current.repository,runnerName:binding.runnerName,label:binding.label,
+            deviceRunnerName:flashBinding?.runnerName||null,deviceRunnerLabel:flashBinding?.label||null});
         }catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/projects/routes/remove"&&method==="POST"){

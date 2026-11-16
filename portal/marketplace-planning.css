@@ -6,3 +6,7 @@
 .maincreate-marketplace-plan-row{padding:12px;border-bottom:1px solid var(--line,#344)}
 #marketplacePlan label{display:block;margin:12px 0}
 #marketplacePlan input[type=checkbox]{width:18px;height:18px}
+
+.maincreate-marketplace-operations{display:grid;gap:.35rem;padding:.75rem;margin:.75rem 0;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface-muted)}
+.maincreate-marketplace-operation{margin:0;font-size:.9rem}
+.maincreate-marketplace-operations small{color:var(--muted);line-height:1.5}

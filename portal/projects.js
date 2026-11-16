@@ -60,12 +60,12 @@ function renderProjectList(){
     const buildName=route.builder?.name||"missing builder";
     const flashName=route.flashBuilder?.name||"not set";
     left.append(node("small","Build: "+buildName+" · "+route.buildTrigger+
-      " · SDK: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
-      " · Flash: "+flashName+
-      (route.autoFlashRequested?" · Auto-flash requested (blocked)":" · Manual flash"),"project-compatibility"));
+      " · Toolkit: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
+      " · Device operations: "+flashName+
+      (route.targetProfile?" · Target: "+route.targetProfile:""),"project-compatibility"));
   }
   if(!project.archived){
-    const routeButton=node("button",route?"Edit build / flash route":"Assign build / flash route","plain-button");
+    const routeButton=node("button",route?"Edit build / device route":"Assign build / device route","plain-button");
     routeButton.type="button";
     routeButton.addEventListener("click",()=>openRouting(project.fullName));
     right.append(routeButton);
@@ -156,6 +156,14 @@ function fillSelect(select,choices,emptyLabel){
     const opt=node("option",choice.label);opt.value=choice.value;select.append(opt);
   }
 }
+function refreshTargetProfiles(selected=""){
+  const value=$("routeSdk").value;
+  const release=sdkReleases.find(r=>r.family+"@"+r.version===value);
+  const profiles=(release?.deviceProfiles||[]).map(p=>({value:p.id,label:p.id+" · API "+(p.apiLevel||p.chips?.join(", ")||"target")}));
+  fillSelect($("routeTargetProfile"),profiles,"Toolkit default");
+  $("routeTargetProfile").value=profiles.some(p=>p.value===selected)?selected:(profiles.some(p=>p.value==="android-legacy-api22-eink")?"android-legacy-api22-eink":"");
+  $("routeTargetProfileRow").hidden=profiles.length===0;
+}
 function refreshRouteDeviceOptions(selectedId=""){
   const runnerId=$("routeFlashBuilder").value;
   const choices=devices.filter(d=>d.runnerId===runnerId).map(d=>({
@@ -176,7 +184,7 @@ function openRouting(repository){
       (b.githubRunnerName?" · "+b.githubRunnerName:" · no GitHub runner")
   }));
   fillSelect($("routeBuild"),names,"Choose a managed builder");
-  fillSelect($("routeFlashBuilder"),names,"No flash machine");
+  fillSelect($("routeFlashBuilder"),names,"No device-operation machine");
   fillSelect($("routeSdk"),sdkReleases.map(r=>({
     value:r.family+"@"+r.version,
     label:r.name+" "+r.version+" · "+r.targets.map(t=>t.os+"/"+t.arch).join(", ")
@@ -184,26 +192,26 @@ function openRouting(repository){
   $("routeBuild").value=policy?.buildBuilderId||"";
   $("routeTrigger").value=policy?.buildTrigger||"manual";
   $("routeSdk").value=policy?.sdk?policy.sdk.family+"@"+policy.sdk.version:"";
+  refreshTargetProfiles(policy?.targetProfile||"");
   $("routeFlashBuilder").value=policy?.flashBuilderId||"";
   refreshRouteDeviceOptions(policy?.deviceId||"");
-  $("routeAutoFlash").checked=!!policy?.autoFlashRequested;
   $("routeRemove").disabled=!policy;
   $("routeNotice").textContent=policy?.note||"";
-  $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName;
+  $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName||(!!policy.flashBuilderId&&!policy.flashBuilder?.runnerName);
   $("routeGenerateWorkflow").disabled=!policy||policy.buildTrigger!=="github-actions";
   $("routeCopyWorkflow").hidden=true;
   $("routeWorkflowYaml").hidden=true;
   $("routeWorkflowPath").hidden=true;
   $("routeWorkflowYaml").value="";
   $("routeWorkflowState").textContent=policy?.githubRunnerLabel?
-    "Runner label "+policy.githubRunnerLabel+" saved. Generate the workflow and commit it to the selected repository.":
-    "Save a GitHub Actions route first. A managed, online runner and a private repository are required.";
+    "Build runner "+policy.githubRunnerLabel+(policy.githubFlashRunnerLabel?" · device runner "+policy.githubFlashRunnerLabel:"")+". Generate and commit the workflow.":
+    "Save a GitHub Actions route first. Managed, online runners and a private repository are required.";
   $("routeDialog").showModal();
 }
 $("routeProvisionLabel").addEventListener("click",async()=>{
   if(!activeRouteRepo)return;
   const button=$("routeProvisionLabel");button.disabled=true;
-  $("routeWorkflowState").textContent="Verifying GitHub runner identity and provisioning a unique label…";
+  $("routeWorkflowState").textContent="Verifying GitHub runner identity and provisioning unique build/device labels…";
   try{
     const result=await api("/api/local/projects/routes/runner-label",{repository:activeRouteRepo});
     $("routeWorkflowState").textContent="Runner "+result.runnerName+" verified. Label "+result.label+" configured. Now generate workflow.";
@@ -225,8 +233,9 @@ $("routeGenerateWorkflow").addEventListener("click",async()=>{
     $("routeWorkflowPath").textContent="Commit as "+result.filePath;
     $("routeWorkflowPath").hidden=false;
     $("routeCopyWorkflow").hidden=false;
-    $("routeWorkflowState").textContent="Build-only workflow ready for "+result.runnerLabel+
-      ". Commit to the private repo: "+result.filePath+". Flash is NOT enabled.";
+    $("routeWorkflowState").textContent="Workflow ready. Build runner: "+result.runnerLabel+
+      (result.deviceRunnerLabel?" · device runner: "+result.deviceRunnerLabel:" · device operations not configured")+
+      ". Commit "+result.filePath+". Device operations remain manual and confirmation-gated.";
   }catch(e){$("routeWorkflowState").textContent=e.message;}
   finally{button.disabled=false;}
 });
@@ -241,6 +250,7 @@ $("routeCopyWorkflow").addEventListener("click",async()=>{
   }
 });
 $("routeFlashBuilder").addEventListener("change",()=>refreshRouteDeviceOptions());
+$("routeSdk").addEventListener("change",()=>refreshTargetProfiles());
 $("routeCancel").addEventListener("click",()=>$("routeDialog").close());
 $("routeDialog").addEventListener("close",()=>{activeRouteRepo=null;});
 $("routeForm").addEventListener("submit",async event=>{
@@ -252,16 +262,17 @@ $("routeForm").addEventListener("submit",async event=>{
       buildBuilderId:$("routeBuild").value,buildTrigger:$("routeTrigger").value,
       flashBuilderId:$("routeFlashBuilder").value||null,
       deviceId:$("routeDevice").value||null,
-      autoFlashRequested:$("routeAutoFlash").checked};
+      autoFlashRequested:false};
     if($("routeSdk").value){
       const [family,version]=$("routeSdk").value.split("@");
       input.sdkFamily=family;input.sdkVersion=version;
+      if($("routeTargetProfile").value)input.targetProfile=$("routeTargetProfile").value;
     }
     const saved=await api("/api/local/projects/routes",input);
     $("routeDialog").close();
     await load();
     $("notice").textContent="Routing for "+saved.route.repository+
-      " saved. No GitHub job or flash started; auto-flash execution remains blocked pending verification.";
+      " saved. No build or device operation started; device operations require manual dispatch and explicit confirmation.";
   }catch(e){$("routeNotice").textContent=e.message;}
   finally{btn.disabled=false;}
 });

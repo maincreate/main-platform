@@ -25,17 +25,18 @@
   <select id="routeTrigger"><option value="manual">Manual / AI-initiated</option><option value="github-actions">GitHub Actions (IDE or AI commits)</option></select>
   <label for="routeSdk">SDK + exact version</label>
   <select id="routeSdk"><option value="">Not assigned yet</option></select>
-  <label for="routeFlashBuilder">Flash machine (optional)</label>
-  <select id="routeFlashBuilder"><option value="">No flash machine</option></select>
-  <label for="routeDevice">Device on selected flash machine</label>
+  <div id="routeTargetProfileRow"><label for="routeTargetProfile">Application / firmware target profile</label>
+  <select id="routeTargetProfile"><option value="">Toolkit default</option></select></div>
+  <label for="routeFlashBuilder">Device-operation machine (optional)</label>
+  <select id="routeFlashBuilder"><option value="">No device-operation machine</option></select>
+  <label for="routeDevice">USB inventory device (optional; live identity is rechecked before use)</label>
   <select id="routeDevice"><option value="">No device selected</option></select>
-  <label for="routeAutoFlash"><input id="routeAutoFlash" type="checkbox"> Request auto-flash after a verified build</label>
-  <p class="home-empty">Auto-flash is a saved preference only. Execution requires a fresh chip probe, verified artifact, reviewed flashing adapter and authorization. No GitHub trigger or USB write is installed by saving this route.</p>
+  <p class="home-empty">Build and device operations are separate. Firmware flashing, Android APK installation, backup and restore are manually dispatched and require a fresh device identity check plus explicit confirmation.</p>
   <section class="maincreate-workflow-export">
    <h3>GitHub Actions builder routing</h3>
-   <p>For a private ESP-IDF 5.5.6 project on a managed Linux ARM64 runner: provision the unique runner label, then copy a build-only GitHub Actions workflow into the repository. Commits made by an IDE or AI assistant will trigger the same build. No flashing is included.</p>
+   <p>For ESP-IDF or Android projects: provision unique labels on the selected build and device runners, then copy the reusable GitHub Actions workflow into the private repository. Commits trigger builds on the compatible builder; device operations are separately dispatched with explicit confirmation.</p>
    <div class="maincreate-toolbar-actions">
-    <button type="button" class="plain-button" id="routeProvisionLabel">Provision builder label</button>
+    <button type="button" class="plain-button" id="routeProvisionLabel">Provision build and device labels</button>
     <button type="button" class="plain-button" id="routeGenerateWorkflow">Generate workflow</button>
     <button type="button" class="plain-button" id="routeCopyWorkflow" hidden>Copy YAML</button>
    </div>

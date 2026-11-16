@@ -138,3 +138,8 @@ curl -fsSLo /tmp/maincreate-install.sh https://main.ayusohaylock.com/install.sh 
 After installing, pair over SSH with the controller and confirm the fingerprint, then watch GitHub runner registration progress and confirm **Online**. **Validate runner**, **Upgrade Host Service** (checksum-pinned remote upgrade with rollback), and **Remove runner** / decommission behave identically for ARM64 and x64. The controller publishes `/downloads/maincreate-host-linux-{arm64,amd64}` with separate checksum manifests.
 
 A successful Host Service install or GitHub registration **does not** imply that an ESP-IDF/Android toolchain has been installed or a real build has passed; these remain separate capabilities and validations.
+
+
+## Versioned toolkit and device workflows
+
+Main{Create} Marketplace manages exact toolkit versions and builder compatibility. The Platform dispatches installation and cleanup workflows to individual GitHub self-hosted runners, registers capability labels only after exact-version verification, and generates project workflows that separate builds from device operations. ESP-IDF produces firmware bundles; Android produces APK/AAB application artifacts and uses ADB for app deployment. See [Toolkit workflows](docs/toolkit-workflows.md) for the builder matrix, E Ink API 22 target, artifact handoff, device preflight, backup/restore and cleanup safety.

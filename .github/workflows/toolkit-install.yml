@@ -1,0 +1,83 @@
+name: Main{Create} toolkit install
+run-name: Main{Create} install / ${{ inputs.installation_id }} / ${{ inputs.toolkit_family }}@${{ inputs.toolkit_version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      installation_id:
+        description: Controller-issued installation request identifier
+        required: true
+        type: string
+      toolkit_family:
+        description: Marketplace toolkit family
+        required: true
+        type: choice
+        options: [esp-idf, android-sdk, arduino-cli]
+      toolkit_version:
+        description: Exact marketplace version
+        required: true
+        type: string
+      runner_label:
+        description: Controller-provisioned unique builder label
+        required: true
+        type: string
+      accept_android_sdk_license:
+        description: Explicit acceptance of the Google Android SDK license
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maincreate-toolkit-install-${{ inputs.runner_label }}-${{ inputs.toolkit_family }}-${{ inputs.toolkit_version }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    if: github.repository == 'maincreate/main-platform' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, "${{ inputs.runner_label }}"]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate controller-issued request
+        shell: bash
+        env:
+          INSTALLATION_ID: ${{ inputs.installation_id }}
+          TOOLKIT_FAMILY: ${{ inputs.toolkit_family }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          RUNNER_LABEL: ${{ inputs.runner_label }}
+          ACCEPT_LICENSE: ${{ inputs.accept_android_sdk_license }}
+        run: |
+          set -euo pipefail
+          [[ "$INSTALLATION_ID" =~ ^[A-Za-z0-9-]{8,100}$ ]]
+          [[ "$RUNNER_LABEL" =~ ^maincreate-host-[0-9]+$ ]]
+          case "$TOOLKIT_FAMILY:$TOOLKIT_VERSION" in
+            esp-idf:5.5.6|esp-idf:6.1.1|arduino-cli:1.5.1) ;;
+            android-sdk:2026.2.2-patch1)
+              [[ "$ACCEPT_LICENSE" == "true" ]] || { echo "Google SDK license acceptance is required" >&2; exit 1; } ;;
+            *) echo "Unapproved toolkit version" >&2; exit 1 ;;
+          esac
+      - name: Install exact toolkit version
+        shell: bash
+        env:
+          TOOLKIT_FAMILY: ${{ inputs.toolkit_family }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          ACCEPT_LICENSE: ${{ inputs.accept_android_sdk_license }}
+        run: |
+          set -euo pipefail
+          case "$TOOLKIT_FAMILY" in
+            esp-idf|arduino-cli)
+              bash scripts/maincreate-toolkit.sh install "$TOOLKIT_FAMILY" "$TOOLKIT_VERSION" ;;
+            android-sdk)
+              bash scripts/maincreate-toolkit.sh install android-sdk "$TOOLKIT_VERSION" --accept-licenses ;;
+          esac
+      - name: Verify exact installation
+        shell: bash
+        env:
+          TOOLKIT_FAMILY: ${{ inputs.toolkit_family }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+        run: bash scripts/maincreate-toolkit.sh verify "$TOOLKIT_FAMILY" "$TOOLKIT_VERSION"

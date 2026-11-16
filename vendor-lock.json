@@ -1,20 +1,22 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "b6c75f1a9556869803e03d3d9e521f145e1e5ed1",
+    "revision": "1cba1e8b7f3a0114a55237fa37fe1d9bfb68791b",
     "paths": [
       "host",
       "runner",
       "scripts/install-linux.sh",
-      "scripts/uninstall-linux.sh"
+      "scripts/uninstall-linux.sh",
+      "scripts/maincreate-toolkit.sh"
     ]
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "136efc8e3db23c7e500de487f312ff3812d66a11",
+    "revision": "5ccc131aaeccb1a86a56155c1bc6082584978c29",
     "paths": [
       "registry/toolkits.json",
-      "registry/microcontrollers.json"
+      "registry/microcontrollers.json",
+      "registry/android-devices.json"
     ]
   }
 }

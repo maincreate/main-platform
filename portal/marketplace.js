@@ -30,7 +30,7 @@ function renderMicrocontrollers(){
  if(!target.children.length)target.append(esc("p","No matching microcontrollers or SDKs."));
 }
 $("mcuSearch").addEventListener("input",renderMicrocontrollers);
-function compatible(b,r){return !!b.managedHost&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch);}
+function compatible(b,r){return !!r?.installable&&!!b.managedHost&&!b.decommission&&!!b.githubRunnerName&&!!b.lastSeen&&Date.now()-Date.parse(b.lastSeen)<120000&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch&&t.status==="supported");}
 function familyGroups(){
  const q=$("marketplaceSearch").value.toLowerCase().trim();
  return [...new Set(releases.filter(r=>!q||[r.name,r.family,r.category,r.version].join(" ").toLowerCase().includes(q)).map(r=>r.family))];
@@ -61,8 +61,19 @@ function openFamily(family){
 function openRelease(release){
  current=release;selection=new Set();placement="selected";
  $("marketplaceReleaseTitle").textContent=release.name+" "+release.version;
+ const operations=$("marketplaceOperations");operations.replaceChildren();
+ const labels={build:"Build",deploy:"Deploy",backup:"Backup",restore:"Restore"};
+ for(const key of ["build","deploy","backup","restore"]){
+  const op=release.operations?.[key];if(!op)continue;
+  const detail=op.operationType||op.artifactType||op.objectType||op.capabilityId||"Defined by toolkit adapter";
+  const row=esc("p",undefined,"maincreate-marketplace-operation");
+  row.append(esc("strong",labels[key]+": "),document.createTextNode(detail));
+  operations.append(row);
+ }
+ const cleanup=release.lifecycle?.cleanup?.instructions;
+ if(cleanup)operations.append(esc("small","Cleanup: "+cleanup));
  $("placementSelected").checked=true;$("placementAll").checked=false;
- $("marketplacePlan").hidden=false;renderTargets();
+ $("marketplacePlan").hidden=false;$("androidLicenseRow").hidden=release.family!=="android-sdk";$("androidLicense").checked=false;renderTargets();
 }
 function renderTargets(){
  const list=$("marketplaceTargets");list.replaceChildren();
@@ -86,12 +97,38 @@ function renderPlans(){
  const box=$("marketplacePlans");box.replaceChildren();
  if(!plans.length){box.textContent="No installation plans yet.";return;}
  for(const plan of plans.slice(0,10)){
-  const row=esc("div",undefined,"maincreate-marketplace-plan-row");
+  const row=esc("article",undefined,"maincreate-marketplace-plan-row");
   row.append(esc("strong",plan.family+"@"+plan.version));
-  const statuses=(plan.job_statuses||[]);const state=statuses.length?statuses.join(", "):plan.execution||"planned";
-  row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · "+state));
+  row.append(esc("small",plan.targets.length+" builder(s) · "+plan.placement+" · "+(plan.execution||"planned")));
+  for(const target of plan.targets||[]){
+   const item=esc("div",undefined,"maincreate-marketplace-target-row");
+   const meta=esc("span");meta.append(esc("strong",target.hostname||target.builderId));
+   meta.append(esc("small",(target.os||"")+" / "+(target.arch||"")+" · "+(target.status||"pending")));
+   item.append(meta);
+   if(target.workflowRunUrl){
+    const link=esc("a","Open GitHub Actions run");link.href=target.workflowRunUrl;link.target="_blank";link.rel="noopener noreferrer";item.append(link);
+   }
+   if(target.error)item.append(esc("small",target.error));
+   if(target.labelError)item.append(esc("small","Toolkit installed, but runner label sync failed: "+target.labelError));
+   if(target.cleanupStatus)item.append(esc("small","Cleanup: "+target.cleanupStatus));
+   if(target.status==="completed"&&target.labelsRegistered){
+    const cleanup=esc("button","Remove this version","plain-button");cleanup.type="button";
+    cleanup.addEventListener("click",async()=>{
+     if(!confirm("Remove "+plan.family+" "+plan.version+" from "+(target.hostname||target.builderId)+"? The workflow removes only this toolkit version and preserves project data and backups."))return;
+     cleanup.disabled=true;
+     try{
+      const result=await api("/api/local/marketplace/cleanup",{plan_id:plan.id,builder_id:target.builderId,confirm_cleanup:true});
+      $("marketplaceNotice").textContent="Cleanup dispatched. The runner label will be removed after the workflow succeeds.";
+      target.cleanupStatus="dispatched";target.cleanupId=result.cleanup.cleanupId;await load();
+     }catch(e){$("marketplaceNotice").textContent=e.message;cleanup.disabled=false;}
+    });
+    item.append(cleanup);
+   }
+   row.append(item);
+  }
   box.append(row);
  }
+ const cleanups=historyCleanups;
 }
 async function load(){
  try{
@@ -112,15 +149,20 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
  try{
   const input={family:current.family,version:current.version,placement};
   if(placement==="selected")input.builder_ids=[...selection];
+  if(current.family==="android-sdk")input.accept_android_sdk_license=$("androidLicense").checked;
   const result=await api("/api/local/marketplace/plan",input);
-  $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved. No installation job requested.";
+  $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved. Installation has not started yet.";
   $("marketplaceRequest").hidden=!result.plan.installable;
   plans.unshift(result.plan);renderPlans();
  }catch(e){$("marketplaceNotice").textContent=e.message;}finally{renderTargets();}
 });
 $("marketplaceRequest").addEventListener("click",async()=>{
- const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;button.disabled=true;
- try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
+ const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;
+ if(!confirm("Install "+plan.family+" "+plan.version+" on "+plan.targets.length+" selected builder(s)? This changes the selected machines but does not flash any devices."))return;
+ button.disabled=true;
+ try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Some installation workflows could not be dispatched; inspect each builder status.":"Version-pinned installation workflows dispatched to the selected builders.";plans[0]=result.plan;await load();}
  catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
 load();
+load();
+setInterval(()=>{if(!document.hidden)load();},10000);
