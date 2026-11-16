@@ -1223,7 +1223,20 @@
           "androidGradlePlugin": "9.5.1",
           "gradleWrapper": "9.6.0",
           "jdkMinimum": 17
-        }
+        },
+        "prerequisites": [
+          {
+            "id": "java-runtime",
+            "minimumMajorVersion": 17,
+            "installation": "operator-managed",
+            "requiredFor": [
+              "sdkmanager",
+              "gradle-build"
+            ],
+            "validation": "java -version",
+            "reason": "Android SDK command-line tools and Gradle builds require a supported JDK; Main{Create} verifies JDK 17 or newer and does not silently replace a host Java installation."
+          }
+        ]
       }
     ]
   },
