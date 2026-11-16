@@ -42,7 +42,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
   if(!targetProfile&&sdkFamily==="android-sdk")targetProfile="android-legacy-api22-eink";
   if(targetProfile&&!release.deviceProfiles.some(p=>p.id===targetProfile))
    throw bad("The selected target profile is not published by this toolkit release");
-  sdk={family:sdkFamily,version:sdkVersion,readiness:variant.readiness};
+  sdk={family:sdkFamily,version:sdkVersion,readiness:release.status,hostCompatibility:variant.readiness};
  }
 
  const autoFlashRequested=input.autoFlashRequested===true;
@@ -79,7 +79,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
    message:buildTrigger==="github-actions"?"GitHub Actions runner registered":"Manual build trigger selected"},
   {key:"toolkit-build",passed:!!sdk,message:sdk?"Exact toolkit and target profile selected":"Select a versioned toolkit"},
   {key:"artifact-provenance",passed:false,message:"Artifact provenance is checked by the reusable build and device workflows"},
-  {key:"device-adapter",passed:!!(flashBuilder&&deviceCompatibility?.compatible),
+  {key:"flash-adapter",passed:!!(flashBuilder&&deviceCompatibility?.compatible),
    message:flashBuilder?"Device workflow is available; physical identity still requires a fresh probe":"Select a device-operation builder"}
  ];
  if(flashBuilderId)checks.push({key:"device-builder-online",passed:recent(flashBuilder),
@@ -92,7 +92,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
   device:device?{id:device.id,label:device.label||device.description||"USB device",runnerId:device.runnerId,
    connected:!!device.connected,identityConfidence:device.identityConfidence||"unknown",transport:device.transport||"usb-serial"}:null,
   autoFlashRequested,autoFlashEnabled:false,status:"configuration-only",checks,
-  note:"The saved route does not run a build or write to a device. Generated workflows separate build and device operations. Flash/install/restore are manually dispatched with an explicit confirmation and a fresh device identity check.",
+  note:"The saved route cannot execute builds or device writes automatically. Generated workflows separate build and device operations. Flash/install/restore are manually dispatched with an explicit confirmation and a fresh device identity check.",
   updatedBy:actor,updatedAt:new Date().toISOString()
  };
 }
