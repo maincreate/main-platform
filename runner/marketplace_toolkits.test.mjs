@@ -48,3 +48,11 @@ test("ESP-IDF flash map accepts bounded offsets and safe files only",()=>{
  assert.throws(()=>validateFlasherArgs({...map,flash_files:{"0x0":"../escape.bin"}},"/tmp/build"),/Unsafe/);
  assert.throws(()=>validateFlasherArgs({...map,write_flash_args:["--port","/dev/ttyUSB0"]},"/tmp/build"),/Unsupported/);
 });
+
+test("Android SDK refuses hosts without a supported JDK before downloading",async()=>{
+ let downloaded=false;
+ const downloadFn=async()=>{downloaded=true;return Buffer.from("not a release");};
+ const runner=async()=> 'openjdk version "11.0.28"';
+ await assert.rejects(()=>installAndroidSdk({os:"linux",architecture:"x64",acceptLicenses:true,downloadFn,runner}),/JDK 17 or newer/);
+ assert.equal(downloaded,false);
+});
