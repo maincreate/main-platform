@@ -6,17 +6,17 @@ import {spawn} from "node:child_process";
 
 export const ESP_IDF_RELEASES=Object.freeze({
  "5.5.6":{
-  eim:"0.20.0",
+  eim:"0.21.1",
   targets:{
-   "linux/arm64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.20.0/eim-cli-linux-aarch64-v0.20.0.zip",sha256:"e35c9a367c02b38fc27e39f292db8907e5131468d9b851ce1af8affe933be622"},
-   "linux/x64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.20.0/eim-cli-linux-x64-v0.20.0.zip",sha256:"3a34d24b7f039d8b9baeb505e88e0d4d257522fab6c13c2ef3f1510220cb0c5a"}
+   "linux/arm64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.21.1/eim-cli-linux-aarch64-v0.21.1.zip",sha256:"dbb7db88869b985404757270c4b7e3a62a701759e0c224722a8cfa2414d08180"},
+   "linux/x64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.21.1/eim-cli-linux-x64-v0.21.1.zip",sha256:"87a1d17c0208fe402269d39f471d862525ca902045b1a97f8af99902342fea8b"}
   }
  },
  "6.1.1":{
-  eim:"0.20.0",
+  eim:"0.21.1",
   targets:{
-   "linux/arm64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.20.0/eim-cli-linux-aarch64-v0.20.0.zip",sha256:"e35c9a367c02b38fc27e39f292db8907e5131468d9b851ce1af8affe933be622"},
-   "linux/x64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.20.0/eim-cli-linux-x64-v0.20.0.zip",sha256:"3a34d24b7f039d8b9baeb505e88e0d4d257522fab6c13c2ef3f1510220cb0c5a"}
+   "linux/arm64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.21.1/eim-cli-linux-aarch64-v0.21.1.zip",sha256:"dbb7db88869b985404757270c4b7e3a62a701759e0c224722a8cfa2414d08180"},
+   "linux/x64":{url:"https://github.com/espressif/idf-im-ui/releases/download/v0.21.1/eim-cli-linux-x64-v0.21.1.zip",sha256:"87a1d17c0208fe402269d39f471d862525ca902045b1a97f8af99902342fea8b"}
   }
  }
 });
