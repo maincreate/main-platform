@@ -94,7 +94,7 @@ function createJob(args,ctx){
  const activeStatuses=["awaiting_approval","queued","running"];
  if(p.capability==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===p.runnerId&&j.planId!==p.id&&activeStatuses.includes(j.status)))
   throw error(409,"Toolkit cleanup is blocked while another job is pending or active on this builder");
- if(s.jobs.some(j=>j.runnerId===p.runnerId&&j.capability==="toolkit.cleanup"&&activeStatuses.includes(j.status)))
+ if(s.jobs.some(j=>j.runnerId===p.runnerId&&j.capability==="toolkit.cleanup"&&j.planId!==p.id&&activeStatuses.includes(j.status)))
   throw error(409,"This builder has a toolkit cleanup job pending or active");
  const existing=s.jobs.find(j=>j.planId===p.id);
  if(existing)return {job:publicJob(existing),created:false,requires_approval:existing.status==="awaiting_approval"};
