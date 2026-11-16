@@ -33,7 +33,7 @@ function validState({route,project,builder,organization}){
  if(builder.os!=="linux"||builder.arch!=="arm64")
   throw bad("This ESP-IDF preview workflow currently supports Linux ARM64 managed builders only",409);
  const release=releases().find(r=>r.family==="esp-idf"&&r.version==="5.5.6");
- if(!release||!classifyBuilder(builder,release).compatible)throw bad("The selected SDK is not compatible with the builder",409);
+ if(!release||!classifyBuilder(builder,release,"build").compatible)throw bad("The selected SDK is not compatible with the builder",409);
 }
 export function firmwareWorkflowPreview({route,project,builder,organization}){
  validState({route,project,builder,organization});

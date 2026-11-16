@@ -503,16 +503,21 @@ export async function localRoute(req) {
         try{
           const input=await body(req),s=state(),plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
           if(!plan)return deny(404,"Installation plan not found");
-          if(plan.family!=="arduino-cli"||plan.version!=="1.5.1")return deny(422,"This plan has no enabled installer");
+          const release=releases().find(r=>r.family===plan.family&&r.version===plan.version);
+          if(!release||!plan.installable||!plan.installCapabilityId||
+             release.installCapabilityId!==plan.installCapabilityId)
+            return deny(422,"This toolkit version does not have an enabled installation capability");
           if(!Array.isArray(plan.targets)||!plan.targets.length)return deny(422,"Installation plan has no targets");
           const jobs=plan.job_ids||[],statuses=jobs.map(id=>{try{return fabricCall("maincreate_jobs",{action:"get",job_id:id}).job.status}catch{return "unknown"}});
           if(statuses.some(x=>["awaiting_approval","queued","running","completed"].includes(x)))return deny(409,"This plan already has requested or completed builder jobs");
           plan.job_ids=[];const failures=[];
           for(const target of plan.targets){
             const runner=s.runners.find(r=>r.id===target.builderId);
-            if(!runner||runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)){target.status="failed";target.error="Runner is not a supported Linux Arduino CLI target";failures.push(target.builderId);continue;}
+            if(!runner){target.status="failed";target.error="Builder is no longer enrolled";failures.push(target.builderId);continue;}
+            const match=classifyBuilder(runner,release,"install");
+            if(!match.compatible){target.status="failed";target.error=match.reason;failures.push(target.builderId);continue;}
             try{
-              const fabricPlan=fabricCall("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}},{runners:s.runners});
+              const fabricPlan=fabricCall("maincreate_plan",{capability:release.installCapabilityId,runner_id:runner.id,parameters:{}},{runners:s.runners});
               const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
               plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
             }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
