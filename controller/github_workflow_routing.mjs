@@ -74,10 +74,14 @@ function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef,def
  const buildFile=android?"build-android.yml":"build-esp-idf.yml";
  const operationOptions=android?"[build, android-probe, android-install, android-backup, android-restore]":
   "[build, esp32-probe, esp32-flash, esp32-backup, esp32-restore]";
+ const targetProfileId=route.targetProfile||(android?"android-legacy-api22-eink":"");
+ const profile=android?release.deviceProfiles.find(p=>p.id===targetProfileId):null;
+ const targetLabel=android?"maincreate-"+(profile?.runnerLabels?.find(x=>x.startsWith("target-android-api-"))||"target-android-api-22"):"";
  const buildInputs=[
   '      toolkit_version: "'+version+'"',
   '      build_runner_label: "'+buildLabel+'"',
   '      toolkit_label: "'+tkLabel+'"',
+  ...(android?['      target_label: "'+targetLabel+'"']:[]),
   '      maincreate_ref: "'+maincreateRef+'"',
   ...(android?[
    '      target_profile: __DOLLAR__{{ inputs.target_profile || \'android-legacy-api22-eink\' }}',
