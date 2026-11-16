@@ -243,7 +243,7 @@ export function firmwareWorkflowPreview({route,project,builder,organization,flas
  return {ready:true,reason:null,needsLabelProvisioning:false,workflow,
   filePath:".github/workflows/maincreate-device-pipeline.yml",runnerLabel:route.githubRunnerLabel,
   deviceRunnerLabel:deviceLabel,toolkitLabel:toolkitLabel(release),
-  safety:"Builds produce checksum-verified artifacts. Device operations are separate manual workflow dispatches; firmware flashing and APK installation require explicit confirmation and a fresh hardware identity check."};
+  safety:"Builds produce checksum-verified artifacts. Device operations are separate manual workflow dispatches; firmware flashing and APK installation require explicit confirmation and a fresh device identity check."};
 }
 export async function provisionRunnerLabel({route,project,builder,organization,token,fetchImpl=fetch}){
  validState({route,project,builder,organization});
