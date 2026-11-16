@@ -13,7 +13,7 @@ const releaseList=Object.freeze(catalog.flatMap(toolkit=>(toolkit.versions||[]).
   const installers=version.installers||[];
   const installable=installers.length>0&&targets.some(t=>t.status==="supported")&&version.status!=="blocked";
   return {
-    family:toolkit.id,name:toolkit.displayName,version:version.version,category:toolkit.category,
+    family:toolkit.id,name:toolkit.displayName,version:version.version,category:toolkit.category,status:version.status||"catalog-only",channel:version.channel||"stable",
     id:toolkit.id+"@"+version.version,installable,source:version.releaseUrl||toolkit.publisher?.source||null,
     targets:targets.map(normalizeTarget),
     buildTargets:(compatibility.build||[]).map(normalizeTarget),
