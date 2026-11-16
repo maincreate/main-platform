@@ -2,6 +2,13 @@
 const $=id=>document.getElementById(id);
 let csrf=null,builders=[],githubRunners=[],hostActions=[];
 let platform="linux-arm64",method="manual",step=1;
+const isSupportedLinuxPlatform=value=>["linux-arm64","linux-x64"].includes(value);
+function installCommandFor(value){
+ const expected=value==="linux-x64"?"amd64":"arm64";
+ return "curl -fsSLo /tmp/maincreate-install.sh "+location.origin+
+  "/install.sh && sudo env MAIN_CONTROLLER_URL="+location.origin+
+  " MAIN_EXPECTED_ARCH="+expected+" bash /tmp/maincreate-install.sh";
+}
 let fingerprint=null,verifiedHost=null,identitySerial=0;
 let selectedDiscoveryHost=null,scanActive=false,scanDeadline=0,scanTimer=null,scanClock=null,scanRequest=null,scanSerial=0,scanLastHosts=new Map(),pairing=false;
 const SCAN_MAX_MS=5*60*1000,SCAN_INTERVAL_MS=12000;
@@ -251,6 +258,7 @@ function openUpgradeDialog(host){
  const installed=host.software?.version||null,expected=host.software?.expectedVersion||"current";
  $("upgradeBuilderDescription").textContent=host.name+" · Installed: "+
   (installed||"unverified")+" · Available: "+expected;
+ $("upgradeBuilderCommand").textContent=installCommandFor(host.arch==="x64"?"linux-x64":"linux-arm64");
  const bootstrap=!host.software?.remoteUpgradeSupported;
  $("manualUpgradeSteps").hidden=!bootstrap&&!host.software?.updateAvailable;
  $("upgradeBuilderGuidance").textContent=bootstrap?
@@ -512,21 +520,21 @@ function renderBuilders(){
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote"),false));
   }else if(stage==="healthy"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
-   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
+   if(host.os==="linux"&&["arm64","x64"].includes(host.arch))panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Remove runner",()=>openRemoveDialog(host,"managed")));
   }else if(stage==="unreachable"){
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
-   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
+   if(host.os==="linux"&&["arm64","x64"].includes(host.arch))panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else if(stage==="removal-stalled"){
    panel.append(menuAction("View removal progress",()=>viewRemovalProgress(host)));
    panel.append(menuAction("Reconcile stalled removal",()=>reconcileRemoval(host)));
-   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
+   if(host.os==="linux"&&["arm64","x64"].includes(host.arch))panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
   }else if(stage==="removal-failed"){
    panel.append(menuAction("View removal failure",()=>viewRemovalProgress(host)));
    panel.append(menuAction("Validate runner",()=>validateBuilder(host)));
-   if(host.os==="linux"&&host.arch==="arm64")panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
+   if(host.os==="linux"&&["arm64","x64"].includes(host.arch))panel.append(menuAction("Upgrade Host Service",()=>openUpgradeDialog(host)));
    panel.append(menuAction("Retry removal",()=>openRemoveDialog(host,currentState(host)==="online"?"managed":"remote")));
    panel.append(menuAction("Force remove",()=>openRemoveDialog(host,"remote")));
   }else{
@@ -831,8 +839,8 @@ function activatePlatform(value,focus=false){
  activateTabs(tabs,value,"platform");
  for(const tab of tabs)$(tab.getAttribute("aria-controls")).hidden=tab.dataset.platform!==value;
  if(focus)tabs.find(t=>t.dataset.platform===value)?.focus();
- $("nextBuilder").disabled=value!=="linux-arm64";
- if(value!=="linux-arm64")pairStatus("Coming soon: this platform cannot yet be enrolled through the native installer.");
+ $("nextBuilder").disabled=!isSupportedLinuxPlatform(value);
+ if(!isSupportedLinuxPlatform(value))pairStatus("Coming soon: this platform cannot yet be enrolled through the native installer.");
  else pairStatus("");
 }
 function activateMethod(value,focus=false){
@@ -857,7 +865,7 @@ function showStep(number){
  $("backBuilder").hidden=number===1;
  $("nextBuilder").hidden=number===3;
  $("pairHost").hidden=number!==3;
- $("nextBuilder").disabled=number===1&&platform!=="linux-arm64";
+ $("nextBuilder").disabled=number===1&&!isSupportedLinuxPlatform(platform);
  $("nextBuilder").textContent=number===1?"Next: Connect":"Verify identity";
  $("cancelBuilder").textContent="Cancel";
  pairStatus("");
@@ -869,8 +877,8 @@ function openDialog(){
  clearIdentity();hideDiscovery();scanLastHosts=new Map();
  $("hostAddress").value="";$("hostUsername").value="";$("hostPassword").value="";
  $("selectedHost").textContent="No host selected.";
- $("installCommand").textContent="curl -fsSLo /tmp/maincreate-install.sh "+location.origin+
-  "/install.sh && sudo env MAIN_CONTROLLER_URL="+location.origin+" bash /tmp/maincreate-install.sh";
+ $("installCommand").textContent=installCommandFor("linux-arm64");
+ $("installCommandX64").textContent=installCommandFor("linux-x64");
  $("upgradeBuilderCommand").textContent=$("installCommand").textContent;
  activatePlatform(platform);activateMethod("manual");showStep(1);
  dialog.showModal();
@@ -911,10 +919,13 @@ for(const tab of dialog.querySelectorAll(".maincreate-connect-tabs [role=tab]"))
  tab.addEventListener("keydown",event=>tabKeyboard(event,[...document.querySelectorAll(".maincreate-connect-tabs [role=tab]")],activateMethod));
 }
 for(const id of ["hostAddress","hostUsername","hostPassword"])$(id).addEventListener("input",clearIdentity);
-$("copyInstallCommand").addEventListener("click",async()=>{
- try{await navigator.clipboard.writeText($("installCommand").textContent.trim());pairStatus("Installation command copied.")}
- catch{pairStatus("Clipboard unavailable; select and copy the command.")}
-});
+for(const buttonId of ["copyInstallCommand","copyInstallCommandX64"]){
+ $(buttonId).addEventListener("click",async()=>{
+  const command=buttonId==="copyInstallCommandX64"?"installCommandX64":"installCommand";
+  try{await navigator.clipboard.writeText($(command).textContent.trim());pairStatus("Installation command copied.")}
+  catch{pairStatus("Clipboard unavailable; select and copy the command.")}
+ });
+}
 $("restartDiscovery").addEventListener("click",()=>{
  if(method==="discovery"&&step===2){startDiscovery();pairStatus("");}
 });
@@ -924,7 +935,7 @@ $("backBuilder").addEventListener("click",()=>{
  else if(step===2)showStep(1);
 });
 $("nextBuilder").addEventListener("click",async()=>{
- if(step===1){if(platform!=="linux-arm64")return;showStep(2);if(method==="discovery")startDiscovery();return;}
+ if(step===1){if(!isSupportedLinuxPlatform(platform))return;showStep(2);if(method==="discovery")startDiscovery();return;}
  if(step!==2||pairing)return;
  const host=chosenHost(),username=$("hostUsername").value.trim(),password=$("hostPassword").value;
  if(!host){pairStatus(method==="manual"?"Enter a hostname or IP address.":"Select a discovered machine, or switch to Manual.");return;}
