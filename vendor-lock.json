@@ -1,7 +1,7 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "f13e3026682a3846f84ecf450128b6a0aaab52b",
+    "revision": "ff01b78b815ca471934c24a99aaf8665bb9fdb75",
     "paths": [
       "host",
       "runner",
@@ -12,7 +12,7 @@
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "689b8ba80488b3329478fa01a2e913582cdae3fb",
+    "revision": "2ed3edb72726e53ce5cceab71ccbae00a1ca35b2",
     "paths": [
       "registry/toolkits.json",
       "registry/microcontrollers.json",
