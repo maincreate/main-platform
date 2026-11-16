@@ -60,7 +60,7 @@ permissions:
 jobs:
   esp32:
     if: startsWith(inputs.operation, 'esp32-')
-    runs-on: [self-hosted, linux, "${{ inputs.device_runner_label }}", "${{ inputs.toolkit_label }}"]
+    runs-on: [self-hosted, linux, "${{ inputs.device_runner_label }}", "${{ inputs.toolkit_label }}", maincreate-capability-firmware-device-io]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
