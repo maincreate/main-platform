@@ -22,7 +22,7 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.8.0";
+export const HOST_RELEASE = "0.8.1";
 const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
 const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
 export function supportsRemoteHostUpgrade(version) {
@@ -179,10 +179,12 @@ export function hostDistributionRoute(req){
  if(method!=='GET')return null;
  if(path==='/install.sh')return new Response(readFileSync(new URL('../scripts/install-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
  if(path==='/uninstall.sh')return new Response(readFileSync(new URL('../scripts/uninstall-linux.sh',import.meta.url)),{headers:{'content-type':'text/x-shellscript; charset=utf-8','cache-control':'no-store'}});
- if(path==='/downloads/maincreate-host-linux-arm64')return new Response(readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url)),{headers:{'content-type':'application/octet-stream','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
- if(path==='/downloads/maincreate-host-linux-arm64.sha256'){
-  const data=readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url));
-  return new Response(createHash('sha256').update(data).digest('hex')+'  maincreate-host-linux-arm64\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+ const hostBinary=path.match(/^\/downloads\/(maincreate-host-linux-(?:arm64|amd64))(\.sha256)?$/);
+ if(hostBinary){
+  const [,name,checksum]=hostBinary;
+  const data=readFileSync(new URL('../downloads/'+name,import.meta.url));
+  if(checksum)return new Response(createHash('sha256').update(data).digest('hex')+'  '+name+'\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+  return new Response(data,{headers:{'content-type':'application/octet-stream','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
  }
  return null;
 }
@@ -366,8 +368,8 @@ export async function adminHostRoute(req,ctx){
  if(path==='/api/local/builders/upgrade'&&method==='POST'){
   const input=await body(req),s=state(),host=s.runners.find(r=>r.id===input.runnerId);
   if(!host)return deny(404,'Builder not found');
-  if(!host.managedHost||host.os!=='linux'||host.arch!=='arm64')
-   return deny(422,'Remote upgrades require a managed Linux ARM64 builder');
+  if(!host.managedHost||host.os!=='linux'||!['arm64','x64'].includes(host.arch))
+   return deny(422,'Remote upgrades require a managed Linux ARM64 or x64 builder');
   if(!builderFresh(host))return deny(409,'Builder must be reachable before upgrading');
   if(host.decommission)return deny(409,'Finish or reconcile builder removal before upgrading');
   const release=HOST_RELEASE;
@@ -380,7 +382,8 @@ export async function adminHostRoute(req,ctx){
   if(expireStaleHostActions(s,host.id))save(s);
   if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a)))
    return deny(409,'Another host operation is active');
-  const binary=readFileSync(new URL('../downloads/maincreate-host-linux-arm64',import.meta.url));
+  const binaryName=host.arch==='x64'?'maincreate-host-linux-amd64':'maincreate-host-linux-arm64';
+  const binary=readFileSync(new URL('../downloads/'+binaryName,import.meta.url));
   const hash=createHash('sha256').update(binary).digest('hex');
   const action={id:rnd(),runnerId:host.id,runnerName:host.name,type:'host.upgrade',
    targetVersion:release,sha256:hash,status:'queued',createdAt:new Date().toISOString(),
