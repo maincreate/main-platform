@@ -37,7 +37,7 @@ function githubIdentityCurrent(g) {
 }
 
 async function syncRunnerLabels(runner,s){
- const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...runnerLabels(runner)])];
+ const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...(runner.githubRunnerLabel?[runner.githubRunnerLabel]:[]),...runnerLabels(runner)])];
  const gh=s.github||{},org=gh.selectedOrganization;
  if(!runner.githubRunnerId||!runner.githubRunnerName||!githubIdentityCurrent(gh)||!org||
   JSON.stringify(labels.slice().sort())===JSON.stringify((runner.labels||[]).slice().sort()))return;
