@@ -1,0 +1,67 @@
+name: Main{Create} toolkit cleanup
+run-name: Main{Create} cleanup / ${{ inputs.cleanup_id }} / ${{ inputs.toolkit_family }}@${{ inputs.toolkit_version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cleanup_id:
+        description: Controller-issued cleanup request identifier
+        required: true
+        type: string
+      toolkit_family:
+        description: Marketplace toolkit family
+        required: true
+        type: choice
+        options: [esp-idf, android-sdk, arduino-cli]
+      toolkit_version:
+        description: Exact installed version to remove
+        required: true
+        type: string
+      runner_label:
+        description: Controller-provisioned unique builder label
+        required: true
+        type: string
+      confirm_cleanup:
+        description: Explicitly authorize removal of this exact toolkit version
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maincreate-toolkit-cleanup-${{ inputs.runner_label }}-${{ inputs.toolkit_family }}-${{ inputs.toolkit_version }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.repository == 'maincreate/main-platform' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, "${{ inputs.runner_label }}"]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate exact cleanup target
+        shell: bash
+        env:
+          CLEANUP_ID: ${{ inputs.cleanup_id }}
+          TOOLKIT_FAMILY: ${{ inputs.toolkit_family }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          RUNNER_LABEL: ${{ inputs.runner_label }}
+        run: |
+          set -euo pipefail
+          [[ "$CLEANUP_ID" =~ ^[A-Za-z0-9-]{8,100}$ ]]
+          [[ "$RUNNER_LABEL" =~ ^maincreate-host-[0-9]+$ ]]
+          case "$TOOLKIT_FAMILY:$TOOLKIT_VERSION" in
+            esp-idf:5.5.6|esp-idf:6.1.1|arduino-cli:1.5.1|android-sdk:2026.2.2-patch1) ;;
+            *) echo "Unapproved cleanup target" >&2; exit 1 ;;
+          esac
+      - name: Dry run or remove exact toolkit version
+        shell: bash
+        env:
+          TOOLKIT_FAMILY: ${{ inputs.toolkit_family }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          CONFIRM_CLEANUP: ${{ inputs.confirm_cleanup }}
+        run: bash scripts/maincreate-toolkit.sh cleanup "$TOOLKIT_FAMILY" "$TOOLKIT_VERSION" "$CONFIRM_CLEANUP"
