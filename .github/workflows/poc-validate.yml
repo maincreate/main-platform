@@ -27,8 +27,12 @@ jobs:
           cache: false
       - name: Test distributed Host Service
         run: cd host && go test ./...
-      - name: Cross-compile Linux ARM64 Host Service
-        run: cd host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/maincreate-host-linux-arm64 .
+      - name: Cross-compile Linux ARM64 and x64 Host Service
+        run: |
+          (cd host && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/maincreate-host-linux-arm64 .)
+          (cd host && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/maincreate-host-linux-amd64 .)
+          test "$(/tmp/maincreate-host-linux-amd64 version)" = "0.8.1"
+          bash -n scripts/install-linux.sh scripts/uninstall-linux.sh
       # The downloaded Python toolcache binary requires newer x86 ISA features
       # than some self-hosted Proxmox hosts expose. Use the runner's system Python.
       - name: Check system Python

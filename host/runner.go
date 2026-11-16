@@ -37,14 +37,17 @@ func runCmd(user,dir,bin string,args ...string)error{
  if e:=cmd.Run();e!=nil{return fmt.Errorf("%s failed: %s: %w",filepath.Base(bin),strings.TrimSpace(stderr.String()),e)}
  return nil
 }
+func githubRunnerAssetArch(arch string)string{
+ switch arch {case "arm64":return "arm64";case "amd64":return "x64";default:return ""}
+}
 func downloadRunner()([]byte,error){
- if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return nil,errors.New("only Linux ARM64 supported in this release")}
+ if runtime.GOOS!="linux"||githubRunnerAssetArch(runtime.GOARCH)==""{return nil,errors.New("only Linux ARM64 and x64 supported in this release")}
  req,e:=http.NewRequest("GET","https://api.github.com/repos/actions/runner/releases/latest",nil);if e!=nil{return nil,e}
  req.Header.Set("User-Agent","Main{Create}-Host/"+version)
  res,e:=httpClient.Do(req);if e!=nil{return nil,e};defer res.Body.Close()
  if res.StatusCode!=200{return nil,fmt.Errorf("GitHub release API HTTP %d",res.StatusCode)}
  var r release;if e=json.NewDecoder(io.LimitReader(res.Body,1<<20)).Decode(&r);e!=nil{return nil,e}
- name:="actions-runner-linux-arm64-"+strings.TrimPrefix(r.TagName,"v")+".tar.gz"
+ name:="actions-runner-linux-"+githubRunnerAssetArch(runtime.GOARCH)+"-"+strings.TrimPrefix(r.TagName,"v")+".tar.gz"
  for _,a:=range r.Assets{
   if a.Name!=name{continue}
   if !strings.HasPrefix(a.Digest,"sha256:")||len(a.Digest)!=71{return nil,errors.New("runner release missing sha256 digest")}
@@ -58,7 +61,7 @@ func downloadRunner()([]byte,error){
   if !strings.EqualFold(hex.EncodeToString(hash[:]),strings.TrimPrefix(a.Digest,"sha256:")){return nil,errors.New("runner checksum mismatch")}
   return body,nil
  }
- return nil,errors.New("no verified Linux ARM64 runner in latest release")
+ return nil,errors.New("no verified Linux runner for this architecture in latest release")
 }
 // Bound all attempts by the original archive download budget.
 func fetchRunnerArchive(url, fallback string) ([]byte, error) {

@@ -4,7 +4,9 @@ FROM ghcr.io/openai/tunnel-client:v0.0.19 AS openai-client
 FROM golang:1.23-alpine AS host-build
 WORKDIR /src
 COPY host/ /src/host/
-RUN cd /src/host && go test ./... && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/maincreate-host-linux-arm64 .
+RUN cd /src/host && go test ./... && \
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/maincreate-host-linux-arm64 . && \
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/maincreate-host-linux-amd64 .
 
 FROM node:22-alpine
 COPY --from=openai-client /usr/bin/tunnel-client /usr/bin/tunnel-client
@@ -21,6 +23,7 @@ COPY --chown=node:node runner/agent.mjs runner/sdk_install.mjs runner/scan_devic
 # Fail image builds immediately if the portal has any missing static ESM dependencies.
 RUN node -e "import('./controller/routes.mjs').then(() => console.log('Portal runtime modules resolved'))"
 COPY --from=host-build /out/maincreate-host-linux-arm64 ./downloads/maincreate-host-linux-arm64
+COPY --from=host-build /out/maincreate-host-linux-amd64 ./downloads/maincreate-host-linux-amd64
 COPY --chown=node:node scripts/install-linux.sh scripts/uninstall-linux.sh ./scripts/
 RUN mkdir -p /data && chown node:node /data
 USER node

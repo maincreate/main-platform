@@ -10,12 +10,12 @@ export const actionStatus=(runner,actions=[])=>{
 export function runnerIdentity(runner){
  // Use the exact Raspberry Pi Imager hostname; never invent a second runner name.
  if(!safeRunnerName(runner?.name))throw Object.assign(new Error("The host must have a GitHub-compatible hostname (1–60 letters, numbers, dots, hyphens or underscores)."),{status:422});
- if(runner.os!=="linux"||runner.arch!=="arm64"||!runner.managedHost)
-  throw Object.assign(new Error("Choose a paired Linux ARM64 Host Service."),{status:422});
+ if(runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)||!runner.managedHost)
+  throw Object.assign(new Error("Choose a paired Linux ARM64 or x64 Host Service."),{status:422});
  return runner.name;
 }
 export function runnerLabels(runner){
- const labels=["maincreate-managed","maincreate-linux","maincreate-arm64"];
+ const labels=["maincreate-managed","maincreate-linux",runner.arch==="x64"?"maincreate-x64":"maincreate-arm64"];
  if((runner.packages||[]).some(p=>p.name==="esp-idf"&&typeof p.version==="string"&&p.version.length))labels.push("maincreate-esp-idf");
  return labels;
 }

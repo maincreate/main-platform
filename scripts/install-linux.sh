@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main{Create} distributed Host Service for Linux ARM64. Pair from the controller UI afterward.
+# Main{Create} Linux Host Service for ARM64 and x64. Pair from the controller UI afterward.
 set -Eeuo pipefail
 ORIGIN="${MAIN_CONTROLLER_URL:-}"
 ORIGIN="${ORIGIN%/}"
@@ -26,6 +26,8 @@ stages=("Preflight" "OS dependencies" "Host download and checksum" "Host executa
 declare -A stage_result=()
 CURRENT_STAGE="Preflight"
 TEMP=""
+ARCH=""
+BIN=""
 on_exit() {
   local exit_code="$1" component state
   trap - EXIT
@@ -67,7 +69,18 @@ run_stage() {
 fail() { printf 'ERROR: %s\n' "$*" >&2; return 1; }
 preflight() {
   [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] || { fail "MAIN_CONTROLLER_URL must be a trusted HTTPS origin."; return 1; }
-  [[ "$(uname -s)" == Linux && "$(uname -m)" == aarch64 ]] || { fail "This release requires Linux ARM64 (Raspberry Pi OS 64-bit)."; return 1; }
+  [[ "$(uname -s)" == Linux ]] || { fail "Linux is required; choose another installer for Windows/macOS."; return 1; }
+  case "$(uname -m)" in
+    aarch64|arm64) ARCH="arm64" ;;
+    x86_64|amd64) ARCH="amd64" ;;
+    *) fail "Unsupported CPU architecture: $(uname -m). Supported: aarch64 and x86_64."; return 1 ;;
+  esac
+  if [[ -n "${MAIN_EXPECTED_ARCH:-}" && "${MAIN_EXPECTED_ARCH}" != "$ARCH" ]]; then
+    fail "Wrong architecture: selected ${MAIN_EXPECTED_ARCH}, but this machine is $ARCH. Choose the correct Linux tab in Main{Create}."
+    return 1
+  fi
+  BIN="maincreate-host-linux-$ARCH"
+  status PASS "Detected Linux $(uname -m); verified $ARCH release selection"
   [[ "$(id -u)" == 0 ]] || { fail "Run the installer with sudo."; return 1; }
   command -v apt-get >/dev/null || { fail "Debian or Raspberry Pi OS with apt is required."; return 1; }
   command -v sha256sum >/dev/null || { fail "sha256sum is missing."; return 1; }
@@ -86,14 +99,13 @@ install_dependencies() {
 }
 download_host() {
   TEMP="$(mktemp -d)"
-  local bin="maincreate-host-linux-arm64"
-  curl --fail --show-error --silent --location --max-time 90 "$ORIGIN/downloads/$bin" -o "$TEMP/$bin"
-  curl --fail --show-error --silent --location --max-time 30 "$ORIGIN/downloads/$bin.sha256" -o "$TEMP/$bin.sha256"
-  (cd "$TEMP" && sha256sum --check "$bin.sha256")
+  curl --fail --show-error --silent --location --max-time 90 "$ORIGIN/downloads/$BIN" -o "$TEMP/$BIN"
+  curl --fail --show-error --silent --location --max-time 30 "$ORIGIN/downloads/$BIN.sha256" -o "$TEMP/$BIN.sha256"
+  (cd "$TEMP" && sha256sum --check "$BIN.sha256")
 }
 install_host() {
   # Install through a same-directory rename: overwriting a running executable in-place can fail with ETXTBSY.
-  install -m 0755 "$TEMP/maincreate-host-linux-arm64" /usr/local/bin/maincreate-host.new
+  install -m 0755 "$TEMP/$BIN" /usr/local/bin/maincreate-host.new
   mv -f /usr/local/bin/maincreate-host.new /usr/local/bin/maincreate-host
   id -u maincreate-runner >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/maincreate-runner --shell /usr/sbin/nologin maincreate-runner
   install -d -m 0700 -o root -g root /var/lib/maincreate
@@ -131,7 +143,7 @@ UNIT
 
 UPGRADING=false
 if [[ -s /var/lib/maincreate/host.json ]]; then UPGRADING=true; fi
-printf '\\n%bMAIN{CREATE}  /  LINUX ARM64 HOST SETUP%b\\n' "$BOLD" "$RESET"
+printf '\\n%bMAIN{CREATE}  /  LINUX HOST SETUP%b\\n' "$BOLD" "$RESET"
 printf 'Controller: %s\n' "$ORIGIN"
 printf 'The GitHub Actions runner will be installed only after host pairing.\n\n'
 run_stage "Preflight" preflight

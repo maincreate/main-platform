@@ -124,3 +124,17 @@ New Compose projects create `main_data` and `main_runner` volumes. When upgradin
 ### Host Service naming cutover
 
 Host Service 0.7 uses the `maincreate-host.service` unit, `maincreate-host` executable, and Main{Create} state paths. Existing installations must move their enrollment state and rebind the runner service before switching. Perform the first upgrade manually over SSH. Clients must refresh MCP tool discovery and use the new tool IDs. Project manifests belong at `.maincreate/project.json`.
+
+## Linux ARM64 and Linux x64 build machines
+
+Both Linux architectures share a **single Host Service installer** with per-architecture binaries and a matching GitHub Actions runner. In **Builders → Add a Build Machine** choose **Linux ARM64** (Raspberry Pi: `uname -m` = `aarch64`) or **Linux x64** (Debian 13/Ubuntu VM: `uname -m` = `x86_64`). Each tab displays a one-line download-and-install command with `MAIN_EXPECTED_ARCH` set for that CPU. The installer refuses a mismatched selection, downloads the matching SHA-256-verified binary, installs the managed service, then reports that pairing and GitHub registration still remain.
+
+For Linux x64, the displayed installer is equivalent to:
+
+```sh
+curl -fsSLo /tmp/maincreate-install.sh https://main.ayusohaylock.com/install.sh && sudo env MAIN_CONTROLLER_URL=https://main.ayusohaylock.com MAIN_EXPECTED_ARCH=amd64 bash /tmp/maincreate-install.sh
+```
+
+After installing, pair over SSH with the controller and confirm the fingerprint, then watch GitHub runner registration progress and confirm **Online**. **Validate runner**, **Upgrade Host Service** (checksum-pinned remote upgrade with rollback), and **Remove runner** / decommission behave identically for ARM64 and x64. The controller publishes `/downloads/maincreate-host-linux-{arm64,amd64}` with separate checksum manifests.
+
+A successful Host Service install or GitHub registration **does not** imply that an ESP-IDF/Android toolchain has been installed or a real build has passed; these remain separate capabilities and validations.

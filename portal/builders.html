@@ -79,9 +79,13 @@
     <div id="instructions-linux-arm64" role="tabpanel" aria-labelledby="platform-linux-arm64">
      <p><strong>Available for testing · Raspberry Pi OS Lite 64-bit.</strong> In Raspberry Pi Imager, set a hostname, local username/password, and enable SSH with password authentication. Boot and SSH into the Pi.</p>
      <div class="maincreate-command-block"><pre class="maincreate-service-command"><code id="installCommand"></code></pre><button type="button" id="copyInstallCommand" class="plain-button">Copy</button></div>
-     <p class="maincreate-builder-footnote">One-time installer: Linux ARM64 only. A successful install verifies the Host Service—not the GitHub runner. Pair the host, complete runner setup, and confirm Online status.</p>
+     <p class="maincreate-builder-footnote">Linux ARM64: `uname -m` must be aarch64. The installer verifies the selected architecture and SHA-256. Installing the Host Service does not make the GitHub runner Online; pair and validate after installation.</p>
     </div>
-    <div id="instructions-linux-x64" role="tabpanel" aria-labelledby="platform-linux-x64" hidden><p><strong>Coming soon.</strong> A native Linux x64 installer and controller-managed runner provisioning are planned for VMs and x86 mini PCs. The ARM64 installer will not work here.</p></div>
+    <div id="instructions-linux-x64" role="tabpanel" aria-labelledby="platform-linux-x64" hidden>
+     <p><strong>Linux x64 available · Debian 13 / Ubuntu x86-64 / VMs.</strong> Verify `uname -m` prints `x86_64`, that you have sudo privileges, and SSH is enabled. Run this one-line command on the build machine:</p>
+     <div class="maincreate-command-block"><pre class="maincreate-service-command"><code id="installCommandX64"></code></pre><button type="button" id="copyInstallCommandX64" class="plain-button">Copy</button></div>
+     <p class="maincreate-builder-footnote">Linux x64: the installer verifies the selected amd64 architecture and SHA-256, then installs the same managed Host Service as ARM64. Next, pair this machine and confirm the GitHub Actions runner reports Online; merely installing the host does not complete onboarding.</p>
+    </div>
     <div id="instructions-macos-arm64" role="tabpanel" aria-labelledby="platform-macos-arm64" hidden><p><strong>Coming soon.</strong> Apple Silicon Mac host service, launchd support and Xcode-aware builder registration are planned. No native installer is released for this platform.</p></div>
     <div id="instructions-macos-x64" role="tabpanel" aria-labelledby="platform-macos-x64" hidden><p><strong>Coming soon.</strong> Intel Mac hosting, launchd and Xcode toolchain discovery are planned. No native installer is released for this platform.</p></div>
     <div id="instructions-windows-x64" role="tabpanel" aria-labelledby="platform-windows-x64" hidden><p><strong>Coming soon.</strong> Windows x64 service installation, Visual Studio tooling and GitHub runner lifecycle support are planned. No native installer is released for this platform.</p></div>
