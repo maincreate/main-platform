@@ -300,9 +300,16 @@ export function agentAsset(runner,args){
  if(args.action==="download"){
   const source=s.assets.find(a=>a.id===args.asset_id&&a.complete);
   const sourceJob=source&&s.jobs.find(x=>x.id===source.jobId);
+  const allowedSources={
+   "firmware.esp_idf.flash":["firmware.esp_idf.build"],
+   "firmware.esp_idf.restore":["firmware.esp_idf.backup"],
+   "android.app.deploy":["android.app.build"],
+   "android.app.restore":["android.app.backup","android.app.build"]
+  };
   if(!source||!sourceJob||sourceJob.status!=="completed"||
-     j.parameters?.source_asset_id!==source.id)
-   throw error(403,"Artifact is not an approved output of the referenced completed build job");
+     j.parameters?.source_asset_id!==source.id||
+     !allowedSources[j.capability]?.includes(sourceJob.capability))
+   throw error(403,"Artifact is not an approved output type from a compatible completed source job");
   return getAsset(args);
  }
  const asset=s.assets.find(a=>a.id===args.asset_id&&a.jobId===jobId);
