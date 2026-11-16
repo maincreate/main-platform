@@ -74,6 +74,18 @@ function createPlan(args,ctx) {
  if(!cap.platforms.includes(runner.os))throw error(422,"Runner operating system not supported");
  if(Array.isArray(cap.architectures)&&!cap.architectures.includes(runner.arch))throw error(422,"Runner architecture not supported for this capability");
  const params=validParams(cap.parameters,clean(args.parameters));
+ const hasPackage=(name,version)=>Array.isArray(runner.packages)&&runner.packages.some(p=>p.name===name&&(!version||p.version===version));
+ if(["firmware.esp_idf.build","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore"].includes(id)&&
+   !hasPackage("esp-idf",params.toolkit_version))
+  throw error(409,"This builder does not have the exact selected ESP-IDF version installed and verified");
+ if(id==="firmware.esp_idf.flash"||id==="firmware.esp_idf.backup"||id==="firmware.esp_idf.restore"){
+  if(!hasPackage("usb-serial-device","connected"))throw error(409,"No USB serial device is currently connected to this builder");
+ }
+ if(id==="android.app.build"&&!hasPackage("android-sdk",params.toolkit_version))
+  throw error(409,"This builder does not have the exact selected Android SDK version installed and verified");
+ if(["android.app.deploy","android.app.backup","android.app.restore"].includes(id)&&
+   (!hasPackage("adb")||!hasPackage("android-device-api22","connected")))
+  throw error(409,"An ADB-authorized Android 5.1.1/API22 device must be connected to this builder");
  const s=store();
  if(id==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===runner.id&&["awaiting_approval","queued","running"].includes(j.status)))
   throw error(409,"Toolkit cleanup is blocked while this builder has pending or active jobs");
