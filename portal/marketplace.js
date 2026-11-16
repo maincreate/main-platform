@@ -30,7 +30,7 @@ function renderMicrocontrollers(){
  if(!target.children.length)target.append(esc("p","No matching microcontrollers or SDKs."));
 }
 $("mcuSearch").addEventListener("input",renderMicrocontrollers);
-function compatible(b,r){return !!r?.installable&&!!b.managedHost&&!b.decommission&&!!b.githubRunnerName&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch&&t.status==="supported");}
+function compatible(b,r){return !!r?.installable&&!!b.managedHost&&!b.decommission&&!!b.githubRunnerName&&!!b.lastSeen&&Date.now()-Date.parse(b.lastSeen)<120000&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch&&t.status==="supported");}
 function familyGroups(){
  const q=$("marketplaceSearch").value.toLowerCase().trim();
  return [...new Set(releases.filter(r=>!q||[r.name,r.family,r.category,r.version].join(" ").toLowerCase().includes(q)).map(r=>r.family))];
