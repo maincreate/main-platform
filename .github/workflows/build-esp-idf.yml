@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   firmware:
-    runs-on: [self-hosted, linux, "${{ inputs.build_runner_label }}", "${{ inputs.toolkit_label }}", maincreate-capability-firmware-build]
+    runs-on: [self-hosted, linux, "${{ inputs.build_runner_label }}", "${{ inputs.toolkit_label }}", maincreate-capability-firmware-build, maincreate-target-esp32]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
