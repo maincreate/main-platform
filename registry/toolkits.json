@@ -61,17 +61,17 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             }
           ],
           "build": [
@@ -88,17 +88,17 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             }
           ],
           "deploy": [
@@ -117,19 +117,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ],
@@ -149,19 +149,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ],
@@ -181,19 +181,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ]
@@ -398,17 +398,17 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             }
           ],
           "build": [
@@ -425,17 +425,17 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             }
           ],
           "deploy": [
@@ -454,19 +454,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ],
@@ -486,19 +486,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ],
@@ -518,19 +518,19 @@
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             }
           ]
@@ -886,17 +886,17 @@
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "linux",
@@ -914,17 +914,17 @@
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported"
+              "status": "validation-required"
             },
             {
               "os": "linux",
@@ -943,25 +943,25 @@
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "linux",
               "architecture": "arm64",
-              "status": "validation-required",
+              "status": "supported",
               "requiresConnectedDevice": true,
               "reason": "Use a native ARM64 ADB package or validated build; Google's published Linux Platform-Tools package is not an ARM64 build."
             }
@@ -976,25 +976,25 @@
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "linux",
               "architecture": "arm64",
-              "status": "validation-required",
+              "status": "supported",
               "requiresConnectedDevice": true,
               "reason": "Use a native ARM64 ADB package or validated build; Google's published Linux Platform-Tools package is not an ARM64 build."
             }
@@ -1009,25 +1009,25 @@
             {
               "os": "macos",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "macos",
               "architecture": "arm64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "windows",
               "architecture": "x64",
-              "status": "supported",
+              "status": "validation-required",
               "requiresConnectedDevice": true
             },
             {
               "os": "linux",
               "architecture": "arm64",
-              "status": "validation-required",
+              "status": "supported",
               "requiresConnectedDevice": true,
               "reason": "Use a native ARM64 ADB package or validated build; Google's published Linux Platform-Tools package is not an ARM64 build."
             }
