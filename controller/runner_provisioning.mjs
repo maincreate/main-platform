@@ -25,11 +25,13 @@ export function runnerLabels(runner){
    labels.push("toolkit-android-sdk-2026-2-2-patch1","capability-android-app-build",
     "target-android-api-37","target-android-api-22","target-abi-armeabi-v7a");
   }
-  if(p.name==="adb"){
-   labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
-  }
   if(p.name==="android-device-api22"&&p.version==="connected")
    labels.push("target-device-avalue-epd-42s");
+ }
+ const hasAdb=(runner.packages||[]).some(p=>p.name==="adb");
+ const hasAndroid22=(runner.packages||[]).some(p=>p.name==="android-device-api22"&&p.version==="connected");
+ if(hasAdb&&hasAndroid22)
+  labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
  }
  return [...new Set(labels)];
 }
