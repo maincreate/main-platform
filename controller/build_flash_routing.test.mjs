@@ -26,7 +26,7 @@ test("Create a GitHub Actions route scoped to an installed managed runner",()=>{
  assert.equal(route.repository,base.repository);
  assert.equal(route.buildTrigger,"github-actions");
  assert.equal(route.builder.runnerName,"maincreate-pi");
- assert.deepEqual(route.sdk,{family:"esp-idf",version:"5.5.6",readiness:"pilot"});
+ assert.deepEqual(route.sdk,{family:"esp-idf",version:"5.5.6",readiness:"pilot",hostCompatibility:"supported"});
  assert.equal(route.autoFlashRequested,false);
  assert.equal(route.autoFlashEnabled,false);
  assert.equal(route.status,"configuration-only");
