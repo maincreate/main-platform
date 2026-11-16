@@ -139,10 +139,10 @@ export async function installEspIdf({version,os=osName(),architecture=archName()
   if(!actual.includes(release.eim))throw new Error("Unexpected EIM version: "+actual);
   const idfPath=join(parent,"idf");
   await fs.mkdir(parent,{recursive:true,mode:0o700});
-  await runner(eim,["--do-not-track","true","install","-i","v"+version,"-p",idfPath,"-n","true"],{timeout:90*60*1000,env:{ESP_PATH:parent}});
-  let exportScript=null;async function findExport(dir,depth=0){if(depth>5)return;for(const ent of await fs.readdir(dir,{withFileTypes:true})){const p=join(dir,ent.name);if(ent.isDirectory())await findExport(p,depth+1);else if(ent.isFile()&&ent.name==="export.sh")exportScript=p;}}
-  await findExport(idfPath);
-  if(!exportScript)throw new Error("EIM completed without the expected ESP-IDF export.sh");
+  await runner(eim,["install","-i","v"+version,"-p",idfPath,"-n","true"],{timeout:90*60*1000,env:{ESP_PATH:parent}});
+  let exportScript=null;async function findActivation(dir,depth=0){if(depth>6)return;for(const ent of await fs.readdir(dir,{withFileTypes:true})){const p=join(dir,ent.name);if(ent.isDirectory())await findActivation(p,depth+1);else if(ent.isFile()&&(/^activate_idf_.*\\.sh$/.test(ent.name)||ent.name==="export.sh"))exportScript=p;}}
+  await findActivation(parent);
+  if(!exportScript)throw new Error("EIM completed without the expected ESP-IDF activation script");
   const verify=await runner("bash",["-lc",'source "$1" >/dev/null && idf.py --version', "maincreate",exportScript],{timeout:60000});
   if(!verify.includes(version))throw new Error("Installed ESP-IDF version mismatch: "+verify.trim());
   await fs.mkdir(join(parent,"metadata"),{recursive:true,mode:0o700});
@@ -183,10 +183,10 @@ export async function installAndroidSdk({os=osName(),architecture=archName(),roo
 
 export async function inspectInstalledToolkit({family,version,root=sdkRoot()}={}){
  if(family==="esp-idf"){
-  const p=join(espIdfRoot(version,root),"idf");
+  const p=espIdfRoot(version,root);
   if(!existsSync(p))return {installed:false};
-  let exportScript=null;async function findExport(dir,depth=0){if(depth>5)return;for(const ent of await fs.readdir(dir,{withFileTypes:true})){const child=join(dir,ent.name);if(ent.isDirectory())await findExport(child,depth+1);else if(ent.isFile()&&ent.name==="export.sh")exportScript=child;}}
-  await findExport(p);if(!exportScript)return {installed:false};
+  let exportScript=null;async function findActivation(dir,depth=0){if(depth>6)return;for(const ent of await fs.readdir(dir,{withFileTypes:true})){const child=join(dir,ent.name);if(ent.isDirectory())await findActivation(child,depth+1);else if(ent.isFile()&&(/^activate_idf_.*\\.sh$/.test(ent.name)||ent.name==="export.sh"))exportScript=child;}}
+  await findActivation(p);if(!exportScript)return {installed:false};
   const output=await run("bash",["-lc",'source "$1" >/dev/null && idf.py --version',"maincreate",exportScript],{timeout:60000});
   return {installed:output.includes(version),version,executable:"idf.py",path:p,exportScript};
  }
