@@ -61,8 +61,8 @@ function renderProjectList(){
     const flashName=route.flashBuilder?.name||"not set";
     left.append(node("small","Build: "+buildName+" · "+route.buildTrigger+
       " · SDK: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
-      " · Flash: "+flashName+
-      (route.autoFlashRequested?" · Auto-flash requested (blocked)":" · Manual flash"),"project-compatibility"));
+      " · Device operations: "+flashName+
+      (route.targetProfile?" · Target: "+route.targetProfile:""),"project-compatibility"));
   }
   if(!project.archived){
     const routeButton=node("button",route?"Edit build / flash route":"Assign build / flash route","plain-button");
@@ -156,6 +156,14 @@ function fillSelect(select,choices,emptyLabel){
     const opt=node("option",choice.label);opt.value=choice.value;select.append(opt);
   }
 }
+function refreshTargetProfiles(selected=""){
+  const value=$("routeSdk").value;
+  const release=sdkReleases.find(r=>r.family+"@"+r.version===value);
+  const profiles=(release?.deviceProfiles||[]).map(p=>({value:p.id,label:p.id+" · API "+(p.apiLevel||p.chips?.join(", ")||"target")}));
+  fillSelect($("routeTargetProfile"),profiles,"Toolkit default");
+  $("routeTargetProfile").value=profiles.some(p=>p.value===selected)?selected:(profiles.some(p=>p.value==="android-legacy-api22-eink")?"android-legacy-api22-eink":"");
+  $("routeTargetProfile").parentElement.hidden=profiles.length===0;
+}
 function refreshRouteDeviceOptions(selectedId=""){
   const runnerId=$("routeFlashBuilder").value;
   const choices=devices.filter(d=>d.runnerId===runnerId).map(d=>({
@@ -184,9 +192,9 @@ function openRouting(repository){
   $("routeBuild").value=policy?.buildBuilderId||"";
   $("routeTrigger").value=policy?.buildTrigger||"manual";
   $("routeSdk").value=policy?.sdk?policy.sdk.family+"@"+policy.sdk.version:"";
+  refreshTargetProfiles(policy?.targetProfile||"");
   $("routeFlashBuilder").value=policy?.flashBuilderId||"";
   refreshRouteDeviceOptions(policy?.deviceId||"");
-  $("routeAutoFlash").checked=!!policy?.autoFlashRequested;
   $("routeRemove").disabled=!policy;
   $("routeNotice").textContent=policy?.note||"";
   $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName;
@@ -241,6 +249,7 @@ $("routeCopyWorkflow").addEventListener("click",async()=>{
   }
 });
 $("routeFlashBuilder").addEventListener("change",()=>refreshRouteDeviceOptions());
+$("routeSdk").addEventListener("change",()=>refreshTargetProfiles());
 $("routeCancel").addEventListener("click",()=>$("routeDialog").close());
 $("routeDialog").addEventListener("close",()=>{activeRouteRepo=null;});
 $("routeForm").addEventListener("submit",async event=>{
@@ -252,10 +261,11 @@ $("routeForm").addEventListener("submit",async event=>{
       buildBuilderId:$("routeBuild").value,buildTrigger:$("routeTrigger").value,
       flashBuilderId:$("routeFlashBuilder").value||null,
       deviceId:$("routeDevice").value||null,
-      autoFlashRequested:$("routeAutoFlash").checked};
+      autoFlashRequested:false};
     if($("routeSdk").value){
       const [family,version]=$("routeSdk").value.split("@");
       input.sdkFamily=family;input.sdkVersion=version;
+      if($("routeTargetProfile").value)input.targetProfile=$("routeTargetProfile").value;
     }
     const saved=await api("/api/local/projects/routes",input);
     $("routeDialog").close();
