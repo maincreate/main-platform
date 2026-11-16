@@ -60,5 +60,5 @@ test("Builder metadata is bounded and separated from identity",()=>{
  assert.deepEqual(validateAssignment({displayName:"Pi desk",location:"Orlando / Desk 1",assignedTo:"Engineer A",accessGroup:"firmware"}),{
   displayName:"Pi desk",location:"Orlando / Desk 1",assignedTo:"Engineer A",accessGroup:"firmware"
  });
- assert.throws(()=>validateAssignment({displayName:"\\n",location:"",assignedTo:"",accessGroup:""}));
+ assert.throws(()=>validateAssignment({displayName:"\n",location:"",assignedTo:"",accessGroup:""}));
 });
