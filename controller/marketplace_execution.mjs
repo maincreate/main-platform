@@ -24,7 +24,7 @@ export async function dispatchToolkitInstall({plan,target,builder,organization,t
  if(!builder.lastSeen||Date.now()-Date.parse(builder.lastSeen)>120000)throw bad("Builder must be online before toolkit installation",409);
  if(plan.family==="android-sdk"&&!plan.acceptAndroidSdkLicense)throw bad("Google Android SDK license acceptance is required",422);
  const binding=await ensureRunnerLabel({builder,organization,token,fetchImpl});
- const installationId=plan.id.slice(0,8)+"-"+builder.id;
+ const installationId=plan.id.slice(0,8)+"-"+builder.id+"-"+Date.now().toString(36);
  await dispatch({workflow:"toolkit-install.yml",ref,token,fetchImpl,inputs:{
   installation_id:installationId,toolkit_family:plan.family,toolkit_version:plan.version,
   runner_label:binding.label,accept_android_sdk_license:plan.acceptAndroidSdkLicense?"true":"false"
@@ -113,7 +113,7 @@ export async function dispatchToolkitCleanup({plan,target,builder,organization,t
  if(target.builderId!==builder.id||target.status!=="completed"||!target.labelsRegistered)
   throw bad("Only a verified installed toolkit version can be cleaned up",409);
  const binding=await ensureRunnerLabel({builder,organization,token,fetchImpl});
- const cleanupId=plan.id.slice(0,8)+"-"+builder.id;
+ const cleanupId=plan.id.slice(0,8)+"-"+builder.id+"-"+Date.now().toString(36);
  await dispatch({workflow:"toolkit-cleanup.yml",ref,token,fetchImpl,inputs:{
   cleanup_id:cleanupId,toolkit_family:plan.family,toolkit_version:plan.version,
   runner_label:binding.label,confirm_cleanup:"true"
