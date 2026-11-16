@@ -5,6 +5,7 @@ import {ESP_IDF_RELEASES,ANDROID_RELEASE,espIdfRoot,androidRoot,installEspIdf,in
 test("ESP-IDF exposes only pinned stable versions and Linux builder architectures",()=>{
  assert.deepEqual(Object.keys(ESP_IDF_RELEASES).sort(),["5.5.6","6.1.1"]);
  for(const version of Object.keys(ESP_IDF_RELEASES)){
+  assert.equal(ESP_IDF_RELEASES[version].eim,"0.21.1");
   for(const arch of ["arm64","x64"]){
    const recipe=ESP_IDF_RELEASES[version].targets["linux/"+arch];
    assert.match(recipe.sha256,/^[a-f0-9]{64}$/);
