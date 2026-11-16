@@ -9,6 +9,7 @@ const workflowUrl=name=>"https://github.com/"+repo+"/actions/workflows/"+name;
 const safeRef=s=>typeof s==="string"&&/^[A-Za-z0-9._/-]{1,80}$/.test(s)&&!s.includes("..");
 const safeId=s=>typeof s==="string"&&/^[A-Za-z0-9-]{8,100}$/.test(s);
 const slug=s=>String(s).toLowerCase().replaceAll(".","-").replace(/[^a-z0-9-]/g,"-");
+const safePart=s=>String(s).replace(/[^A-Za-z0-9-]/g,"-").slice(0,40);
 
 async function dispatch({workflow,inputs,ref,token,fetchImpl=fetch}){
  if(!safeRef(ref))throw bad("Invalid Main{Create} workflow ref");
@@ -25,7 +26,7 @@ export async function dispatchToolkitInstall({plan,target,builder,organization,t
  if(!builder.lastSeen||Date.now()-Date.parse(builder.lastSeen)>120000)throw bad("Builder must be online before toolkit installation",409);
  if(plan.family==="android-sdk"&&!plan.acceptAndroidSdkLicense)throw bad("Google Android SDK license acceptance is required",422);
  const binding=await ensureRunnerLabel({builder,organization,token,fetchImpl});
- const installationId=plan.id.slice(0,8)+"-"+builder.id+"-"+Date.now().toString(36);
+ const installationId=plan.id.slice(0,8)+"-"+safePart(builder.id)+"-"+Date.now().toString(36);
  await dispatch({workflow:"toolkit-install.yml",ref,token,fetchImpl,inputs:{
   installation_id:installationId,toolkit_family:plan.family,toolkit_version:plan.version,
   runner_label:binding.label,accept_android_sdk_license:plan.acceptAndroidSdkLicense?"true":"false"
@@ -120,7 +121,7 @@ export async function dispatchToolkitCleanup({plan,target,builder,organization,t
  if(target.builderId!==builder.id||target.status!=="completed"||!target.labelsRegistered)
   throw bad("Only a verified installed toolkit version can be cleaned up",409);
  const binding=await ensureRunnerLabel({builder,organization,token,fetchImpl});
- const cleanupId=plan.id.slice(0,8)+"-"+builder.id+"-"+Date.now().toString(36);
+ const cleanupId=plan.id.slice(0,8)+"-"+safePart(builder.id)+"-"+Date.now().toString(36);
  await dispatch({workflow:"toolkit-cleanup.yml",ref,token,fetchImpl,inputs:{
   cleanup_id:cleanupId,toolkit_family:plan.family,toolkit_version:plan.version,
   runner_label:binding.label,confirm_cleanup:"true"
