@@ -79,7 +79,8 @@ export function makeInstallationPlan(input,builders,actor){
  return {
   id:crypto.randomUUID(),family:release.family,version:release.version,
   installable:release.installable,installCapabilityId:release.installCapabilityId,
-  installState:release.installState,placement:input.placement,targets:recorded,
+  installState:release.installState,platformCapabilityState:release.platformCapabilityState,
+  placement:input.placement,targets:recorded,
   createdBy:actor,createdAt:new Date().toISOString(),status:"planned",execution:"not_started",
   reason:release.installable
    ?"A reviewed, available installation capability is registered. Execution still requires a separate approved fabric job and runner opt-in; no host changes made."
