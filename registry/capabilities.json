@@ -92,11 +92,11 @@
   },
   {
     "id": "workflow.esp_idf.preflight_build",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kind": "workflow",
     "risk": "build",
     "state": "available",
-    "description": "Run a host snapshot followed by an approved ESP-IDF build on the same allowlisted machine. The exact 40-character local checkout revision is mandatory.",
+    "description": "Run a host snapshot followed by a pinned-version ESP-IDF build on the same allowlisted machine. The exact 40-character local checkout revision, toolkit version and target chip are mandatory.",
     "platforms": [
       "linux",
       "macos",
@@ -112,11 +112,21 @@
         "revision": {
           "type": "string",
           "pattern": "^[a-fA-F0-9]{40}$"
+        },
+        "toolkit_version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1)$"
+        },
+        "target_chip": {
+          "type": "string",
+          "pattern": "^(esp32|esp32s2|esp32s3|esp32c3|esp32c6|esp32h2|esp32p4)$"
         }
       },
       "required": [
         "repository",
-        "revision"
+        "revision",
+        "toolkit_version",
+        "target_chip"
       ],
       "additionalProperties": false
     },
