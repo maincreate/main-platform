@@ -58,7 +58,7 @@ function validState({route,project,builder,organization}){
  if(!githubName.test(builder.githubRunnerName||""))throw bad("Connect this builder to a GitHub Actions runner before generating the workflow",409);
  if(route.buildTrigger!=="github-actions")throw bad("Choose GitHub Actions as the project's trigger");
  const release=releases().find(r=>r.family===route.sdk?.family&&r.version===route.sdk?.version);
- if(!release)throw bad("Select a published marketplace toolkit version");
+ if(!release||!["esp-idf","android-sdk"].includes(release.family))throw bad("Select an implemented ESP-IDF or Android marketplace toolkit version");
  const build=classifyBuilderForOperation(builder,release,"build");
  if(!build.compatible)throw bad("The selected builder is not compatible with this toolkit build: "+build.reason,409);
  if(builder.os!=="linux")throw bad("The current Main{Create} reusable build workflows support Linux builders only",409);
