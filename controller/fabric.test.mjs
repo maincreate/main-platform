@@ -63,7 +63,7 @@ test("Arduino install requests create one approval-pending job per builder and d
 });
 test("composed workflow is one approval with pinned ordered actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
-  parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});
+  parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40),toolkit_version:"6.1.1",target_chip:"esp32s3"}});
  assert.deepEqual(p.steps.map(x=>x.capability),["host.snapshot","firmware.esp_idf.build"]);
  const j=invoke("maincreate_execute",{plan_id:p.plan_id}).job;
  assert.equal(claimJob(other).job,null);
