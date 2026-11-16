@@ -141,7 +141,7 @@ function inspect(args,ctx){
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
-  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)};
+  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),packages:r.packages||[],androidDevices:r.androidDevices||[]};
  }
  if(kind==="job"){
   const j=store().jobs.find(x=>x.id===id);
