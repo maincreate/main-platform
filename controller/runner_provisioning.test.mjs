@@ -59,3 +59,16 @@ test("org must be authorized and selected before token is requested",async()=>{
  const {ctx}=harness({authorized:false});
  await assert.rejects(()=>queueRunnerProvisioning("machine-a",ctx),/Connect GitHub/);
 });
+
+test("Linux x64 host receives architecture-correct GitHub runner identity and labels",()=>{
+ const {s}=harness();
+ const runner=s.runners[0];
+ runner.arch="x64";
+ runner.name="builder-linux-x64-01";
+ assert.equal(runnerIdentity(runner),"builder-linux-x64-01");
+ assert.deepEqual(runnerLabels(runner),["maincreate-managed","maincreate-linux","maincreate-x64"]);
+ runner.packages=[{name:"esp-idf",version:"v5.5.6"}];
+ assert.equal(runnerLabels(runner).includes("maincreate-esp-idf"),true);
+ runner.arch="amd64";
+ assert.throws(()=>runnerIdentity(runner),/Linux ARM64 or x64/);
+});
