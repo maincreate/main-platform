@@ -1172,20 +1172,22 @@ export async function localRoute(req) {
        typeof p.version==="string"&&p.version.length<=100)){
         runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
         runner.packagesObservedAt=runner.lastSeen;
-        const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...runnerLabels(runner)])];
-        const gh=s.github||{},org=gh.selectedOrganization;
-        if(runner.githubRunnerId&&runner.githubRunnerName&&githubIdentityCurrent(gh)&&org&&
-           JSON.stringify(labels.slice().sort())!==JSON.stringify((runner.labels||[]).slice().sort())){
-          try{
-            const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
-             method:"PUT",headers:{authorization:"Bearer "+unseal(gh.oauthToken),"content-type":"application/json",
-              accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
-             body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
-            if(response.ok){runner.labels=labels;runner.labelsSyncedAt=new Date().toISOString();delete runner.labelsSyncError;}
-            else runner.labelsSyncError="GitHub label update HTTP "+response.status;
-          }catch(e){runner.labelsSyncError=String(e.message||e).slice(0,180);}
+      }
+      if(Array.isArray(b.android_devices)&&b.android_devices.length<=16&&b.android_devices.every(d=>
+       d&&typeof d.serial==="string"&&/^[A-Za-z0-9._:-]{3,128}$/.test(d.serial)&&
+       Number.isInteger(d.apiLevel)&&d.apiLevel>=1&&d.apiLevel<=100&&
+       typeof d.abi==="string"&&d.abi.length<=40&&typeof d.model==="string"&&d.model.length<=120&&
+       typeof d.product==="string"&&d.product.length<=120&&typeof d.release==="string"&&d.release.length<=40)){
+        runner.androidDevices=b.android_devices.map(d=>({serial:d.serial,apiLevel:d.apiLevel,abi:d.abi,
+         model:d.model,product:d.product,release:d.release,connected:true}));
+        runner.androidDevicesObservedAt=runner.lastSeen;
+        if(Array.isArray(runner.packages)&&runner.packages.some(p=>p.name==="adb")){
+         runner.packages=runner.packages.filter(p=>p.name!=="android-device-api22");
+         if(runner.androidDevices.some(d=>d.apiLevel===22&&d.abi==="armeabi-v7a"))
+          runner.packages.push({name:"android-device-api22",version:"connected"});
         }
       }
+      if(Array.isArray(b.packages)||Array.isArray(b.android_devices))await syncRunnerLabels(runner,s);
       save(s);return reply({ok:true});
     }
     if(path==="/api/agent/devices"&&method==="POST"){
