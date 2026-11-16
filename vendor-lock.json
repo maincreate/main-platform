@@ -6,15 +6,17 @@
       "host",
       "runner",
       "scripts/install-linux.sh",
-      "scripts/uninstall-linux.sh"
+      "scripts/uninstall-linux.sh",
+      "scripts/maincreate-toolkit.sh"
     ]
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "136efc8e3db23c7e500de487f312ff3812d66a11",
+    "revision": "c8ec4956a246c767cda75871aa08123c1c3d7df0",
     "paths": [
       "registry/toolkits.json",
-      "registry/microcontrollers.json"
+      "registry/microcontrollers.json",
+      "registry/android-devices.json"
     ]
   }
 }
