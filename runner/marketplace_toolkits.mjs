@@ -112,7 +112,8 @@ export function validateFlasherArgs(value,root){
   const file=resolve(root,name);if(!file.startsWith(resolve(root)+sep))throw new Error("Firmware file escaped bundle root");
   files.push({address:Number.parseInt(address,16),file});
  }
- const flags=Array.isArray(value.write_flash_args)?value.write_flash_args:[];
+ const sourceFlags=Array.isArray(value.write_flash_args)?value.write_flash_args:[];
+ const flags=sourceFlags.map(x=>typeof x==="string"?x.replaceAll("_","-"):x);
  const allowed=new Set(["--flash-mode","--flash-freq","--flash-size","--compress","--no-compress","--erase-all","--force"]);
  for(let i=0;i<flags.length;i++){
   if(!allowed.has(flags[i]))throw new Error("Unsupported ESP-IDF flash option");
