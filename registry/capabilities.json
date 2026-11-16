@@ -599,5 +599,48 @@
         "capability": "android.app.restore"
       }
     ]
+  },
+  {
+    "id": "toolkit.cleanup",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "host-modify",
+    "state": "available",
+    "description": "Remove one exact Main{Create}-managed toolkit version after a dry-run inventory and active-job check. Explicit portal approval required; other versions and project data are preserved.",
+    "platforms": [
+      "linux"
+    ],
+    "architectures": [
+      "arm64",
+      "x64"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "pattern": "^(esp-idf|android-sdk)$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(5\\\\.5\\\\.6|6\\\\.1\\\\.1|2026\\\\.2\\\\.2-patch1)$"
+        },
+        "dry_run": {
+          "type": "string",
+          "pattern": "^(true|false)$"
+        }
+      },
+      "required": [
+        "family",
+        "version",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "toolkit.cleanup"
+      }
+    ]
   }
 ]
