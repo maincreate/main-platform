@@ -14,6 +14,7 @@ import {firmwareWorkflowPreview,provisionRunnerLabel} from "./github_workflow_ro
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
+import {runnerLabels} from "./runner_provisioning.mjs";
 
 const dataDir = process.env.MAIN_DATA_DIR || "./.maincreate-data";
 const dataFile = join(dataDir, "state.json");
@@ -1129,6 +1130,8 @@ export async function localRoute(req) {
             "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
           body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
         if(!response.ok)return deny(response.status===403?403:502,"Could not update GitHub runner labels");
+        const saved=state(),managedRunner=saved.runners.find(r=>r.githubRunnerName===input.runnerName);
+        if(managedRunner){managedRunner.githubRunnerId=input.runnerId;managedRunner.labels=labels;managedRunner.labelsSyncedAt=new Date().toISOString();delete managedRunner.labelsSyncError;save(saved);}
         return reply({updated:true,labels});
       }
       if(path==="/api/local/runners/invite"&&method==="POST"){
@@ -1169,6 +1172,24 @@ export async function localRoute(req) {
        typeof p.version==="string"&&p.version.length<=100)){
         runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
         runner.packagesObservedAt=runner.lastSeen;
+        const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...runnerLabels(runner)])];
+        const gh=s.github||{},org=gh.selectedOrganization;
+        if(runner.githubRunnerId&&runner.githubRunnerName&&githubIdentityCurrent(gh)&&org&&
+           JSON.stringify(labels.slice().sort())!==JSON.stringify((runner.labels||[]).slice().sort())){
+          try{
+            await refreshGithubAuthorization();
+            const latest=state(),current=latest.runners.find(x=>x.id===runner.id),identity=latest.github||{};
+            if(current?.githubRunnerId===runner.githubRunnerId&&identity.selectedOrganization===org&&githubIdentityCurrent(identity)){
+              const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
+               method:"PUT",headers:{authorization:"Bearer "+unseal(identity.oauthToken),"content-type":"application/json",
+                accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
+               body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
+              if(response.ok){current.labels=labels;current.labelsSyncedAt=new Date().toISOString();delete current.labelsSyncError;}
+              else current.labelsSyncError="GitHub label update HTTP "+response.status;
+              save(latest);
+            }
+          }catch(e){runner.labelsSyncError=String(e.message||e).slice(0,180);}
+        }
       }
       save(s);return reply({ok:true});
     }
