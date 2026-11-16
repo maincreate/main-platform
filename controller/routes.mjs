@@ -35,6 +35,24 @@ function githubIdentityCurrent(g) {
   return !!g.oauthUser && !!g.oauthToken &&
     (!g.oauthExpiresAt || Date.parse(g.oauthExpiresAt)>Date.now());
 }
+
+async function syncRunnerLabels(runner,s){
+ const labels=[...new Set([...(runner.labels||[]).filter(x=>/^maincreate-host-[0-9]+$/.test(x)),...runnerLabels(runner)])];
+ const gh=s.github||{},org=gh.selectedOrganization;
+ if(!runner.githubRunnerId||!runner.githubRunnerName||!githubIdentityCurrent(gh)||!org||
+  JSON.stringify(labels.slice().sort())===JSON.stringify((runner.labels||[]).slice().sort()))return;
+ try{
+  await refreshGithubAuthorization();
+  const identity=state().github||{};
+  if(!githubIdentityCurrent(identity)||identity.selectedOrganization!==org)return;
+  const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
+   method:"PUT",headers:{authorization:"Bearer "+unseal(identity.oauthToken),"content-type":"application/json",
+    accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
+   body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
+  if(response.ok){runner.labels=labels;runner.labelsSyncedAt=new Date().toISOString();delete runner.labelsSyncError;}
+  else runner.labelsSyncError="GitHub label update HTTP "+response.status;
+ }catch(e){runner.labelsSyncError=String(e.message||e).slice(0,180);}
+}
 // One in-flight rotation per process. Refresh tokens may be single-use; avoid
 // simultaneous rotations from dashboard polling and authenticated API requests.
 let githubRefreshInFlight=null;
