@@ -864,13 +864,7 @@
           "commandLineTools": "15859902",
           "platformTools": "37.0.1",
           "buildTools": "36.0.0",
-          "compileSdk": 37,
-          "targetSdk": 37,
-          "minSdk": "project-defined",
-          "androidGradlePlugin": "9.5.1",
-          "gradle": "9.6.0",
-          "jdk": 17,
-          "platforms": [
+          "sdkPlatforms": [
             "android-37",
             "android-22"
           ],
@@ -1243,7 +1237,17 @@
             "sha256": "90ae805d20434428bffcb699c290860f19bb5f66a67e6b330067e3de801fb04a",
             "source": "https://developer.android.com/studio/releases"
           }
-        ]
+        ],
+        "projectRequirements": {
+          "compileSdk": 37,
+          "defaultTargetSdk": 37,
+          "legacyTargetSdk": 22,
+          "legacyMinSdk": 22,
+          "legacyNativeAbi": "armeabi-v7a",
+          "androidGradlePlugin": "9.5.1",
+          "gradleWrapper": "9.6.0",
+          "jdkMinimum": 17
+        }
       }
     ]
   },
