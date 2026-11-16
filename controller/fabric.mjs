@@ -75,7 +75,7 @@ function createPlan(args,ctx) {
  if(Array.isArray(cap.architectures)&&!cap.architectures.includes(runner.arch))throw error(422,"Runner architecture not supported for this capability");
  const params=validParams(cap.parameters,clean(args.parameters));
  const hasPackage=(name,version)=>Array.isArray(runner.packages)&&runner.packages.some(p=>p.name===name&&(!version||p.version===version));
- if(["firmware.esp_idf.build","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore"].includes(id)&&
+ if(["firmware.esp_idf.build","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore","workflow.esp_idf.preflight_build"].includes(id)&&
    !hasPackage("esp-idf",params.toolkit_version))
   throw error(409,"This builder does not have the exact selected ESP-IDF version installed and verified");
  if(id==="firmware.esp_idf.flash"||id==="firmware.esp_idf.backup"||id==="firmware.esp_idf.restore"){
