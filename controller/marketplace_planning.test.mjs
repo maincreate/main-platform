@@ -27,6 +27,7 @@ test("Selected ESP-IDF builders are planned without pretending pilot installers 
  const plan=makeInstallationPlan({family:"esp-idf",version:"5.5.6",placement:"selected",builder_ids:["a"]},hosts,"tester");
  assert.equal(plan.targets.length,1);assert.equal(plan.targets[0].location,"Orlando / desk");
  assert.equal(plan.installable,false);assert.equal(plan.installState,"pilot");
+ assert.equal(plan.platformCapabilityState,"unregistered");
  assert.equal(plan.execution,"not_started");assert.equal(plan.status,"planned");
  assert.equal(plan.targets[0].status,"awaiting_validated_installer");
  assert.equal(plan.job_ids,undefined);
@@ -36,6 +37,7 @@ test("Arduino CLI plan references its available installer capability",()=>{
  const plan=makeInstallationPlan({family:"arduino-cli",version:"1.5.1",placement:"selected",builder_ids:["a"]},hosts,"tester");
  assert.equal(plan.installable,true);
  assert.equal(plan.installCapabilityId,"sdk.arduino_cli.install");
+ assert.equal(plan.platformCapabilityState,"available");
  assert.equal(plan.execution,"not_started");assert.equal(plan.job_ids,undefined);
 });
 
