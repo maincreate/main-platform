@@ -175,7 +175,7 @@ jobs:
         env:
           MAINCREATE_CONFIRM_DEVICE_WRITE: ${{ inputs.confirm_device_write }}
           DEVICE_SERIAL: ${{ inputs.device_serial }}
-        run: bash .maincreate/scripts/maincreate-toolkit.sh restore-android "$DEVICE_SERIAL" app.apk
+        run: bash .maincreate/scripts/maincreate-toolkit.sh restore-android "$DEVICE_SERIAL" .
       - name: Upload application backup
         if: inputs.operation == 'android-backup'
         uses: actions/upload-artifact@v6
