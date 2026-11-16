@@ -503,16 +503,26 @@ export async function localRoute(req) {
         try{
           const input=await body(req),s=state(),plan=s.marketplacePlans?.find(p=>p.id===input.plan_id);
           if(!plan)return deny(404,"Installation plan not found");
-          if(plan.family!=="arduino-cli"||plan.version!=="1.5.1")return deny(422,"This plan has no enabled installer");
+          const installCapability=plan.family==="arduino-cli"&&plan.version==="1.5.1"?"sdk.arduino_cli.install":
+            plan.family==="esp-idf"&&["5.5.6","6.1.1"].includes(plan.version)?"toolkit.esp_idf.install":
+            plan.family==="android-sdk"&&plan.version==="2026.2.2-patch1"?"toolkit.android.install":null;
+          if(!installCapability)return deny(422,"This plan has no enabled installer");
+          if(plan.family==="android-sdk"&&input.license_accepted!==true)return deny(422,"Accept the Google Android SDK license before installation");
           if(!Array.isArray(plan.targets)||!plan.targets.length)return deny(422,"Installation plan has no targets");
           const jobs=plan.job_ids||[],statuses=jobs.map(id=>{try{return fabricCall("maincreate_jobs",{action:"get",job_id:id}).job.status}catch{return "unknown"}});
           if(statuses.some(x=>["awaiting_approval","queued","running","completed"].includes(x)))return deny(409,"This plan already has requested or completed builder jobs");
           plan.job_ids=[];const failures=[];
           for(const target of plan.targets){
             const runner=s.runners.find(r=>r.id===target.builderId);
-            if(!runner||runner.os!=="linux"||!["arm64","x64"].includes(runner.arch)){target.status="failed";target.error="Runner is not a supported Linux Arduino CLI target";failures.push(target.builderId);continue;}
+            const supported=runner&&runner.os==="linux"&&
+              (plan.family==="esp-idf"?["arm64","x64"].includes(runner.arch):
+               plan.family==="android-sdk"?runner.arch==="x64":
+               ["arm64","x64"].includes(runner.arch));
+            if(!supported){target.status="failed";target.error="Runner OS/architecture is not supported by this exact toolkit version";failures.push(target.builderId);continue;}
             try{
-              const fabricPlan=fabricCall("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}},{runners:s.runners});
+              const parameters=plan.family==="esp-idf"?{version:plan.version}:
+                plan.family==="android-sdk"?{license_accepted:"true"}:{};
+              const fabricPlan=fabricCall("maincreate_plan",{capability:installCapability,runner_id:runner.id,parameters},{runners:s.runners});
               const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
               plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
             }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
