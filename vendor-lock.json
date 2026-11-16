@@ -11,7 +11,7 @@
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "e147f31b53b0ef8e787e1b7429c5840980d98f2b",
+    "revision": "64f0ae8dcd491c9dc42a4219b6c46447823aa6d7",
     "paths": [
       "registry/toolkits.json",
       "registry/microcontrollers.json",
