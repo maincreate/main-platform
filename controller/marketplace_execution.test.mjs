@@ -92,3 +92,28 @@ test("Successful cleanup removes only the version label and marks that target cl
  assert.equal(target.status,"cleaned");assert.equal(target.labelsRegistered,false);
  assert.equal(deleted.length,6);
 });
+
+
+test("Cleaning one ESP-IDF version preserves shared labels while another version remains installed",async()=>{
+ const target={builderId:builder.id,status:"completed",labelsRegistered:true};
+ const p={id:plan.id,family:"esp-idf",version:"6.1.1",targets:[target]};
+ const other={id:"other-plan",family:"esp-idf",version:"5.5.6",
+  targets:[{builderId:builder.id,status:"completed",labelsRegistered:true}]};
+ const request={cleanupId:"cleanup-456",planId:p.id,family:p.family,version:p.version,builderId:builder.id,
+  githubRunnerId:123,status:"dispatched"};
+ const deleted=[];
+ const fetchImpl=async(url,opts)=>{
+  if(url.includes("/toolkit-cleanup.yml/runs"))return json({workflow_runs:[{
+   id:790,run_name:"Main{Create} cleanup / cleanup-456 / esp-idf@6.1.1",status:"completed",conclusion:"success"}]});
+  if(url.endsWith("/labels"))return json({labels:[
+   {name:"maincreate-toolkit-esp-idf-6-1-1"},{name:"maincreate-capability-firmware-build"},
+   {name:"maincreate-capability-firmware-device-io"},{name:"maincreate-capability-firmware-backup"},
+   {name:"maincreate-capability-firmware-restore"},{name:"maincreate-target-esp32"}]});
+  if(opts.method==="DELETE"){deleted.push(url);return new Response(null,{status:200});}
+  throw new Error("Unexpected URL "+url);
+ };
+ await refreshMarketplaceCleanups({requests:[request],plans:[p,other],organization:"maincreate",token,fetchImpl});
+ assert.equal(target.status,"cleaned");
+ assert.equal(deleted.length,1);
+ assert(deleted[0].endsWith("/maincreate-toolkit-esp-idf-6-1-1"));
+});
