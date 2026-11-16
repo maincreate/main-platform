@@ -224,6 +224,13 @@ async function executeJob(config,job){
     out.push("Host snapshot recorded");
     ids.push(await uploadAsset(config,job.id,"host-snapshot.json","application/json",
      Buffer.from(JSON.stringify(report,null,2))));
+   }else if(step.capability==="toolkit.cleanup"){
+    const family=job.parameters?.family,version=job.parameters?.version,dryRun=job.parameters?.dry_run!=="false";
+    const valid=(family==="esp-idf"&&["5.5.6","6.1.1"].includes(version))||
+      (family==="android-sdk"&&version==="2026.2.2-patch1");
+    if(!valid)throw new Error("Unsupported toolkit cleanup selection");
+    const result=await cleanupToolkit({family,version,dryRun,activeJobs:[]});
+    out.push((dryRun?"Cleanup dry-run":"Toolkit removed")+": "+family+" "+version+"; path "+result.path+"; existed "+result.exists);
    }else if(step.capability==="toolkit.esp_idf.install"){
     if(process.env.MAIN_RUNNER_ENABLE_SDK_INSTALLS!=="1")throw new Error("Toolkit installation disabled by operator opt-in");
     const version=job.parameters?.version;
@@ -302,17 +309,29 @@ async function executeJob(config,job){
     const apks=[];
     function collect(dir,depth=0){if(depth>6)return;for(const name of readdirSync(dir,{withFileTypes:true})){const p=join(dir,name.name);if(name.isDirectory())collect(p,depth+1);else if(name.isFile()&&name.name.endsWith(".apk"))apks.push(p);}}
     collect(apkRoot);
-    if(!apks.length)throw new Error("Android build completed without an APK artifact");
+    if(apks.length!==1)throw new Error("Android build must produce exactly one APK for this deployment profile; found "+apks.length);
     const aapt2=join(installed.sdkRoot,"build-tools","36.0.0","aapt2");
     const expectedApi=job.parameters?.target_profile==="android-legacy-api22-eink"?"22":"37";
-    for(const file of apks.slice(0,10)){
-     const badging=await processTool(aapt2,["dump","badging",file],checkout,30000);
-     if(!badging.includes("sdkVersion:'"+expectedApi+"'")||!badging.includes("targetSdkVersion:'"+expectedApi+"'"))
-      throw new Error("APK minSdk/targetSdk does not match selected Android API "+expectedApi+": "+file.split(/[\\/]/).pop());
-     if(expectedApi==="22"&&/native-code:/.test(badging)&&!badging.includes("native-code: 'armeabi-v7a'"))
-      throw new Error("Legacy E Ink APK contains native libraries without armeabi-v7a");
-     const data=readFileSync(file);ids.push(await uploadAsset(config,job.id,file.split(/[\\/]/).pop(),"application/vnd.android.package-archive",data));
-    }
+    const file=apks[0],badging=await processTool(aapt2,["dump","badging",file],checkout,30000);
+    const packageName=badging.match(/^package: name='([^']+)'/m)?.[1];
+    if(!packageName||!/^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$/.test(packageName))
+     throw new Error("Unable to identify a valid Android application package name");
+    if(!badging.includes("sdkVersion:'"+expectedApi+"'")||!badging.includes("targetSdkVersion:'"+expectedApi+"'"))
+     throw new Error("APK minSdk/targetSdk does not match selected Android API "+expectedApi);
+    if(expectedApi==="22"&&/native-code:/.test(badging)&&!badging.includes("native-code: 'armeabi-v7a'"))
+     throw new Error("Legacy E Ink APK contains native libraries without armeabi-v7a");
+    const data=readFileSync(file),stage=mkdtempSync(join(configDir,"android-app-bundle-"));
+    const apkName="application.apk";writeFileSync(join(stage,apkName),data,{mode:0o600});
+    const manifest={kind:"maincreate-android-app-bundle",toolkitVersion:version,targetProfile:job.parameters.target_profile,
+     packageName,minSdk:Number(expectedApi),targetSdk:Number(expectedApi),
+     nativeAbis:(badging.match(/^native-code: (.+)$/m)?.[1]||"").replaceAll("'","").trim().split(/\\s+/).filter(Boolean),
+     apkName,apkSha256:createHash("sha256").update(data).digest("hex"),sourceRevision:job.parameters.revision,
+     createdAt:new Date().toISOString()};
+    writeFileSync(join(stage,"manifest.json"),JSON.stringify(manifest,null,2),{mode:0o600});
+    const archive=join(stage,"android-app-bundle.tar.gz");
+    await processTool("tar",["-czf",archive,"-C",stage,apkName,"manifest.json"],stage,5*60*1000);
+    ids.push(await uploadAsset(config,job.id,"android-app-bundle.tar.gz","application/gzip",readFileSync(archive)));
+    rmSync(stage,{recursive:true,force:true});
     ids.push(await uploadAsset(config,job.id,"android-build-log.txt","text/plain",Buffer.from(output||"Build completed")));
    }else if(step.capability==="firmware.esp_idf.backup"){
     const version=job.parameters?.toolkit_version,chip=String(job.parameters?.target_chip||"").toLowerCase().replace(/-/g,"");
@@ -373,11 +392,31 @@ async function executeJob(config,job){
     const packageName=job.parameters?.package_name||"";
     if(!/^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$/.test(packageName))throw new Error("Valid Android package name is required");
     const downloaded=await downloadAsset(config,job.id,job.parameters?.source_asset_id);
-    if(!downloaded.asset.name.endsWith(".apk"))throw new Error("Android deployment requires an APK artifact");
-    const output=await processTool(adb,["-s",device.serial,"install","-r",downloaded.file],process.cwd(),5*60*1000);
+    let apkPath=downloaded.file,bundleDir=null;
+    if(downloaded.asset.name==="android-app-bundle.tar.gz"){
+     bundleDir=mkdtempSync(join(configDir,"android-app-deploy-"));
+     const listing=await processTool("tar",["-tzf",downloaded.file],bundleDir,30000);
+     const names=listing.split(/\\r?\\n/).filter(Boolean);
+     if(names.length!==2||names.some(n=>!["application.apk","manifest.json"].includes(n)))throw new Error("Unexpected Android app bundle contents");
+     const verbose=await processTool("tar",["-tvzf",downloaded.file],bundleDir,30000);
+     if(verbose.split(/\\r?\\n/).some(line=>/^[lh]/.test(line)))throw new Error("Android app bundle contains links");
+     await processTool("tar",["-xzf",downloaded.file,"-C",bundleDir,"--no-same-owner","--no-same-permissions"],bundleDir,30000);
+     const manifest=JSON.parse(readFileSync(join(bundleDir,"manifest.json"),"utf8"));
+     apkPath=join(bundleDir,"application.apk");
+     const apk=readFileSync(apkPath);
+     if(manifest.kind!=="maincreate-android-app-bundle"||manifest.packageName!==packageName||
+       manifest.targetProfile!=="android-legacy-api22-eink"||manifest.minSdk!==22||manifest.targetSdk!==22||
+       createHash("sha256").update(apk).digest("hex")!==manifest.apkSha256||
+       (manifest.nativeAbis?.length&&!manifest.nativeAbis.includes("armeabi-v7a")))
+      throw new Error("Android app manifest does not match the selected API22 E Ink target or package");
+    }else if(!downloaded.asset.name.endsWith(".apk")||step.capability!=="android.app.restore"){
+     throw new Error("Android deployment requires a verified app bundle; raw APKs are accepted only for restore");
+    }
+    const output=await processTool(adb,["-s",device.serial,"install","-r",apkPath],process.cwd(),5*60*1000);
     const installed=await processTool(adb,["-s",device.serial,"shell","pm","path",packageName],process.cwd(),30000);
     if(!installed.includes("package:"))throw new Error("APK installation returned success but package verification failed");
     out.push("Installed "+packageName+" on Android "+device.release+" API "+device.api+" ("+device.abi+"): "+output.slice(-3000));
+    if(bundleDir)rmSync(bundleDir,{recursive:true,force:true});
    }else if(step.capability==="android.app.backup"){
     const adb=await findAdb(),device=await authorizedAndroidDevice(adb,job.parameters?.device_serial,22);
     const packageName=job.parameters?.package_name||"";
