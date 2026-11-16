@@ -91,6 +91,11 @@ function createJob(args,ctx){
  const s=store(),p=s.plans.find(x=>x.id===args.plan_id);
  if(!p||Date.now()>p.expiresAt)throw error(404,"Plan missing or expired; re-plan");
  if(!runnerBy(ctx,p.runnerId))throw error(404,"Runner no longer enrolled");
+ const activeStatuses=["awaiting_approval","queued","running"];
+ if(p.capability==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===p.runnerId&&j.planId!==p.id&&activeStatuses.includes(j.status)))
+  throw error(409,"Toolkit cleanup is blocked while another job is pending or active on this builder");
+ if(s.jobs.some(j=>j.runnerId===p.runnerId&&j.capability==="toolkit.cleanup"&&activeStatuses.includes(j.status)))
+  throw error(409,"This builder has a toolkit cleanup job pending or active");
  const existing=s.jobs.find(j=>j.planId===p.id);
  if(existing)return {job:publicJob(existing),created:false,requires_approval:existing.status==="awaiting_approval"};
  if(s.jobs.length>=200)throw error(409,"Job history limit reached; archive required");
