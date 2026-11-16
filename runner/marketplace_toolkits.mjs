@@ -154,6 +154,9 @@ export async function installEspIdf({version,os=osName(),architecture=archName()
 export async function installAndroidSdk({os=osName(),architecture=archName(),root=sdkRoot(),acceptLicenses=false,downloadFn=download,runner=run}={}){
  if(!acceptLicenses)throw new Error("Android SDK license acceptance is required before installation");
  const recipe=ANDROID_RELEASE.hosts[hostKey(os,architecture)];if(!recipe)throw new Error("Google Android command-line tools are not supported on this builder OS/architecture");
+ const javaVersion=await runner("java",["-version"],{timeout:30000});
+ const major=Number(javaVersion.match(/version ["']?(\\d+)/i)?.[1]||javaVersion.match(/openjdk (\\d+)/i)?.[1]||0);
+ if(major<17)throw new Error("A system JDK 17 or newer is required before Android SDK installation");
  const archive=await downloadFn(recipe.url);const digest=verifyDigest(archive,recipe.sha256);
  const parent=androidRoot(root);await fs.mkdir(dirname(parent),{recursive:true,mode:0o700});
  const stage=await fs.mkdtemp(join(dirname(parent),".stage-android-"));
@@ -174,7 +177,7 @@ export async function installAndroidSdk({os=osName(),architecture=archName(),roo
   const buildTools=join(sdkRootPath,"build-tools","36.0.0","aapt2");
   const platform=join(sdkRootPath,"platforms","android-22","android.jar");
   for(const p of [platformTools,buildTools,platform])if(!existsSync(p))throw new Error("Android SDK package missing after installation: "+p);
-  const meta={family:"android-sdk",version:ANDROID_RELEASE.version,commandLineTools:ANDROID_RELEASE.commandLineTools,os,architecture,packages,sha256:digest,licensesAccepted:true,installedAt:new Date().toISOString()};
+  const meta={family:"android-sdk",version:ANDROID_RELEASE.version,commandLineTools:ANDROID_RELEASE.commandLineTools,os,architecture,packages,jdkMajor:major,sha256:digest,licensesAccepted:true,installedAt:new Date().toISOString()};
   await fs.writeFile(join(sdkRootPath,".maincreate-install.json"),JSON.stringify(meta,null,2),{mode:0o600});
   await atomicReplace(stage,parent);
   return {family:"android-sdk",version:ANDROID_RELEASE.version,status:"installed",path:parent,sha256:digest,packages};
