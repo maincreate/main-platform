@@ -98,6 +98,8 @@ function renderPlans(){
     const link=esc("a","Open GitHub Actions run");link.href=target.workflowRunUrl;link.target="_blank";link.rel="noopener noreferrer";item.append(link);
    }
    if(target.error)item.append(esc("small",target.error));
+   if(target.labelError)item.append(esc("small","Toolkit installed, but runner label sync failed: "+target.labelError));
+   if(target.cleanupStatus)item.append(esc("small","Cleanup: "+target.cleanupStatus));
    if(target.status==="completed"&&target.labelsRegistered){
     const cleanup=esc("button","Remove this version","plain-button");cleanup.type="button";
     cleanup.addEventListener("click",async()=>{
