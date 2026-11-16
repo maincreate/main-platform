@@ -1,4 +1,5 @@
 import {ensureRunnerLabel} from "./github_workflow_routing.mjs";
+import {releases} from "./marketplace_planning.mjs";
 
 const bad=(message,status=422)=>Object.assign(new Error(message),{status});
 const headers=token=>({authorization:"Bearer "+token,accept:"application/vnd.github+json",
@@ -35,11 +36,17 @@ export async function dispatchToolkitInstall({plan,target,builder,organization,t
   requestedAt:new Date().toISOString(),status:"dispatched"};
 }
 function labelsFor(family,version){
- const labels=["maincreate-toolkit-"+slug(family)+"-"+slug(version)];
- if(family==="esp-idf")labels.push("maincreate-capability-firmware-build","maincreate-capability-firmware-device-io");
- if(family==="android-sdk")labels.push("maincreate-capability-android-app-build");
- if(family==="arduino-cli")labels.push("maincreate-capability-arduino-cli");
- return labels;
+ const release=releases().find(r=>r.family===family&&r.version===version);
+ const raw=new Set(["toolkit-"+slug(family)+"-"+slug(version)]);
+ for(const label of release?.operations?.build?.runnerLabels||[])raw.add(label);
+ for(const profile of release?.deviceProfiles||[])for(const label of profile.runnerLabels||[])raw.add(label);
+ if(family==="esp-idf"){
+  raw.add("capability-firmware-device-io");
+  raw.add("capability-firmware-backup");
+  raw.add("capability-firmware-restore");
+ }
+ if(family==="arduino-cli")raw.add("capability-arduino-cli");
+ return [...raw].map(label=>label.startsWith("maincreate-")?label:"maincreate-"+label);
 }
 async function changeLabels({organization,runnerId,token,add=[],remove=[],fetchImpl=fetch}){
  const base="https://api.github.com/orgs/"+encodeURIComponent(organization)+"/actions/runners/"+runnerId+"/labels";
