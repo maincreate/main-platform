@@ -858,6 +858,12 @@ export async function localRoute(req) {
           current.githubRunnerName=binding.runnerName;
           current.githubRunnerLabel=binding.label;
           current.githubRunnerBindingAt=binding.at;
+          const pairedBuilder=next.runners.find(r=>r.id===current.buildBuilderId);
+          if(pairedBuilder){
+           pairedBuilder.githubRunnerId=binding.runnerId;
+           pairedBuilder.githubRunnerName=binding.runnerName;
+           pairedBuilder.labels=[...new Set([...(pairedBuilder.labels||[]),binding.label])];
+          }
           save(next);
           return reply({configured:true,repository:current.repository,runnerName:binding.runnerName,label:binding.label});
         }catch(e){return deny(e.status||422,e.message);}
