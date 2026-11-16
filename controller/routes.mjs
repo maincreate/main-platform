@@ -42,8 +42,7 @@ async function syncRunnerLabels(runner,s){
  if(!runner.githubRunnerId||!runner.githubRunnerName||!githubIdentityCurrent(gh)||!org||
   JSON.stringify(labels.slice().sort())===JSON.stringify((runner.labels||[]).slice().sort()))return;
  try{
-  await refreshGithubAuthorization();
-  const identity=state().github||{};
+  const identity=gh;
   if(!githubIdentityCurrent(identity)||identity.selectedOrganization!==org)return;
   const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
    method:"PUT",headers:{authorization:"Bearer "+unseal(identity.oauthToken),"content-type":"application/json",
