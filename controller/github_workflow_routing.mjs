@@ -83,7 +83,7 @@ function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef,def
    '      target_profile: __DOLLAR__{{ inputs.target_profile || \'android-legacy-api22-eink\' }}',
    '      build_variant: __DOLLAR__{{ inputs.build_variant || \'debug\' }}'
   ]:[]),
-  '      artifact_name: __DOLLAR__{{ inputs.artifact_name || format(\\'maincreate-'+(android?'android':'esp-idf')+'-{0}\\', github.sha) }}'
+  '      artifact_name: __DOLLAR__{{ inputs.artifact_name || format(\'maincreate-'+(android?'android':'esp-idf')+'-{0}\', github.sha) }}'
  ].join("\n");
  const inputLines=android?[
   "      operation:",
