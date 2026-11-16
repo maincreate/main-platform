@@ -1106,9 +1106,9 @@ export async function localRoute(req) {
         const input=await body(req),gh=state().github,org=gh.selectedOrganization;
         if(!githubIdentityCurrent(gh)||!org)return deny(409,"Select a GitHub organization");
         if(!Number.isSafeInteger(input.runnerId)||input.runnerId<=0||
-          !Array.isArray(input.labels)||input.labels.length>15||
+          !Array.isArray(input.labels)||input.labels.length>30||
           input.labels.some(l=>typeof l!=="string"||!/^[a-zA-Z0-9_-]{1,40}$/.test(l)))
-          return deny(422,"Provide a runner ID and up to 15 valid labels");
+          return deny(422,"Provide a runner ID and up to 30 valid labels");
         const managed=state().runners.some(r=>r.githubRunnerName===input.runnerName);
         if(!managed||typeof input.runnerName!=="string"||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}$/.test(input.runnerName))
           return deny(403,"Only enrolled Main{Create}-managed runner labels can be edited");
