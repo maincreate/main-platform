@@ -835,6 +835,13 @@ export async function localRoute(req) {
             route.githubRunnerLabel=old.githubRunnerLabel;
             route.githubRunnerBindingAt=old.githubRunnerBindingAt;
           }
+          if(old&&route.flashBuilderId&&old.flashBuilderId===route.flashBuilderId&&
+            old.githubFlashRunnerLabel&&old.githubFlashRunnerName){
+            route.githubFlashRunnerId=old.githubFlashRunnerId;
+            route.githubFlashRunnerName=old.githubFlashRunnerName;
+            route.githubFlashRunnerLabel=old.githubFlashRunnerLabel;
+            route.githubFlashRunnerBindingAt=old.githubFlashRunnerBindingAt;
+          }
           const others=(stored.projectRoutes||[]).filter(r=>r.organization!==org||r.repository!==route.repository);
           stored.projectRoutes=[...others,route].slice(-500);save(stored);
           return reply({route},201);
