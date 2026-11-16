@@ -21,7 +21,7 @@ The MCP server uses protocol version `2025-11-25`, returns `structuredContent` a
 
 ## Curated registry and workflows
 
-`registry/capabilities.json` holds version, JSON argument schema, supported OS, risk, availability, and ordered steps. `registry/toolkits.json` holds catalog entries and marks SDKs **operator-managed** rather than falsely installed. Adding a manifest does not change the six public MCP tool names. The controller refuses to enable a capability without a reviewed runner adapter; adding JSON alone cannot create a generic shell command.
+`registry/capabilities.json` holds executable capability contracts: version, JSON argument schema, supported OS, risk, availability, and ordered steps. `registry/toolkits.json` and `registry/android-devices.json` are vendored from the pinned Main{Create} Marketplace revision in `vendor-lock.json`. They describe toolkit versions, host compatibility, artifact/device operations and lifecycle state; they do not claim a toolkit is installed on any host. Adding catalog metadata does not change the six public MCP tool names. The controller refuses to enable a capability without a reviewed runner adapter; adding JSON alone cannot create a generic shell command.
 
 Implemented adapters:
 - `host.snapshot@1.0.0`: read-only host diagnostics and a JSON asset.
@@ -33,9 +33,9 @@ Implemented adapters:
 - [Linux ARM64 release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz) — `1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62`
 - [Linux 64-bit release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz) — `28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b`
 
-The existing ESP-IDF 5.5.6 catalog remains review/catalog-only, and ESP-IDF 6.1 is review-only. No ESP-IDF installer is enabled by this MVP. `firmware.esp_idf.flash` and `deployment.release` remain unavailable.
+The versioned marketplace catalog currently includes ESP-IDF 5.5.6 and 6.1.1, the current Android SDK profile, the Android ADB device toolkit, and the Avalue EPD-42S Android 5.1.1/API 22 target. ESP-IDF and Android profiles are pilot metadata only until their corresponding reviewed builder adapters and capability manifests are enabled. The only executable toolkit installer in this platform revision remains Arduino CLI 1.5.1. `firmware.esp_idf.flash`, Android app build/deploy/backup/restore, and firmware backup/restore remain unavailable.
 
-Marketplace **Save installation plan** is side-effect-free. A separate **Request installation** action validates the saved plan and creates one approval-pending fabric job per supported builder; it does not approve, claim, or install jobs. Repeated requests are rejected while a builder has an active or completed job, and partial builder failures remain visible per target.
+Marketplace **Save installation plan** is side-effect-free. A separate **Request installation** action resolves the exact toolkit version and its declared install capability, then creates one approval-pending fabric job per compatible builder only when that capability is available. It does not approve, claim, or install jobs. OS/architecture compatibility is evaluated separately for each lifecycle operation; validation-required targets are not treated as supported. Repeated requests are rejected while a builder has an active or completed job, and partial builder failures remain visible per target.
 
 Example planning request:
 
