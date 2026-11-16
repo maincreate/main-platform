@@ -158,7 +158,8 @@ function discover(args,ctx){
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="toolkits")result.toolkits=TOOLKITS.filter(t=>!q||(t.id+" "+t.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
-  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)
+  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
+  packages:r.packages||[],androidDevices:r.androidDevices||[]
  })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
  if(resource==="all"||resource==="devices")result.devices=(ctx.devices||[]).filter(d=>
   !q||((d.label||"")+" "+(d.product||"")+" "+(d.port||"")+" "+(d.runnerName||"")).toLowerCase().includes(q))
