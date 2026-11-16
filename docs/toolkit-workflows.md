@@ -67,10 +67,10 @@ The generic Android SDK does not include the E Ink vendor HAL, EPDC driver, wave
 
 1. Install ESP-IDF 6.1.1 on both Linux builders using Marketplace (choose all compatible builders).
 2. Install Android SDK 2026.2.2 Patch 1 on the Linux x64 builder. Explicitly accept the Google SDK license in the Marketplace UI.
-3. Ensure the Pi host has `adb` and `android-sdk-platform-tools-common`. If its host installer predates this change, run `sudo apt-get update && sudo apt-get install -y adb android-sdk-platform-tools-common unzip python3-venv`.
-4. Ensure the x64 builder has JDK 17 or newer. If missing, run `sudo apt-get install -y default-jdk-headless`.
-5. Open the Main{Create} Platform repository's Actions tab and dispatch `device-preflight.yml` to the Pi runner using its unique host label. Supply `/dev/ttyUSB0` for the ESP32 probe. The workflow lists stable serial paths and authorized ADB devices.
-6. Record the ESP32 chip family and eFuse MAC from the probe; record the EPD-42S ADB serial from `list-android`.
+3. Re-run the Main{Create} Linux host installer on both builders if they were enrolled before this change. It now installs the Espressif compiler/build prerequisites, ADB and USB rules. The Linux x64 installer also installs Debian's default JDK (17 or newer). Alternatively, install the host packages manually: `sudo apt-get update && sudo apt-get install -y git wget flex bison gperf cmake ninja-build ccache build-essential libffi-dev libssl-dev dfu-util libusb-1.0-0 libusb-1.0-0-dev libncurses-dev adb android-sdk-platform-tools-common unzip python3-venv`; add `default-jdk-headless` on Linux x64.
+4. Connect the ESP32 board and EPD-42S to the Pi. On the first preflight, leave the ESP32 port empty to list stable serial paths and authorized Android devices. Then run again with the actual ESP32 port to read its chip identity.
+5. Open the Main{Create} Platform repository's Actions tab and dispatch `device-preflight.yml` to the Pi runner using its unique host label. First leave the optional serial port blank; then dispatch again with the port found in the inventory output.
+6. Record the ESP32 chip family and eFuse MAC from the probe; record the EPD-42S ADB serial, product, model, API and ABI from `list-android`.
 7. Configure the project build route to use the x64 builder for builds and the Pi builder for device operations. Provision both unique runner labels and commit the generated project workflow.
 8. Run a build, note its workflow run ID and artifact name, then manually dispatch `esp32-flash` or `android-install` with the exact device identity and explicit confirmation.
 
