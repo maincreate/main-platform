@@ -41,6 +41,8 @@ export function classifyBuilderForOperation(host,release,operation="install"){
  if(!variant)return {compatible:false,reason:"Unsupported operating system or architecture for "+operation};
  if(variant.status!=="supported")return {compatible:false,reason:variant.reason||"Host compatibility has not been validated for "+operation};
  if(!host.managedHost||host.decommission)return {compatible:false,reason:"Builder is not an enrolled managed host"};
+ if(!host.lastSeen||!Number.isFinite(Date.parse(host.lastSeen))||Date.now()-Date.parse(host.lastSeen)>120000)
+  return {compatible:false,reason:"Builder heartbeat is stale or offline"};
  if(operation==="install"&&!release.installers.some(i=>i.os===host.os&&i.architecture===host.arch))
   return {compatible:false,reason:"No pinned installer exists for this host architecture"};
  return {compatible:true,readiness:variant.status,reason:operation+" compatibility is supported"};
