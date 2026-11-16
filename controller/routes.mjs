@@ -862,6 +862,7 @@ export async function localRoute(req) {
           if(pairedBuilder){
            pairedBuilder.githubRunnerId=binding.runnerId;
            pairedBuilder.githubRunnerName=binding.runnerName;
+           pairedBuilder.githubRunnerLabel=binding.label;
            pairedBuilder.labels=[...new Set([...(pairedBuilder.labels||[]),binding.label])];
           }
           save(next);
