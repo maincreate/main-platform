@@ -136,7 +136,7 @@ export async function refreshMarketplaceCleanups({requests,plans,organization,to
  let runs;try{runs=await workflowRuns("toolkit-cleanup.yml",token,fetchImpl)}catch{return {requests,changed:false};}
  let changed=false;
  for(const request of requests){
-  if(!request.cleanupId||!["dispatched","running"].includes(request.status))continue;
+  if(!request.cleanupId||!["dispatched","running","label_cleanup_pending"].includes(request.status))continue;
   const run=runs.find(r=>runName(r).includes(request.cleanupId));if(!run)continue;
   const next=statusFor(run);
   if(request.workflowRunId!==run.id||request.status!==next){
@@ -153,11 +153,16 @@ export async function refreshMarketplaceCleanups({requests,plans,organization,to
    const remove=[];
    if(!otherSameVersion)remove.push(versionLabel);
    if(!otherFamily)remove.push(...allLabels.filter(label=>label!==versionLabel));
-   try{await changeLabels({organization,runnerId:request.githubRunnerId,token,remove,fetchImpl});request.labelsRemoved=true;changed=true;}
-   catch(e){request.labelError=String(e.message||e).slice(0,300);changed=true;}
    const plan=plans.find(p=>p.id===request.planId);
    const target=plan?.targets?.find(t=>t.builderId===request.builderId);
-   if(target){target.status="cleaned";target.labelsRegistered=false;changed=true;}
+   try{
+    await changeLabels({organization,runnerId:request.githubRunnerId,token,remove,fetchImpl});
+    request.labelsRemoved=true;request.labelError=null;request.status="completed";changed=true;
+    if(target){target.status="cleaned";target.labelsRegistered=false;target.cleanupStatus="completed";delete target.error;changed=true;}
+   }catch(e){
+    request.labelError=String(e.message||e).slice(0,300);request.status="label_cleanup_pending";changed=true;
+    if(target){target.status="cleanup_label_error";target.labelsRegistered=true;target.cleanupStatus="label_cleanup_pending";target.error="Toolkit removed, but GitHub capability labels could not be reconciled: "+request.labelError;changed=true;}
+   }
   }
   if(next==="failed"||next==="cancelled"){request.error="Toolkit cleanup workflow "+(run.conclusion||next);changed=true;}
  }
