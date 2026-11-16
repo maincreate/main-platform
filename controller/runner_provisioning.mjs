@@ -31,7 +31,7 @@ export function runnerLabels(runner){
   if(p.name==="android-device-api22"&&p.version==="connected")
    labels.push("target-device-avalue-epd-42s");
  }
- return [...new Set(labels)].slice(0,15);
+ return [...new Set(labels)];
 }
 export async function queueRunnerProvisioning(runnerId,ctx,{permitPendingHeartbeat=false}={}){
  const {state,save,seal,unseal,githubIdentityCurrent}=ctx;
