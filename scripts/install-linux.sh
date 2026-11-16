@@ -92,7 +92,7 @@ install_dependencies() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates
   fi
   DEBIAN_FRONTEND=noninteractive apt-get update
-  local packages=(avahi-daemon avahi-utils openssh-server nfs-common util-linux unzip python3-venv adb android-sdk-platform-tools-common)
+  local packages=(avahi-daemon avahi-utils openssh-server nfs-common util-linux unzip python3 python3-venv git wget flex bison gperf cmake ninja-build ccache build-essential libffi-dev libssl-dev dfu-util libusb-1.0-0 libusb-1.0-0-dev libncurses-dev adb android-sdk-platform-tools-common)
   if [[ "$ARCH" == "amd64" ]]; then packages+=(default-jdk-headless); fi
   DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
   systemctl enable --now avahi-daemon ssh
