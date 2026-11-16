@@ -1,0 +1,42 @@
+name: Main{Create} device preflight
+run-name: Main{Create} device preflight / ${{ inputs.runner_label }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_label:
+        description: Unique Main{Create} builder label for the device host
+        required: true
+        type: string
+      toolkit_version:
+        description: Installed ESP-IDF version to use for the read-only chip probe
+        required: false
+        type: string
+        default: "6.1.1"
+      device_port:
+        description: Optional ESP32 USB serial port
+        required: false
+        type: string
+        default: "/dev/ttyUSB0"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.repository == 'maincreate/main-platform' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, "${{ inputs.runner_label }}"]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: List stable serial paths
+        run: bash scripts/maincreate-toolkit.sh list-serial
+      - name: Probe ESP32 chip identity (read-only)
+        env:
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          DEVICE_PORT: ${{ inputs.device_port }}
+        run: bash scripts/maincreate-toolkit.sh probe-esp32 "$TOOLKIT_VERSION" "$DEVICE_PORT"
+      - name: List authorized Android devices (read-only)
+        run: bash scripts/maincreate-toolkit.sh list-android
