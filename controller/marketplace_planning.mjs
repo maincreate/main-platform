@@ -2,7 +2,9 @@
 import {readFileSync} from "node:fs";
 
 const toolkitCatalog=JSON.parse(readFileSync(new URL("../registry/toolkits.json",import.meta.url),"utf8"));
-if(!Array.isArray(toolkitCatalog))throw new Error("Invalid marketplace toolkit catalog");
+const capabilityCatalog=JSON.parse(readFileSync(new URL("../registry/capabilities.json",import.meta.url),"utf8"));
+if(!Array.isArray(toolkitCatalog)||!Array.isArray(capabilityCatalog))throw new Error("Invalid marketplace or capability catalog");
+const capabilityById=new Map(capabilityCatalog.map(capability=>[capability.id,capability]));
 
 const releaseList=Object.freeze(toolkitCatalog.flatMap(toolkit=>(toolkit.versions||[]).map(version=>{
  const install=version.lifecycle?.install||{};
@@ -15,7 +17,8 @@ const releaseList=Object.freeze(toolkitCatalog.flatMap(toolkit=>(toolkit.version
   category:toolkit.category,
   state:version.status||toolkit.state,
   toolkitState:toolkit.state,
-  installable:install.state==="available"&&typeof install.capabilityId==="string",
+  installable:install.state==="available"&&typeof install.capabilityId==="string"&&capabilityById.get(install.capabilityId)?.state==="available",
+  platformCapabilityState:capabilityById.get(install.capabilityId)?.state||"unregistered",
   installState:install.state||"unsupported",
   installCapabilityId:install.capabilityId||null,
   source:version.installer?.source||version.installers?.[0]?.source||null,
