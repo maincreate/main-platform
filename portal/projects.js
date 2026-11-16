@@ -204,8 +204,8 @@ function openRouting(repository){
   $("routeWorkflowPath").hidden=true;
   $("routeWorkflowYaml").value="";
   $("routeWorkflowState").textContent=policy?.githubRunnerLabel?
-    "Runner label "+policy.githubRunnerLabel+" saved. Generate the workflow and commit it to the selected repository.":
-    "Save a GitHub Actions route first. A managed, online runner and a private repository are required.";
+    "Build runner "+policy.githubRunnerLabel+(policy.githubFlashRunnerLabel?" · device runner "+policy.githubFlashRunnerLabel:"")+". Generate and commit the workflow.":
+    "Save a GitHub Actions route first. Managed, online runners and a private repository are required.";
   $("routeDialog").showModal();
 }
 $("routeProvisionLabel").addEventListener("click",async()=>{
@@ -233,8 +233,9 @@ $("routeGenerateWorkflow").addEventListener("click",async()=>{
     $("routeWorkflowPath").textContent="Commit as "+result.filePath;
     $("routeWorkflowPath").hidden=false;
     $("routeCopyWorkflow").hidden=false;
-    $("routeWorkflowState").textContent="Build-only workflow ready for "+result.runnerLabel+
-      ". Commit to the private repo: "+result.filePath+". Flash is NOT enabled.";
+    $("routeWorkflowState").textContent="Workflow ready. Build runner: "+result.runnerLabel+
+      (result.deviceRunnerLabel?" · device runner: "+result.deviceRunnerLabel:" · device operations not configured")+
+      ". Commit "+result.filePath+". Device operations remain manual and confirmation-gated.";
   }catch(e){$("routeWorkflowState").textContent=e.message;}
   finally{button.disabled=false;}
 });
@@ -271,7 +272,7 @@ $("routeForm").addEventListener("submit",async event=>{
     $("routeDialog").close();
     await load();
     $("notice").textContent="Routing for "+saved.route.repository+
-      " saved. No GitHub job or flash started; auto-flash execution remains blocked pending verification.";
+      " saved. No build or device operation started; device operations require manual dispatch and explicit confirmation.";
   }catch(e){$("routeNotice").textContent=e.message;}
   finally{btn.disabled=false;}
 });
