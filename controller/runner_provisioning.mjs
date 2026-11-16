@@ -32,7 +32,6 @@ export function runnerLabels(runner){
  const hasAndroid22=(runner.packages||[]).some(p=>p.name==="android-device-api22"&&p.version==="connected");
  if(hasAdb&&hasAndroid22)
   labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
- }
  return [...new Set(labels)];
 }
 export async function queueRunnerProvisioning(runnerId,ctx,{permitPendingHeartbeat=false}={}){
