@@ -25,7 +25,7 @@ export function runnerLabels(runner){
    labels.push("toolkit-android-sdk-2026-2-2-patch1","capability-android-app-build",
     "target-android-api-37","target-android-api-22","target-abi-armeabi-v7a","target-device-avalue-epd-42s");
   }
-  if(p.name==="adb"&&p.version==="available"){
+  if(p.name==="adb"){
    labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
   }
   if(p.name==="android-device-api22"&&p.version==="connected")
