@@ -146,11 +146,9 @@ export async function refreshMarketplaceCleanups({requests,plans,organization,to
    }
    try{await changeLabels({organization,runnerId:request.githubRunnerId,token,remove,fetchImpl});request.labelsRemoved=true;changed=true;}
    catch(e){request.labelError=String(e.message||e).slice(0,300);changed=true;}
-   if(!other){
-    const plan=plans.find(p=>p.id===request.planId);
-    const target=plan?.targets?.find(t=>t.builderId===request.builderId);
-    if(target){target.status="cleaned";target.labelsRegistered=false;changed=true;}
-   }
+   const plan=plans.find(p=>p.id===request.planId);
+   const target=plan?.targets?.find(t=>t.builderId===request.builderId);
+   if(target){target.status="cleaned";target.labelsRegistered=false;changed=true;}
   }
   if(next==="failed"||next==="cancelled"){request.error="Toolkit cleanup workflow "+(run.conclusion||next);changed=true;}
  }
