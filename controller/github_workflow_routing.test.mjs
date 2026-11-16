@@ -55,6 +55,8 @@ test("Android API 22 route generates APK build and ADB device workflow on differ
  assert.match(preview.workflow,/build-android\.yml@main/);
  assert.match(preview.workflow,/android-install/);
  assert.match(preview.workflow,/android-legacy-api22-eink/);
+ assert.match(preview.workflow,/target_label: "maincreate-target-android-api-22"/);
+ assert.match(preview.workflow,/artifact_name:.*format\('maincreate-android-/);
  assert.match(preview.workflow,/device_serial/);
  assert.equal(preview.runnerLabel,"maincreate-host-200");
  assert.equal(preview.deviceRunnerLabel,"maincreate-host-128");
