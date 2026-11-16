@@ -8,8 +8,8 @@ import {createHash} from "node:crypto";
 const dir=mkdtempSync(join(tmpdir(),"maincreate-fabric-"));
 process.env.MAIN_DATA_DIR=dir;
 const {fabricCall,approveJob,claimJob,reportJob,agentAsset}=await import("./fabric.mjs");
-const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
-const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
+const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString(),packages:[{name:"esp-idf",version:"6.1.1"},{name:"usb-serial-device",version:"connected"}]};
+const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString(),packages:[{name:"esp-idf",version:"6.1.1"},{name:"usb-serial-device",version:"connected"}]};
 const ctx={runners:[runner,other],workspace:{name:"Test",githubOrganization:"Example"}};
 const invoke=(tool,args)=>fabricCall(tool,args,ctx);
 const snapshot={capability:"host.snapshot",runner_id:runner.id,parameters:{}};
@@ -22,8 +22,9 @@ test("stable registry exposes versioned toolkit build, deployment and object ope
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.build"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="sdk.arduino_cli.install"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="workflow.esp_idf.preflight_build"&&c.kind==="workflow"));
- assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
- assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
+ assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="available"));
+ assert(capabilities.some(c=>c.id==="toolkit.cleanup"&&c.state==="available"));
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/Invalid parameter/);
 });
 test("plans validate schemas and do not execute or accept arbitrary commands",()=>{
  const p=invoke("maincreate_plan",snapshot);
