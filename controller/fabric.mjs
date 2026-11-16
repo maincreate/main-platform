@@ -10,7 +10,7 @@ const MAX_ASSET=128*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=2*1024*1024*1024;
 const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
 const CAPS=readManifest("capabilities.json");
 const TOOLKITS=readManifest("toolkits.json");
-const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install","toolkit.esp_idf.install","toolkit.android.install","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore","android.app.build","android.app.deploy","android.app.backup","android.app.restore"]);
+const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install","toolkit.esp_idf.install","toolkit.android.install","toolkit.cleanup","firmware.esp_idf.flash","firmware.esp_idf.backup","firmware.esp_idf.restore","android.app.build","android.app.deploy","android.app.backup","android.app.restore"]);
 function validateRegistry(){
  const ids=new Set();
  for(const c of CAPS){
@@ -74,7 +74,10 @@ function createPlan(args,ctx) {
  if(!cap.platforms.includes(runner.os))throw error(422,"Runner operating system not supported");
  if(Array.isArray(cap.architectures)&&!cap.architectures.includes(runner.arch))throw error(422,"Runner architecture not supported for this capability");
  const params=validParams(cap.parameters,clean(args.parameters));
- const s=store();s.plans=s.plans.filter(p=>Date.now()-Date.parse(p.createdAt)<24*3600e3).slice(-99);
+ const s=store();
+ if(id==="toolkit.cleanup"&&s.jobs.some(j=>j.runnerId===runner.id&&["awaiting_approval","queued","running"].includes(j.status)))
+  throw error(409,"Toolkit cleanup is blocked while this builder has pending or active jobs");
+ s.plans=s.plans.filter(p=>Date.now()-Date.parse(p.createdAt)<24*3600e3).slice(-99);
  const p={id:uid(),capability:id,version:cap.version,runnerId:runner.id,parameters:params,
   steps:cap.steps.map((step,i)=>({index:i,capability:step.capability,status:"pending"})),
   createdAt:new Date().toISOString(),expiresAt:Date.now()+30*60e3};
