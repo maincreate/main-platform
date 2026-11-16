@@ -292,40 +292,40 @@
         },
         "lifecycle": {
           "install": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "espressif.esp-idf.install",
             "versionScoped": true,
             "requiresExplicitApproval": true
           },
           "build": {
-            "state": "partial",
+            "state": "pilot",
             "capabilityId": "firmware.build",
             "requiresInstalledVersion": true,
             "requiresPinnedProjectRevision": true,
             "versionGuardRequired": true
           },
           "deploy": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.flash",
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true,
             "requiresMatchingChipAndImage": true
           },
           "backup": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.backup",
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true
           },
           "restore": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.restore",
             "requiresExactDeviceMatch": true,
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true
           },
           "cleanup": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "espressif.esp-idf.remove-version",
             "instructions": "Remove only the selected EIM-managed ESP-IDF version and its version-owned toolchain/cache after active jobs release it. Show a dry-run inventory and require approval.",
             "preserves": [
@@ -629,40 +629,40 @@
         },
         "lifecycle": {
           "install": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "espressif.esp-idf.install",
             "versionScoped": true,
             "requiresExplicitApproval": true
           },
           "build": {
-            "state": "partial",
+            "state": "pilot",
             "capabilityId": "firmware.build",
             "requiresInstalledVersion": true,
             "requiresPinnedProjectRevision": true,
             "versionGuardRequired": true
           },
           "deploy": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.flash",
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true,
             "requiresMatchingChipAndImage": true
           },
           "backup": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.backup",
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true
           },
           "restore": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "firmware.restore",
             "requiresExactDeviceMatch": true,
             "requiresActiveChipProbe": true,
             "requiresExplicitApproval": true
           },
           "cleanup": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "espressif.esp-idf.remove-version",
             "instructions": "Remove only the selected EIM-managed ESP-IDF version and its version-owned toolchain/cache after active jobs release it. Show a dry-run inventory and require approval.",
             "preserves": [
@@ -1152,39 +1152,39 @@
         },
         "lifecycle": {
           "install": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "android.sdk.install",
             "versionScoped": true,
             "requiresExplicitApproval": true,
             "requiresGoogleSdkLicenseAcceptance": true
           },
           "build": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "android.app.build",
             "requiresPinnedProjectRevision": true,
             "requiresProjectGradleWrapper": true
           },
           "deploy": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "android.app.deploy",
             "requiresConnectedDevice": true,
             "requiresAdbAuthorization": true,
             "requiresExplicitApproval": true
           },
           "backup": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "android.app.backup",
             "requiresConnectedDevice": true,
             "requiresExplicitApproval": true
           },
           "restore": {
-            "state": "planned",
+            "state": "pilot",
             "capabilityId": "android.app.restore",
             "requiresConnectedDevice": true,
             "requiresExplicitApproval": true
           },
           "cleanup": {
-            "state": "planned",
+            "state": "pilot",
             "recipeId": "android.sdk.remove-version",
             "instructions": "Remove only the selected Main{Create}-managed Android SDK/toolchain version after active jobs release it. Show a dry-run inventory and require approval. Reference-count shared SDK components, platform-tools and JDK before removal.",
             "preserves": [
