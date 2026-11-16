@@ -56,3 +56,15 @@ test("Android SDK refuses hosts without a supported JDK before downloading",asyn
  await assert.rejects(()=>installAndroidSdk({os:"linux",architecture:"x64",acceptLicenses:true,downloadFn,runner}),/JDK 17 or newer/);
  assert.equal(downloaded,false);
 });
+
+test("approved cleanup removes only the selected version-owned toolkit directory",async()=>{
+ const root="/tmp/maincreate-sdk-cleanup-test-"+process.pid;
+ const {mkdirSync,existsSync,rmSync}=await import("node:fs");
+ mkdirSync(espIdfRoot("6.1.1",root),{recursive:true});
+ mkdirSync(espIdfRoot("5.5.6",root),{recursive:true});
+ const result=await cleanupToolkit({family:"esp-idf",version:"6.1.1",root,dryRun:false});
+ assert.equal(result.deleted,true);
+ assert.equal(existsSync(espIdfRoot("6.1.1",root)),false);
+ assert.equal(existsSync(espIdfRoot("5.5.6",root)),true);
+ rmSync(root,{recursive:true,force:true});
+});
