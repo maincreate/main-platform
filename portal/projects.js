@@ -60,12 +60,12 @@ function renderProjectList(){
     const buildName=route.builder?.name||"missing builder";
     const flashName=route.flashBuilder?.name||"not set";
     left.append(node("small","Build: "+buildName+" · "+route.buildTrigger+
-      " · SDK: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
+      " · Toolkit: "+(route.sdk?route.sdk.family+" "+route.sdk.version:"not assigned")+
       " · Device operations: "+flashName+
       (route.targetProfile?" · Target: "+route.targetProfile:""),"project-compatibility"));
   }
   if(!project.archived){
-    const routeButton=node("button",route?"Edit build / flash route":"Assign build / flash route","plain-button");
+    const routeButton=node("button",route?"Edit build / device route":"Assign build / device route","plain-button");
     routeButton.type="button";
     routeButton.addEventListener("click",()=>openRouting(project.fullName));
     right.append(routeButton);
@@ -184,7 +184,7 @@ function openRouting(repository){
       (b.githubRunnerName?" · "+b.githubRunnerName:" · no GitHub runner")
   }));
   fillSelect($("routeBuild"),names,"Choose a managed builder");
-  fillSelect($("routeFlashBuilder"),names,"No flash machine");
+  fillSelect($("routeFlashBuilder"),names,"No device-operation machine");
   fillSelect($("routeSdk"),sdkReleases.map(r=>({
     value:r.family+"@"+r.version,
     label:r.name+" "+r.version+" · "+r.targets.map(t=>t.os+"/"+t.arch).join(", ")
@@ -197,7 +197,7 @@ function openRouting(repository){
   refreshRouteDeviceOptions(policy?.deviceId||"");
   $("routeRemove").disabled=!policy;
   $("routeNotice").textContent=policy?.note||"";
-  $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName;
+  $("routeProvisionLabel").disabled=!policy||policy.buildTrigger!=="github-actions"||!policy.builder?.runnerName||(!!policy.flashBuilderId&&!policy.flashBuilder?.runnerName);
   $("routeGenerateWorkflow").disabled=!policy||policy.buildTrigger!=="github-actions";
   $("routeCopyWorkflow").hidden=true;
   $("routeWorkflowYaml").hidden=true;
@@ -211,7 +211,7 @@ function openRouting(repository){
 $("routeProvisionLabel").addEventListener("click",async()=>{
   if(!activeRouteRepo)return;
   const button=$("routeProvisionLabel");button.disabled=true;
-  $("routeWorkflowState").textContent="Verifying GitHub runner identity and provisioning a unique label…";
+  $("routeWorkflowState").textContent="Verifying GitHub runner identity and provisioning unique build/device labels…";
   try{
     const result=await api("/api/local/projects/routes/runner-label",{repository:activeRouteRepo});
     $("routeWorkflowState").textContent="Runner "+result.runnerName+" verified. Label "+result.label+" configured. Now generate workflow.";
