@@ -93,7 +93,7 @@ install_dependencies() {
   fi
   DEBIAN_FRONTEND=noninteractive apt-get update
   local packages=(avahi-daemon avahi-utils openssh-server nfs-common util-linux unzip python3-venv adb android-sdk-platform-tools-common)
-  if [[ "$ARCH" == "amd64" ]]; then packages+=(openjdk-17-jdk-headless); fi
+  if [[ "$ARCH" == "amd64" ]]; then packages+=(default-jdk-headless); fi
   DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
   systemctl enable --now avahi-daemon ssh
   systemctl is-active --quiet avahi-daemon
