@@ -17,8 +17,7 @@
         "technology": "e-ink",
         "resolution": "2880x2160",
         "controller": "mxc_epdc_fb",
-        "touch": true,
-        "panelModel": "EPD-42S-SIDA0-01R"
+        "touch": true
       },
       "deployment": {
         "transport": "adb-usb",
