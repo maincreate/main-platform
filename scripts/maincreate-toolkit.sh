@@ -3,7 +3,7 @@
 # This script accepts only fixed toolkit operations; it never executes a project-supplied command.
 set -Eeuo pipefail
 
-ROOT="\${MAINCREATE_TOOLKIT_ROOT:-$HOME/.local/share/maincreate/toolkits}"
+ROOT="${MAINCREATE_TOOLKIT_ROOT:-$HOME/.local/share/maincreate/toolkits}"
 ESP_ROOT="$ROOT/esp-idf"
 EIM_VERSION="0.21.1"
 EIM_STATE="$ESP_ROOT/eim-state"
@@ -254,7 +254,7 @@ build_android(){
   [[ "$variant" == "debug" || "$variant" == "release" ]] || die "Build variant must be debug or release"
   [[ -x ./gradlew ]] || die "Gradle wrapper ./gradlew is required in the project checkout"
   export ANDROID_HOME="$ANDROID_ROOT" ANDROID_SDK_ROOT="$ANDROID_ROOT"
-  ./gradlew --no-daemon --stacktrace "assemble$(tr '[:lower:]' '[:upper:]' <<< "\${variant:0:1}")\${variant:1}"
+  ./gradlew --no-daemon --stacktrace "assemble$(tr '[:lower:]' '[:upper:]' <<< "${variant:0:1}")${variant:1}"
   local apk; apk="$(find . -type f -path '*/build/outputs/apk/*/*.apk' -print | sort | head -n1)"
   [[ -n "$apk" && -s "$apk" ]] || die "No APK was produced by the Gradle build"
   mkdir -p build/maincreate-artifacts
@@ -308,7 +308,7 @@ probe_android(){
   [[ -n "$serial" && "$serial" =~ ^[A-Za-z0-9._:-]{1,128}$ ]] || die "Invalid Android ADB serial"
   adb="$(adb_path)" || die "ADB is not installed on this host"
   state="$("$adb" devices | awk -v s="$serial" '$1==s {print $2}')"
-  [[ "$state" == "device" ]] || die "Android device $serial is not connected and ADB-authorized (state: \${state:-missing})"
+  [[ "$state" == "device" ]] || die "Android device $serial is not connected and ADB-authorized (state: ${state:-missing})"
   [[ "$("$adb" -s "$serial" get-serialno | tr -d '\r')" == "$serial" ]] || die "ADB serial verification failed"
   api="$("$adb" -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')"
   abi="$("$adb" -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r')"
@@ -319,7 +319,7 @@ probe_android(){
 
 flash_esp32(){
   local version="$1" port="$2" expected_mac="$3" artifact_dir="$4"
-  [[ "\${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Device write requires explicit workflow confirmation"
+  [[ "${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Device write requires explicit workflow confirmation"
   valid_mac "$expected_mac" || die "Expected eFuse MAC is required"
   [[ -s "$artifact_dir/maincreate-firmware.bin" && -s "$artifact_dir/maincreate-manifest.json" ]] || die "Firmware artifact and manifest are required"
   local manifest_chip manifest_flash manifest_hash observed chip mac p file
@@ -336,7 +336,7 @@ PY
   observed="$(esp_probe "$version" "$port")"
   chip="$(sed -n 's/^MAINCREATE_CHIP=//p' <<< "$observed" | tail -n1)"
   mac="$(sed -n 's/^MAINCREATE_MAC=//p' <<< "$observed" | tail -n1)"
-  [[ "$mac" == "\${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch; expected $expected_mac, found $mac"
+  [[ "$mac" == "${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch; expected $expected_mac, found $mac"
   if [[ "$manifest_chip" != "unknown" ]]; then
     local observed_norm manifest_norm
     observed_norm="$(tr '[:lower:]' '[:upper:]' <<< "$chip" | tr -d '-')"
@@ -382,7 +382,7 @@ backup_esp32(){
   mkdir -p "$output_dir"
   observed="$(esp_probe "$version" "$port")"
   mac="$(sed -n 's/^MAINCREATE_MAC=//p' <<< "$observed" | tail -n1)"
-  [[ "$mac" == "\${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch"
+  [[ "$mac" == "${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch"
   p="$(quote "$port")"
   info="$(eim_run "$version" "esptool.py --port $p flash_id" 2>&1)" ||
     info="$(eim_run "$version" "esptool --port $p flash-id" 2>&1)" ||
@@ -408,14 +408,14 @@ PY
 
 restore_esp32(){
   local version="$1" port="$2" expected_mac="$3" backup_dir="$4"
-  [[ "\${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Restore requires explicit workflow confirmation"
+  [[ "${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Restore requires explicit workflow confirmation"
   valid_mac "$expected_mac" || die "Expected eFuse MAC is required"
   [[ -s "$backup_dir/esp32-full-flash.bin" && -s "$backup_dir/backup-manifest.json" ]] || die "Backup binary and manifest are required"
   local observed chip mac p size recorded_mac recorded_chip recorded_size digest file
   observed="$(esp_probe "$version" "$port")"
   chip="$(sed -n 's/^MAINCREATE_CHIP=//p' <<< "$observed" | tail -n1)"
   mac="$(sed -n 's/^MAINCREATE_MAC=//p' <<< "$observed" | tail -n1)"
-  [[ "$mac" == "\${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch"
+  [[ "$mac" == "${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch"
   read -r recorded_mac recorded_chip recorded_size digest < <(python3 - "$backup_dir/backup-manifest.json" "$version" <<'PY'
 import json,sys
 m=json.load(open(sys.argv[1]))
@@ -425,7 +425,7 @@ print(m.get("sourceDeviceMac",""),m.get("chip",""),m.get("flashSizeBytes",""),m.
 PY
 )
   [[ "$recorded_mac" == "$mac" ]] || die "Backup belongs to a different physical ESP32 (MAC mismatch)"
-  [[ "\${recorded_chip,,}" == "\${chip,,}" ]] || die "Backup chip family does not match target"
+  [[ "${recorded_chip,,}" == "${chip,,}" ]] || die "Backup chip family does not match target"
   [[ "$(sha256 "$backup_dir/esp32-full-flash.bin")" == "$digest" ]] || die "Backup SHA-256 verification failed"
   p="$(quote "$port")";file="$(quote "$backup_dir/esp32-full-flash.bin")"
   local flash_info actual_size
@@ -443,7 +443,7 @@ PY
 
 install_android_app(){
   local serial="$1" apk="$2" profile="$3" adb manifest package api abi
-  [[ "\${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Android app install requires explicit workflow confirmation"
+  [[ "${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Android app install requires explicit workflow confirmation"
   [[ -s "$apk" ]] || die "APK artifact is missing"
   manifest="$(dirname "$apk")/maincreate-manifest.json"
   [[ -s "$manifest" ]] || die "APK manifest is missing"
@@ -512,7 +512,7 @@ PY
 
 restore_android_app(){
   local serial="$1" backup_dir="$2" adb package expected count
-  [[ "\${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Android restore requires explicit workflow confirmation"
+  [[ "${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Android restore requires explicit workflow confirmation"
   [[ -s "$backup_dir/backup-manifest.json" ]] || die "Android backup manifest is required"
   adb="$(adb_path)" || die "ADB is not installed"
   probe_android "$serial" >/dev/null
@@ -541,11 +541,11 @@ for item in m["apkFiles"]:
  print(os.path.join(sys.argv[2],item["file"]))
 PY
 )
-  (( \${#apk_files[@]} > 0 )) || die "No APK files were found in the backup"
-  if (( \${#apk_files[@]} > 1 )); then
-    "$adb" -s "$serial" install-multiple -r "\${apk_files[@]}"
+  (( ${#apk_files[@]} > 0 )) || die "No APK files were found in the backup"
+  if (( ${#apk_files[@]} > 1 )); then
+    "$adb" -s "$serial" install-multiple -r "${apk_files[@]}"
   else
-    "$adb" -s "$serial" install -r "\${apk_files[0]}"
+    "$adb" -s "$serial" install -r "${apk_files[0]}"
   fi
   printf 'Restored application %s on %s from %s APK component(s)\n' "$package" "$serial" "$count"
 }
@@ -603,22 +603,22 @@ Main{Create} toolkit lifecycle adapter
 EOF
 }
 
-case "\${1:-}" in
+case "${1:-}" in
  install)
-  case "\${2:-}" in
+  case "${2:-}" in
    esp-idf) [[ $# -eq 3 ]] || die "Usage: install esp-idf VERSION"; install_esp_idf "$3" ;;
    arduino-cli) [[ $# -eq 3 ]] || die "Usage: install arduino-cli VERSION"; install_arduino_cli "$3" ;;
    android-sdk) [[ $# -eq 4 && "$4" == "--accept-licenses" ]] || die "Usage: install android-sdk VERSION --accept-licenses"; install_android_sdk "$3" true ;;
    *) die "Unknown toolkit family" ;;
   esac ;;
  verify)
-  case "\${2:-}" in
-   esp-idf) verify_esp_idf "\${3:-}" ;;
-   android-sdk) verify_android_sdk "\${3:-}" ;;
+  case "${2:-}" in
+   esp-idf) verify_esp_idf "${3:-}" ;;
+   android-sdk) verify_android_sdk "${3:-}" ;;
    *) die "Unknown toolkit family" ;;
   esac ;;
  build)
-  case "\${2:-}" in
+  case "${2:-}" in
    esp-idf) [[ $# -eq 3 ]] || die "Usage: build esp-idf VERSION"; build_esp_idf "$3" ;;
    android-sdk) [[ $# -eq 5 ]] || die "Usage: build android-sdk VERSION TARGET_PROFILE debug|release"; build_android "$3" "$4" "$5" ;;
    *) die "Unknown toolkit family" ;;
