@@ -107,7 +107,7 @@ export function validateFlasherArgs(value,root){
  const files=[];
  for(const [address,name] of Object.entries(value.flash_files)){
   if(!/^0x[0-9a-fA-F]{1,8}$/.test(address)||typeof name!=="string"||
-   name.startsWith("/")||name.includes("\\\\")||name.split("/").includes(".."))
+   name.startsWith("/")||name.includes("\\")||name.split("/").includes(".."))
    throw new Error("Unsafe firmware flash entry");
   const file=resolve(root,name);if(!file.startsWith(resolve(root)+sep))throw new Error("Firmware file escaped bundle root");
   files.push({address:Number.parseInt(address,16),file});
@@ -128,7 +128,9 @@ export async function installEspIdf({version,os=osName(),architecture=archName()
  const release=ESP_IDF_RELEASES[version];if(!release)throw new Error("ESP-IDF version is not in the approved marketplace catalog");
  const recipe=release.targets[hostKey(os,architecture)];if(!recipe)throw new Error("ESP-IDF is not supported on this builder OS/architecture");
  const archive=await downloadFn(recipe.url);const digest=verifyDigest(archive,recipe.sha256);
- const parent=join(root,"esp-idf",version);await fs.mkdir(dirname(parent),{recursive:true,mode:0o700});
+ const parent=join(root,"esp-idf",version);
+ if(existsSync(parent)){const existing=await inspectInstalledToolkit({family:"esp-idf",version,root});if(existing.installed)return {...existing,status:"already-installed"};await fs.rm(parent,{recursive:true,force:true});}
+ await fs.mkdir(dirname(parent),{recursive:true,mode:0o700});
  const stage=await fs.mkdtemp(join(dirname(parent),".stage-"+version+"-"));
  try{
   await extractZip(archive,stage,{maxEntries:128,maxExpanded:128*1024*1024});
@@ -148,7 +150,7 @@ export async function installEspIdf({version,os=osName(),architecture=archName()
   await fs.mkdir(join(parent,"metadata"),{recursive:true,mode:0o700});
   await fs.writeFile(join(parent,"metadata","maincreate-install.json"),JSON.stringify({family:"esp-idf",version,os,architecture,eimVersion:release.eim,sha256:digest,installedAt:new Date().toISOString()},null,2),{mode:0o600});
   return {family:"esp-idf",version,status:"installed",path:idfPath,eimVersion:release.eim,sha256:digest};
- }finally{await fs.rm(stage,{recursive:true,force:true});}
+ }catch(e){await fs.rm(parent,{recursive:true,force:true});throw e;}finally{await fs.rm(stage,{recursive:true,force:true});}
 }
 
 export async function installAndroidSdk({os=osName(),architecture=archName(),root=sdkRoot(),acceptLicenses=false,downloadFn=download,runner=run}={}){
@@ -158,7 +160,9 @@ export async function installAndroidSdk({os=osName(),architecture=archName(),roo
  const major=Number(javaVersion.match(/version ["']?(\\d+)/i)?.[1]||javaVersion.match(/openjdk (\\d+)/i)?.[1]||0);
  if(major<17)throw new Error("A system JDK 17 or newer is required before Android SDK installation");
  const archive=await downloadFn(recipe.url);const digest=verifyDigest(archive,recipe.sha256);
- const parent=androidRoot(root);await fs.mkdir(dirname(parent),{recursive:true,mode:0o700});
+ const parent=androidRoot(root);
+ if(existsSync(parent)){const existing=await inspectInstalledToolkit({family:"android-sdk",version:ANDROID_RELEASE.version,root});if(existing.installed)return {...existing,status:"already-installed"};}
+ await fs.mkdir(dirname(parent),{recursive:true,mode:0o700});
  const stage=await fs.mkdtemp(join(dirname(parent),".stage-android-"));
  try{
   const extracted=join(stage,"extracted");await extractZip(archive,extracted,{maxEntries:20000,maxExpanded:2*1024*1024*1024});
@@ -194,10 +198,14 @@ export async function inspectInstalledToolkit({family,version,root=sdkRoot()}={}
   return {installed:output.includes(version),version,executable:"idf.py",path:p,exportScript};
  }
  if(family==="android-sdk"){
-  const p=join(androidRoot(root),"sdk");
-  if(!existsSync(join(p,"platform-tools","adb"))||!existsSync(join(p,"build-tools","36.0.0","aapt2")))return {installed:false};
+  const p=join(androidRoot(root),"sdk"),metadataPath=join(p,".maincreate-install.json");
+  if(!existsSync(metadataPath)||!existsSync(join(p,"platform-tools","adb"))||!existsSync(join(p,"build-tools","36.0.0","aapt2")))return {installed:false};
+  const metadata=JSON.parse(await fs.readFile(metadataPath,"utf8"));
+  if(metadata.version!==ANDROID_RELEASE.version||metadata.commandLineTools!==ANDROID_RELEASE.commandLineTools||
+   metadata.jdkMajor<17||!Array.isArray(metadata.packages)||!metadata.packages.includes("platforms;android-22")||
+   !metadata.packages.includes("platforms;android-37")||!/^[a-f0-9]{64}$/.test(metadata.sha256||""))return {installed:false};
   const output=await run(join(p,"platform-tools","adb"),["version"],{timeout:30000});
-  return {installed:true,version:ANDROID_RELEASE.version,adb:output.split("\n")[0],path:p};
+  return {installed:true,version:ANDROID_RELEASE.version,adb:output.split("\n")[0],path:p,sdkRoot:p,jdkMajor:metadata.jdkMajor};
  }
  throw new Error("Unknown toolkit family");
 }
