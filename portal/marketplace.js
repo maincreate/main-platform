@@ -120,7 +120,7 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
 });
 $("marketplaceRequest").addEventListener("click",async()=>{
  const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;button.disabled=true;
- try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
+ try{const licenseAccepted=plan.family==="android-sdk"?window.confirm("I accept the Google Android SDK license terms for installing this toolkit on the selected builder."):false;if(plan.family==="android-sdk"&&!licenseAccepted)return;const result=await api("/api/local/marketplace/request",{plan_id:plan.id,...(licenseAccepted?{license_accepted:true}:{})});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
  catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
 load();
