@@ -162,7 +162,7 @@ function refreshTargetProfiles(selected=""){
   const profiles=(release?.deviceProfiles||[]).map(p=>({value:p.id,label:p.id+" · API "+(p.apiLevel||p.chips?.join(", ")||"target")}));
   fillSelect($("routeTargetProfile"),profiles,"Toolkit default");
   $("routeTargetProfile").value=profiles.some(p=>p.value===selected)?selected:(profiles.some(p=>p.value==="android-legacy-api22-eink")?"android-legacy-api22-eink":"");
-  $("routeTargetProfile").parentElement.hidden=profiles.length===0;
+  $("routeTargetProfileRow").hidden=profiles.length===0;
 }
 function refreshRouteDeviceOptions(selectedId=""){
   const runnerId=$("routeFlashBuilder").value;
