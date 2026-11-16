@@ -4,7 +4,7 @@ import {join} from "node:path";
 
 const root=process.env.MAIN_DATA_DIR||"./.maincreate-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
-const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
+const MAX_ASSET=128*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=2*1024*1024*1024;
 // The MCP surface is stable. These versioned, curated files define what it can discover.
 // Only adapters implemented in the runner may be marked executable.
 const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
@@ -288,6 +288,14 @@ export function agentAsset(runner,args){
  const jobId=args.job_id,s=store(),j=s.jobs.find(x=>x.id===jobId);
  if(!j||j.runnerId!==runner.id||j.status!=="running")throw error(403,"Runner does not own this running job");
  if(args.action==="begin")return beginAsset(args,{jobId});
+ if(args.action==="download"){
+  const source=s.assets.find(a=>a.id===args.asset_id&&a.complete);
+  const sourceJob=source&&s.jobs.find(x=>x.id===source.jobId);
+  if(!source||!sourceJob||sourceJob.status!=="completed"||
+     j.parameters?.source_asset_id!==source.id)
+   throw error(403,"Artifact is not an approved output of the referenced completed build job");
+  return getAsset(args);
+ }
  const asset=s.assets.find(a=>a.id===args.asset_id&&a.jobId===jobId);
  if(!asset)throw error(403,"Asset not owned by running job");
  if(args.action==="chunk")return chunkAsset(args);
