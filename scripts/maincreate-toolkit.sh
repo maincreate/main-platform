@@ -293,11 +293,14 @@ list_android_devices(){
   local adb; adb="$(adb_path)" || die "ADB is not installed on this host"
   "$adb" start-server >/dev/null
   "$adb" devices -l
+  local found=0
   while read -r serial state _; do
     [[ "$state" == "device" && -n "$serial" && "$serial" != "List" ]] || continue
+    found=1
     printf '\n--- Android device %s ---\n' "$serial"
     probe_android "$serial"
   done < <("$adb" devices | tail -n +2)
+  (( found == 1 )) || die "No authorized Android device detected; check USB debugging and accept the host RSA prompt"
 }
 
 probe_android(){
