@@ -21,7 +21,7 @@ import (
  "time"
 )
 
-const version="0.8.0"
+const version="0.8.1"
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -41,6 +41,12 @@ type action struct {
  SHA256 string `json:"sha256"`
 }
 func getenv(k,f string)string{if s:=os.Getenv(k);s!=""{return s};return f}
+func controllerArchFor(arch string)string{
+ switch arch {case "amd64":return "x64";case "arm64":return "arm64";default:return arch}
+}
+func hostBinaryNameFor(arch string)string{
+ switch arch {case "amd64","arm64":return "maincreate-host-linux-"+arch;default:return ""}
+}
 func validController(s string)bool{return strings.HasPrefix(s,"https://")&&!strings.ContainsAny(strings.TrimPrefix(s,"https://"),"/?#@ ")&&len(s)<300}
 func load()(config,error){
  var c config;b,e:=os.ReadFile(configPath);if e!=nil{return c,e}
@@ -64,7 +70,7 @@ func join()error{
  if e:=json.NewDecoder(io.LimitReader(os.Stdin,4096)).Decode(&req);e!=nil{return fmt.Errorf("invalid pairing input: %w",e)}
  if !validController(req.Controller)||len(req.Invitation)<32{return errors.New("invalid controller or invitation")}
  var out struct{ID string `json:"id"`;Token string `json:"token"`}
- if e:=post(req.Controller,"/api/agent/enroll","",map[string]any{"token":req.Invitation,"name":hostname(),"os":"linux","arch":runtime.GOARCH},&out);e!=nil{return e}
+ if e:=post(req.Controller,"/api/agent/enroll","",map[string]any{"token":req.Invitation,"name":hostname(),"os":"linux","arch":controllerArchFor(runtime.GOARCH)},&out);e!=nil{return e}
  if out.ID==""||len(out.Token)<32{return errors.New("enrollment response missing credentials")}
  if e:=os.MkdirAll(dataDir,0700);e!=nil{return e}
  file:=filepath.Join(dataDir,"host.json.tmp");data,_:=json.MarshalIndent(config{ID:out.ID,Token:out.Token,Controller:req.Controller,Name:hostname()},"","  ")
@@ -83,7 +89,7 @@ func packages()[]map[string]string{
 }
 func advertise()func(){
  // Advertise the SSH pairing endpoint, not a publicly writable control API.
- cmd:=exec.Command("avahi-publish-service","Main{Create} "+hostname(),"_maincreate._tcp","22","role=host","version="+version,"os=linux","arch="+runtime.GOARCH)
+ cmd:=exec.Command("avahi-publish-service","Main{Create} "+hostname(),"_maincreate._tcp","22","role=host","version="+version,"os=linux","arch="+controllerArchFor(runtime.GOARCH))
  if e:=cmd.Start();e!=nil{log.Printf("mDNS unavailable; manual hostname/IP pairing works: %v",e);return func(){}}
  go func(){if e:=cmd.Wait();e!=nil{log.Printf("mDNS exited: %v",e)}}()
  return func(){_ = cmd.Process.Kill()}
@@ -203,9 +209,9 @@ func stageUpgrade(c config,a action)error{
   compareUpgradeVersions(a.TargetVersion,version)<=0{return errors.New("invalid or non-incremental upgrade metadata")}
  expires,e:=time.Parse(time.RFC3339,a.ExpiresAt);if e!=nil||time.Now().After(expires){return errors.New("upgrade instruction expired")}
  if os.Geteuid()!=0{return errors.New("upgrade requires root")}
- if runtime.GOOS!="linux"||runtime.GOARCH!="arm64"{return errors.New("unsupported upgrade platform")}
+ if runtime.GOOS!="linux"||hostBinaryNameFor(runtime.GOARCH)==""{return errors.New("unsupported upgrade platform")}
  expected,e:=hex.DecodeString(a.SHA256);if e!=nil||len(expected)!=32{return errors.New("invalid expected checksum")}
- url:=c.Controller+"/downloads/maincreate-host-linux-arm64"
+ url:=c.Controller+"/downloads/"+hostBinaryNameFor(runtime.GOARCH)
  req,e:=http.NewRequest(http.MethodGet,url,nil);if e!=nil{return e}
  res,e:=httpClient.Do(req);if e!=nil{return e};defer res.Body.Close()
  if res.StatusCode!=200{return fmt.Errorf("upgrade download HTTP %d",res.StatusCode)}
