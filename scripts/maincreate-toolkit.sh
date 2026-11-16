@@ -284,6 +284,22 @@ print("MAINCREATE_MAC="+mac.group(0).upper())
 PY
 }
 
+list_serial_ports(){
+  printf '%s\n' "USB serial ports:"
+  find /dev/serial/by-id -maxdepth 1 -type l -print 2>/dev/null | sort || true
+  find /dev -maxdepth 1 -type c \( -name 'ttyUSB*' -o -name 'ttyACM*' \) -print 2>/dev/null | sort || true
+}
+list_android_devices(){
+  local adb; adb="$(adb_path)" || die "ADB is not installed on this host"
+  "$adb" start-server >/dev/null
+  "$adb" devices -l
+  while read -r serial state _; do
+    [[ "$state" == "device" && -n "$serial" && "$serial" != "List" ]] || continue
+    printf '\n--- Android device %s ---\n' "$serial"
+    probe_android "$serial"
+  done < <("$adb" devices | tail -n +2)
+}
+
 probe_android(){
   local serial="$1" adb state api abi product model
   [[ -n "$serial" && "$serial" =~ ^[A-Za-z0-9._:-]{1,128}$ ]] || die "Invalid Android ADB serial"
@@ -516,6 +532,8 @@ Main{Create} toolkit lifecycle adapter
   build android-sdk VERSION TARGET_PROFILE debug|release
   probe-esp32 VERSION PORT
   probe-android ADB_SERIAL
+  list-serial
+  list-android
   flash-esp32 VERSION PORT EXPECTED_EFUSE_MAC ARTIFACT_DIR   (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
   backup-esp32 VERSION PORT EXPECTED_EFUSE_MAC OUTPUT_DIR
   restore-esp32 VERSION PORT EXPECTED_EFUSE_MAC BACKUP_DIR  (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
@@ -548,6 +566,8 @@ case "\${1:-}" in
   esac ;;
  probe-esp32) [[ $# -eq 3 ]] || die "Usage: probe-esp32 VERSION PORT"; esp_probe "$2" "$3" ;;
  probe-android) [[ $# -eq 2 ]] || die "Usage: probe-android ADB_SERIAL"; probe_android "$2" ;;
+ list-serial) [[ $# -eq 1 ]] || die "Usage: list-serial"; list_serial_ports ;;
+ list-android) [[ $# -eq 1 ]] || die "Usage: list-android"; list_android_devices ;;
  flash-esp32) [[ $# -eq 5 ]] || die "Usage: flash-esp32 VERSION PORT EXPECTED_MAC ARTIFACT_DIR"; flash_esp32 "$2" "$3" "$4" "$5" ;;
  backup-esp32) [[ $# -eq 5 ]] || die "Usage: backup-esp32 VERSION PORT EXPECTED_MAC OUTPUT_DIR"; backup_esp32 "$2" "$3" "$4" "$5" ;;
  restore-esp32) [[ $# -eq 5 ]] || die "Usage: restore-esp32 VERSION PORT EXPECTED_MAC BACKUP_DIR"; restore_esp32 "$2" "$3" "$4" "$5" ;;
