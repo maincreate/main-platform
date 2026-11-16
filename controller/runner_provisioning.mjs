@@ -17,18 +17,19 @@ export function runnerIdentity(runner){
 export function runnerLabels(runner){
  const labels=["maincreate-managed","maincreate-linux",runner.arch==="x64"?"maincreate-x64":"maincreate-arm64"];
  for(const p of runner.packages||[]){
-  if(p.name==="esp-idf"&&["5.5.6","6.1.1"].includes(p.version)){
-   labels.push("toolkit-esp-idf-"+p.version.replaceAll(".","-"),"capability-firmware-build",
-    "capability-firmware-flash","capability-firmware-backup","capability-firmware-restore","target-esp32");
-  }
-  if(p.name==="android-sdk"&&p.version==="2026.2.2-patch1"){
+  if(p.name==="esp-idf"&&["5.5.6","6.1.1"].includes(p.version))
+   labels.push("toolkit-esp-idf-"+p.version.replaceAll(".","-"),"capability-firmware-build","target-esp32");
+  if(p.name==="android-sdk"&&p.version==="2026.2.2-patch1")
    labels.push("toolkit-android-sdk-2026-2-2-patch1","capability-android-app-build",
     "target-android-api-37","target-android-api-22","target-abi-armeabi-v7a");
-  }
   if(p.name==="android-device-api22"&&p.version==="connected")
    labels.push("target-device-avalue-epd-42s");
  }
- const hasEspIdf=(runner.packages||[]).some(p=>p.name==="esp-idf"&&["5.5.6","6.1.1"].includes(p.version));\n const hasUsbSerial=(runner.packages||[]).some(p=>p.name==="usb-serial-device"&&p.version==="connected");\n if(hasEspIdf&&hasUsbSerial)labels.push("capability-firmware-flash","capability-firmware-backup","capability-firmware-restore");\n const hasAdb=(runner.packages||[]).some(p=>p.name==="adb");
+ const hasEspIdf=(runner.packages||[]).some(p=>p.name==="esp-idf"&&["5.5.6","6.1.1"].includes(p.version));
+ const hasUsbSerial=(runner.packages||[]).some(p=>p.name==="usb-serial-device"&&p.version==="connected");
+ if(hasEspIdf&&hasUsbSerial)
+  labels.push("capability-firmware-flash","capability-firmware-backup","capability-firmware-restore");
+ const hasAdb=(runner.packages||[]).some(p=>p.name==="adb");
  const hasAndroid22=(runner.packages||[]).some(p=>p.name==="android-device-api22"&&p.version==="connected");
  if(hasAdb&&hasAndroid22)
   labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
