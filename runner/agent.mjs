@@ -70,7 +70,7 @@ async function processTool(bin,args,cwd,timeoutMs){
 }
 async function uploadAsset(config,jobId,name,mime,data){
  if(!Buffer.isBuffer(data))data=Buffer.from(data);
- if(data.length<1||data.length>8*1024*1024)throw new Error("Artifact outside allowed size");
+ if(data.length<1||data.length>128*1024*1024)throw new Error("Artifact outside allowed size");
  const base={id:config.id,job_id:jobId};
  const begin=await post("/api/agent/assets",{...base,action:"begin",name,mime,size:data.length},config.token);
  const id=begin.asset.id,chunkSize=Math.min(48*1024,begin.max_chunk_bytes||48*1024);
@@ -89,7 +89,7 @@ function gatherFirmware(dir){
    if(!name.endsWith(".bin")||!/^[A-Za-z0-9_.-]+\.bin$/.test(name))continue;
    const file=realpathSync(join(build,name));
    if(!file.startsWith(realpathSync(build)+sep))continue;
-   const stat=statSync(file);if(!stat.isFile()||stat.size<1||stat.size>8*1024*1024)continue;
+   const stat=statSync(file);if(!stat.isFile()||stat.size<1||stat.size>128*1024*1024)continue;
    items.push({name,data:readFileSync(file)});
    if(items.length>=5)break;
   }
