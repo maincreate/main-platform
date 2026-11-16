@@ -1177,17 +1177,12 @@ export async function localRoute(req) {
         if(runner.githubRunnerId&&runner.githubRunnerName&&githubIdentityCurrent(gh)&&org&&
            JSON.stringify(labels.slice().sort())!==JSON.stringify((runner.labels||[]).slice().sort())){
           try{
-            await refreshGithubAuthorization();
-            const latest=state(),current=latest.runners.find(x=>x.id===runner.id),identity=latest.github||{};
-            if(current?.githubRunnerId===runner.githubRunnerId&&identity.selectedOrganization===org&&githubIdentityCurrent(identity)){
-              const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
-               method:"PUT",headers:{authorization:"Bearer "+unseal(identity.oauthToken),"content-type":"application/json",
-                accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
-               body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
-              if(response.ok){current.labels=labels;current.labelsSyncedAt=new Date().toISOString();delete current.labelsSyncError;}
-              else current.labelsSyncError="GitHub label update HTTP "+response.status;
-              save(latest);
-            }
+            const response=await fetch("https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners/"+runner.githubRunnerId+"/labels",{
+             method:"PUT",headers:{authorization:"Bearer "+unseal(gh.oauthToken),"content-type":"application/json",
+              accept:"application/vnd.github+json","user-agent":"Main{Create}","x-github-api-version":"2022-11-28"},
+             body:JSON.stringify({labels}),signal:AbortSignal.timeout(15000)});
+            if(response.ok){runner.labels=labels;runner.labelsSyncedAt=new Date().toISOString();delete runner.labelsSyncError;}
+            else runner.labelsSyncError="GitHub label update HTTP "+response.status;
           }catch(e){runner.labelsSyncError=String(e.message||e).slice(0,180);}
         }
       }
