@@ -35,6 +35,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
  if((sdkFamily===null)!==(sdkVersion===null))throw bad("Choose both a toolkit and its exact release");
  let sdk=null,targetProfile=input.targetProfile||null,release=null;
  if(sdkFamily!==null){
+  if(!["esp-idf","android-sdk"].includes(sdkFamily))throw bad("Project build routing currently supports ESP-IDF and Android SDK toolkits only");
   release=releases().find(r=>r.family===sdkFamily&&r.version===sdkVersion);
   if(!release)throw bad("Unknown or unapproved marketplace release");
   const variant=classifyBuilderForOperation(builder,release,"build");
