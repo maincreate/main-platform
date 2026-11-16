@@ -43,6 +43,7 @@ test("Bundled portal includes the official tunnel-client and private local MCP s
  assert.match(image,/FROM ghcr\.io\/openai\/tunnel-client:v0\.0\.19 AS openai-client/);
  assert.match(image,/COPY --from=openai-client \/usr\/bin\/tunnel-client \/usr\/bin\/tunnel-client/);
  assert.match(image,/COPY --chown=node:node gateway\/server\.mjs \.\/gateway\//);
+ // Loopback is the default; private-network exposure is token-gated by the runtime.
  assert.match(runtime,/gatewayBindHost=process\.env\.MAIN_MCP_LISTEN_HOST/);
  assert.match(runtime,/HOST:gatewayBindHost/);
  assert.match(runtime,/Private-network MCP listener requires MAIN_MCP_TOKEN of at least 32 characters/);
