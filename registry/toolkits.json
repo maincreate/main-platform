@@ -700,6 +700,132 @@
     ]
   },
   {
+    "id": "arduino-cli",
+    "schemaVersion": 2,
+    "displayName": "Arduino CLI",
+    "category": "firmware",
+    "state": "pilot",
+    "installation": "maincreate-managed",
+    "description": "Version-pinned Arduino CLI installation for Linux ARM64 and x64 builders. This toolkit installs and compiles Arduino sketches; device upload is a separate board- and transport-specific operation.",
+    "publisher": {
+      "name": "Arduino",
+      "source": "https://github.com/arduino/arduino-cli"
+    },
+    "trust": {
+      "tier": "maincreate-endorsed",
+      "basis": "official-upstream-release",
+      "versionValidationRequired": true
+    },
+    "capabilities": [
+      "sdk.arduino_cli.install"
+    ],
+    "versions": [
+      {
+        "version": "1.5.1",
+        "channel": "stable",
+        "status": "pilot",
+        "releaseUrl": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1",
+        "installer": {
+          "name": "Arduino CLI",
+          "version": "1.5.1",
+          "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+        },
+        "installers": [
+          {
+            "os": "linux",
+            "architecture": "arm64",
+            "artifact": "arduino-cli_1.5.1_Linux_ARM64.tar.gz",
+            "sha256": "1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62",
+            "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+          },
+          {
+            "os": "linux",
+            "architecture": "x64",
+            "artifact": "arduino-cli_1.5.1_Linux_64bit.tar.gz",
+            "sha256": "28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b",
+            "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+          }
+        ],
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            }
+          ],
+          "build": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            }
+          ],
+          "deploy": [],
+          "backup": [],
+          "restore": []
+        },
+        "lifecycle": {
+          "install": {
+            "state": "available",
+            "recipeId": "arduino-cli.install",
+            "versionScoped": true,
+            "requiresExplicitApproval": true
+          },
+          "build": {
+            "state": "planned",
+            "capabilityId": "arduino.sketch.build"
+          },
+          "deploy": {
+            "state": "unsupported"
+          },
+          "backup": {
+            "state": "unsupported"
+          },
+          "restore": {
+            "state": "unsupported"
+          },
+          "cleanup": {
+            "state": "planned",
+            "recipeId": "arduino-cli.remove-version",
+            "instructions": "Remove only the selected per-user Arduino CLI version after active jobs release it; preserve sketch projects, build artifacts and configuration."
+          }
+        },
+        "operations": {
+          "build": {
+            "capabilityId": "arduino.sketch.build",
+            "artifactType": "arduino-firmware-bundle"
+          },
+          "deploy": {
+            "capabilityId": "arduino.device.upload",
+            "operationType": "board-specific-upload"
+          },
+          "backup": {
+            "capabilityId": "arduino.device.backup",
+            "objectType": "device-firmware"
+          },
+          "restore": {
+            "capabilityId": "arduino.device.restore",
+            "objectType": "device-firmware"
+          }
+        },
+        "constraints": [
+          "Board cores and upload protocols are separate versioned dependencies; installing Arduino CLI alone does not enable flashing."
+        ]
+      }
+    ]
+  },
+  {
     "id": "android-sdk",
     "schemaVersion": 2,
     "displayName": "Android SDK & Device Tooling",
