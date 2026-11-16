@@ -139,3 +139,13 @@ test("cross-runner artifact download is limited to a completed source job and ex
  const badJob=invoke("maincreate_execute",{plan_id:unauthorized.plan_id}).job;approveJob(badJob.id,"approve");claimJob(other);
  assert.throws(()=>agentAsset(other,{job_id:badJob.id,action:"download",asset_id:asset.id,offset:0,length:48*1024}),/not an approved output/);
 });
+
+test("toolkit cleanup requires a clean builder job queue and explicit dry-run choice",()=>{
+ const plan=invoke("maincreate_plan",{capability:"toolkit.cleanup",runner_id:runner.id,
+  parameters:{family:"esp-idf",version:"6.1.1",dry_run:"true"}});
+ assert.equal(plan.requires_approval,true);
+ const active=invoke("maincreate_plan",snapshot),job=invoke("maincreate_execute",{plan_id:active.plan_id}).job;
+ assert.equal(job.status,"awaiting_approval");
+ assert.throws(()=>invoke("maincreate_plan",{capability:"toolkit.cleanup",runner_id:runner.id,
+  parameters:{family:"esp-idf",version:"6.1.1",dry_run:"false"}}),/pending or active jobs/);
+});
