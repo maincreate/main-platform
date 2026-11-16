@@ -1,12 +1,21 @@
 // Versioned marketplace catalog and bounded fleet placement plans.
 // A plan is not an installation. Execution requires separate validated recipes and host capability negotiation.
-const releaseList=Object.freeze([
- {family:'esp-idf',name:'ESP-IDF',version:'5.5.6',category:'Embedded SDK',installable:false,targets:[{os:'linux',arch:'arm64',readiness:'pilot'},{os:'linux',arch:'x64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'},{os:'macos',arch:'arm64',readiness:'review'}]},
- {family:'esp-idf',name:'ESP-IDF',version:'6.1',category:'Embedded SDK',installable:false,reviewOnly:true,targets:[{os:'linux',arch:'arm64',readiness:'review'},{os:'linux',arch:'x64',readiness:'review'}]},
- {family:'arduino-cli',name:'Arduino CLI',version:'1.5.1',category:'Embedded SDK',installable:true,source:'https://github.com/arduino/arduino-cli/releases/tag/v1.5.1',targets:[{os:'linux',arch:'arm64',readiness:'validated'},{os:'linux',arch:'x64',readiness:'validated'}]},
- {family:'lvgl',name:'LVGL',version:'9.x',category:'UI Framework',targets:[{os:'linux',arch:'arm64',readiness:'review'},{os:'macos',arch:'arm64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'}]},
- {family:'swift',name:'Swift Toolchain',version:'6.1.2',category:'Application SDK',targets:[{os:'macos',arch:'arm64',readiness:'pilot'},{os:'linux',arch:'x64',readiness:'review'},{os:'windows',arch:'x64',readiness:'review'}]}
-]);
+import {readFileSync} from "node:fs";
+const catalog=JSON.parse(readFileSync(new URL("../registry/toolkits.json",import.meta.url),"utf8"));
+const catalogReleases=catalog.filter(t=>["esp-idf","android-sdk","arduino-cli","lvgl","swift"].includes(t.id)).flatMap(toolkit=>
+ (toolkit.versions||[]).map(version=>{
+  const targets=(version.compatibility?.install||[]).filter(t=>t.status==="supported").map(t=>({
+   os:t.os,arch:t.architecture,readiness:"pilot"
+  }));
+  return {family:toolkit.id,name:toolkit.displayName,version:version.version,category:toolkit.category,
+   installable:targets.length>0,targets,description:toolkit.description};
+ }));
+const legacyReleases=[
+ {family:"arduino-cli",name:"Arduino CLI",version:"1.5.1",category:"Embedded SDK",installable:true,targets:[{os:"linux",arch:"arm64",readiness:"validated"},{os:"linux",arch:"x64",readiness:"validated"}]},
+ {family:"lvgl",name:"LVGL",version:"9.x",category:"UI Framework",targets:[{os:"linux",arch:"arm64",readiness:"review"},{os:"macos",arch:"arm64",readiness:"review"},{os:"windows",arch:"x64",readiness:"review"}]},
+ {family:"swift",name:"Swift Toolchain",version:"6.1.2",category:"Application SDK",targets:[{os:"macos",arch:"arm64",readiness:"pilot"},{os:"linux",arch:"x64",readiness:"review"},{os:"windows",arch:"x64",readiness:"review"}]}
+];
+const releaseList=Object.freeze([...catalogReleases,...legacyReleases.filter(x=>!catalogReleases.some(r=>r.family===x.family&&r.version===x.version))]);
 const bad=(message,status=422)=>Object.assign(new Error(message),{status});
 export function releases(){return releaseList.map(x=>({...x,id:x.family+'@'+x.version}));}
 export function classifyBuilder(host,release){
