@@ -43,6 +43,7 @@ test("Completed installation registers version and operation labels only after w
    const labels=JSON.parse(opts.body).labels;
    assert(labels.includes("maincreate-toolkit-esp-idf-6-1-1"));
    assert(labels.includes("maincreate-capability-firmware-build"));
+   assert(labels.includes("maincreate-target-esp32"));
    return json({labels:labels.map(name=>({name}))});
   }
   throw new Error("Unexpected URL "+url);
@@ -82,12 +83,12 @@ test("Successful cleanup removes only the version label and marks that target cl
   if(url.endsWith("/labels")&&opts.method!=="GET")throw new Error("Expected label read first");
   if(url.endsWith("/labels")&&(!opts.method||opts.method==="GET"))return json({labels:[
    {name:"maincreate-toolkit-esp-idf-6-1-1"},{name:"maincreate-capability-firmware-build"},
-   {name:"maincreate-capability-firmware-device-io"}]});
+   {name:"maincreate-capability-firmware-device-io"},{name:"maincreate-capability-firmware-backup"},{name:"maincreate-capability-firmware-restore"},{name:"maincreate-target-esp32"}]});
   if(opts.method==="DELETE"){deleted.push(url);return new Response(null,{status:200});}
   throw new Error("Unexpected URL "+url);
  };
  const result=await refreshMarketplaceCleanups({requests:[request],plans:[p],organization:"maincreate",token,fetchImpl});
  assert.equal(result.changed,true);assert.equal(request.status,"completed");
  assert.equal(target.status,"cleaned");assert.equal(target.labelsRegistered,false);
- assert.equal(deleted.length,3);
+ assert.equal(deleted.length,6);
 });
