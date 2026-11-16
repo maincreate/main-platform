@@ -1,0 +1,182 @@
+name: Main{Create} device operations (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        required: true
+        type: string
+      device_runner_label:
+        required: true
+        type: string
+      toolkit_version:
+        required: false
+        type: string
+        default: ""
+      maincreate_ref:
+        required: true
+        type: string
+      artifact_run_id:
+        required: false
+        type: string
+        default: ""
+      artifact_name:
+        required: false
+        type: string
+        default: ""
+      device_port:
+        required: false
+        type: string
+        default: ""
+      device_serial:
+        required: false
+        type: string
+        default: ""
+      expected_chip_mac:
+        required: false
+        type: string
+        default: ""
+      target_profile:
+        required: false
+        type: string
+        default: android-legacy-api22-eink
+      package_name:
+        required: false
+        type: string
+        default: ""
+      confirm_device_write:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  esp32:
+    if: startsWith(inputs.operation, 'esp32-')
+    runs-on: [self-hosted, linux, "${{ inputs.device_runner_label }}", "maincreate-toolkit-esp-idf-${{ inputs.toolkit_version }}"]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: maincreate/main-platform
+          ref: ${{ inputs.maincreate_ref }}
+          path: .maincreate
+          persist-credentials: false
+      - name: Validate device-write confirmation
+        if: inputs.operation == 'esp32-flash' || inputs.operation == 'esp32-restore'
+        env:
+          CONFIRM: ${{ inputs.confirm_device_write }}
+        run: |
+          [[ "$CONFIRM" == "true" ]] || { echo "Explicit device-write confirmation is required" >&2; exit 1; }
+      - name: Download build or backup artifact
+        if: inputs.operation == 'esp32-flash' || inputs.operation == 'esp32-restore'
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.artifact_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+      - name: Probe ESP32 without writing
+        if: inputs.operation == 'esp32-probe'
+        env:
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          DEVICE_PORT: ${{ inputs.device_port }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh probe-esp32 "$TOOLKIT_VERSION" "$DEVICE_PORT"
+      - name: Flash verified firmware bundle
+        if: inputs.operation == 'esp32-flash'
+        env:
+          MAINCREATE_CONFIRM_DEVICE_WRITE: ${{ inputs.confirm_device_write }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          DEVICE_PORT: ${{ inputs.device_port }}
+          EXPECTED_MAC: ${{ inputs.expected_chip_mac }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh flash-esp32 "$TOOLKIT_VERSION" "$DEVICE_PORT" "$EXPECTED_MAC" .
+      - name: Create full flash backup
+        if: inputs.operation == 'esp32-backup'
+        env:
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          DEVICE_PORT: ${{ inputs.device_port }}
+          EXPECTED_MAC: ${{ inputs.expected_chip_mac }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh backup-esp32 "$TOOLKIT_VERSION" "$DEVICE_PORT" "$EXPECTED_MAC" backup
+      - name: Restore full flash backup
+        if: inputs.operation == 'esp32-restore'
+        env:
+          MAINCREATE_CONFIRM_DEVICE_WRITE: ${{ inputs.confirm_device_write }}
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+          DEVICE_PORT: ${{ inputs.device_port }}
+          EXPECTED_MAC: ${{ inputs.expected_chip_mac }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh restore-esp32 "$TOOLKIT_VERSION" "$DEVICE_PORT" "$EXPECTED_MAC" .
+      - name: Upload device backup
+        if: inputs.operation == 'esp32-backup'
+        uses: actions/upload-artifact@v6
+        with:
+          name: maincreate-esp32-backup-${{ github.run_id }}
+          path: backup/
+          if-no-files-found: error
+          retention-days: 90
+
+  android:
+    if: startsWith(inputs.operation, 'android-')
+    runs-on: [self-hosted, linux, "${{ inputs.device_runner_label }}"]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: maincreate/main-platform
+          ref: ${{ inputs.maincreate_ref }}
+          path: .maincreate
+          persist-credentials: false
+      - name: Validate app-install confirmation
+        if: inputs.operation == 'android-install' || inputs.operation == 'android-restore'
+        env:
+          CONFIRM: ${{ inputs.confirm_device_write }}
+        run: |
+          [[ "$CONFIRM" == "true" ]] || { echo "Explicit Android app install confirmation is required" >&2; exit 1; }
+      - name: Download application artifact
+        if: inputs.operation == 'android-install' || inputs.operation == 'android-restore'
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.artifact_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+      - name: Probe Android device without writing
+        if: inputs.operation == 'android-probe'
+        env:
+          DEVICE_SERIAL: ${{ inputs.device_serial }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh probe-android "$DEVICE_SERIAL"
+      - name: Install verified APK
+        if: inputs.operation == 'android-install'
+        env:
+          MAINCREATE_CONFIRM_DEVICE_WRITE: ${{ inputs.confirm_device_write }}
+          DEVICE_SERIAL: ${{ inputs.device_serial }}
+          TARGET_PROFILE: ${{ inputs.target_profile }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh install-android "$DEVICE_SERIAL" app.apk "$TARGET_PROFILE"
+      - name: Back up installed application APK
+        if: inputs.operation == 'android-backup'
+        env:
+          DEVICE_SERIAL: ${{ inputs.device_serial }}
+          PACKAGE_NAME: ${{ inputs.package_name }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh backup-android "$DEVICE_SERIAL" "$PACKAGE_NAME" backup
+      - name: Restore verified application APK
+        if: inputs.operation == 'android-restore'
+        env:
+          MAINCREATE_CONFIRM_DEVICE_WRITE: ${{ inputs.confirm_device_write }}
+          DEVICE_SERIAL: ${{ inputs.device_serial }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh restore-android "$DEVICE_SERIAL" app.apk
+      - name: Upload application backup
+        if: inputs.operation == 'android-backup'
+        uses: actions/upload-artifact@v6
+        with:
+          name: maincreate-android-backup-${{ github.run_id }}
+          path: backup/
+          if-no-files-found: error
+          retention-days: 90
