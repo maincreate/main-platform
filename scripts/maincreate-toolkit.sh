@@ -335,7 +335,10 @@ PY
   mac="$(sed -n 's/^MAINCREATE_MAC=//p' <<< "$observed" | tail -n1)"
   [[ "$mac" == "\${expected_mac^^}" ]] || die "Connected ESP32 eFuse MAC mismatch; expected $expected_mac, found $mac"
   if [[ "$manifest_chip" != "unknown" ]]; then
-    [[ "${chip,,}" == "${manifest_chip,,}" ]] || die "Firmware target $manifest_chip does not match detected chip $chip"
+    local observed_norm manifest_norm
+    observed_norm="$(tr '[:lower:]' '[:upper:]' <<< "$chip" | tr -d '-')"
+    manifest_norm="$(tr '[:lower:]' '[:upper:]' <<< "$manifest_chip" | tr -d '-')"
+    [[ "$observed_norm" == "$manifest_norm" ]] || die "Firmware target $manifest_chip does not match detected chip $chip"
   fi
   local flash_info actual_flash
   p="$(quote "$port")"
@@ -474,43 +477,74 @@ PY
 }
 
 backup_android_app(){
-  local serial="$1" package="$2" output_dir="$3" adb paths base
+  local serial="$1" package="$2" output_dir="$3" adb paths index remote file
   [[ "$package" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]] || die "Invalid Android package name"
   adb="$(adb_path)" || die "ADB is not installed"
   probe_android "$serial" >/dev/null
-  paths="$("$adb" -s "$serial" shell pm path "$package" | tr -d '\r')"
-  base="$(sed -n 's/^package://p' <<< "$paths" | head -n1)"
-  [[ -n "$base" ]] || die "Package is not installed on the Android device"
+  paths="$("$adb" -s "$serial" shell pm path "$package" | tr -d '\r' | sed -n 's/^package://p')"
+  [[ -n "$paths" ]] || die "Package is not installed on the Android device"
   mkdir -p "$output_dir"
-  "$adb" -s "$serial" pull "$base" "$output_dir/app.apk" >/dev/null
-  python3 - "$output_dir/app.apk" "$output_dir/backup-manifest.json" "$package" "$serial" <<'PY'
-import hashlib,json,os,sys
-apk,manifest,package,serial=sys.argv[1:]
-digest=hashlib.sha256(open(apk,"rb").read()).hexdigest()
+  index=0
+  while IFS= read -r remote; do
+    [[ -n "$remote" ]] || continue
+    file="$output_dir/app-$index.apk"
+    "$adb" -s "$serial" pull "$remote" "$file" >/dev/null
+    [[ -s "$file" ]] || die "Failed to export APK component $index"
+    index=$((index+1))
+  done <<< "$paths"
+  (( index > 0 )) || die "No APK components were exported"
+  python3 - "$output_dir" "$output_dir/backup-manifest.json" "$package" "$serial" <<'PY'
+import glob,hashlib,json,os,sys
+directory,manifest,package,serial=sys.argv[1:]
+files=[]
+for path in sorted(glob.glob(os.path.join(directory,"app-*.apk"))):
+ files.append({"file":os.path.basename(path),"sha256":hashlib.sha256(open(path,"rb").read()).hexdigest()})
+if not files: raise SystemExit("No APKs were exported")
 json.dump({"schema":1,"artifactType":"android-installed-application-backup","packageName":package,
- "sourceDeviceSerial":serial,"apkFile":os.path.basename(apk),"sha256":digest,
- "dataIncluded":False,"note":"APK-only backup; private application data is not included."},open(manifest,"w"),indent=2)
+ "sourceDeviceSerial":serial,"apkFiles":files,"dataIncluded":False,
+ "note":"APK/split-APK backup only; private application data is not included."},open(manifest,"w"),indent=2)
 PY
-  printf 'APK backup created for %s; private app data is not included\n' "$package"
+  printf 'Application APK backup created for %s (%s APK component(s)); private app data is not included\n' "$package" "$index"
 }
 
 restore_android_app(){
-  local serial="$1" apk="$2" adb package expected digest manifest
+  local serial="$1" backup_dir="$2" adb package expected count
   [[ "\${MAINCREATE_CONFIRM_DEVICE_WRITE:-}" == "true" ]] || die "Android restore requires explicit workflow confirmation"
-  manifest="$(dirname "$apk")/backup-manifest.json"
-  [[ -s "$apk" && -s "$manifest" ]] || die "Android APK backup and manifest are required"
+  [[ -s "$backup_dir/backup-manifest.json" ]] || die "Android backup manifest is required"
   adb="$(adb_path)" || die "ADB is not installed"
   probe_android "$serial" >/dev/null
-  read -r package expected digest < <(python3 - "$manifest" <<'PY'
-import json,sys
-m=json.load(open(sys.argv[1]))
-print(m.get("packageName",""),m.get("sourceDeviceSerial",""),m.get("sha256",""))
+  read -r package expected count < <(python3 - "$backup_dir/backup-manifest.json" "$backup_dir" <<'PY'
+import hashlib,json,os,re,sys
+manifest,directory=sys.argv[1:]
+m=json.load(open(manifest,encoding="utf-8"))
+if m.get("artifactType")!="android-installed-application-backup": raise SystemExit("Invalid Android application backup manifest")
+files=m.get("apkFiles")
+if not isinstance(files,list) or not files: raise SystemExit("Backup manifest has no APK components")
+for item in files:
+ filename=item.get("file","")
+ if not isinstance(filename,str) or not re.fullmatch(r"app-[0-9]+\.apk",filename): raise SystemExit("Invalid APK component filename")
+ path=os.path.join(directory,filename)
+ if not os.path.isfile(path) or hashlib.sha256(open(path,"rb").read()).hexdigest()!=item.get("sha256"):
+  raise SystemExit("APK backup checksum mismatch")
+print(m.get("packageName",""),m.get("sourceDeviceSerial",""),len(files))
 PY
 )
-  [[ "$expected" == "$serial" ]] || die "Android backup belongs to a different device serial"
-  [[ "$(sha256 "$apk")" == "$digest" ]] || die "Android APK backup checksum mismatch"
-  "$adb" -s "$serial" install -r "$apk"
-  printf 'Restored application %s on %s\n' "$package" "$serial"
+  [[ -n "$package" && "$expected" == "$serial" ]] || die "Android backup belongs to a different device serial"
+  mapfile -t apk_files < <(python3 - "$backup_dir/backup-manifest.json" "$backup_dir" <<'PY'
+import json,os,re,sys
+m=json.load(open(sys.argv[1],encoding="utf-8"))
+for item in m["apkFiles"]:
+ if not isinstance(item.get("file"),str) or not re.fullmatch(r"app-[0-9]+\.apk",item["file"]): raise SystemExit("Invalid APK component filename")
+ print(os.path.join(sys.argv[2],item["file"]))
+PY
+)
+  (( \${#apk_files[@]} > 0 )) || die "No APK files were found in the backup"
+  if (( \${#apk_files[@]} > 1 )); then
+    "$adb" -s "$serial" install-multiple -r "\${apk_files[@]}"
+  else
+    "$adb" -s "$serial" install -r "\${apk_files[0]}"
+  fi
+  printf 'Restored application %s on %s from %s APK component(s)\n' "$package" "$serial" "$count"
 }
 
 cleanup_toolkit(){
@@ -561,7 +595,7 @@ Main{Create} toolkit lifecycle adapter
   restore-esp32 VERSION PORT EXPECTED_EFUSE_MAC BACKUP_DIR  (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
   install-android ADB_SERIAL APK TARGET_PROFILE            (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
   backup-android ADB_SERIAL PACKAGE OUTPUT_DIR
-  restore-android ADB_SERIAL APK                            (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
+  restore-android ADB_SERIAL BACKUP_DIR                      (requires MAINCREATE_CONFIRM_DEVICE_WRITE=true)
   cleanup esp-idf|android-sdk VERSION true|false
 EOF
 }
@@ -595,7 +629,7 @@ case "\${1:-}" in
  restore-esp32) [[ $# -eq 5 ]] || die "Usage: restore-esp32 VERSION PORT EXPECTED_MAC BACKUP_DIR"; restore_esp32 "$2" "$3" "$4" "$5" ;;
  install-android) [[ $# -eq 4 ]] || die "Usage: install-android ADB_SERIAL APK TARGET_PROFILE"; install_android_app "$2" "$3" "$4" ;;
  backup-android) [[ $# -eq 4 ]] || die "Usage: backup-android ADB_SERIAL PACKAGE OUTPUT_DIR"; backup_android_app "$2" "$3" "$4" ;;
- restore-android) [[ $# -eq 3 ]] || die "Usage: restore-android ADB_SERIAL APK"; restore_android_app "$2" "$3" ;;
+ restore-android) [[ $# -eq 3 ]] || die "Usage: restore-android ADB_SERIAL BACKUP_DIR"; restore_android_app "$2" "$3" ;;
  cleanup) [[ $# -eq 4 ]] || die "Usage: cleanup FAMILY VERSION CONFIRM"; cleanup_toolkit "$2" "$3" "$4" ;;
  -h|--help|"") usage ;;
  *) usage; die "Unknown operation" ;;
