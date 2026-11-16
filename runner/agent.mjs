@@ -286,10 +286,17 @@ async function executeJob(config,job){
     if(dirty)throw new Error("Approved checkout must be clean");
     const installed=await inspectInstalledToolkit({family:"android-sdk",version});
     if(!installed.installed)throw new Error("Selected Android SDK is not installed and verified");
-    const gradle=join(checkout,process.platform==="win32"?"gradlew.bat":"gradlew");
+    const wrapperProperties=join(checkout,"gradle","wrapper","gradle-wrapper.properties");
+    if(!statSync(wrapperProperties).isFile())throw new Error("Pinned Gradle wrapper properties are missing");
+    const wrapperConfig=readFileSync(wrapperProperties,"utf8");
+    const distribution=wrapperConfig.match(/^distributionUrl\\s*=\\s*(.+)$/m)?.[1]?.trim().replaceAll("\\\\:",":");
+    const checksum=wrapperConfig.match(/^distributionSha256Sum\\s*=\\s*([a-fA-F0-9]{64})$/m)?.[1];
+    if(!/^https:\\/\\/services\\.gradle\\.org\\/distributions\\/gradle-9\\.6\\.0-(bin|all)\\.zip$/.test(distribution||"")||!checksum)
+     throw new Error("Gradle wrapper must use an HTTPS official Gradle distribution with a pinned SHA-256");
+    const gradle=join(checkout,"gradlew");
     if(!statSync(gradle).isFile())throw new Error("Project Gradle wrapper is missing");
-    const task=job.parameters?.target_profile==="android-legacy-api22-eink"?"assembleDebug":"assembleDebug";
-    const output=await processTool(gradle,["--no-daemon",task],checkout,45*60*1000,{ANDROID_HOME:installed.sdkRoot,ANDROID_SDK_ROOT:installed.sdkRoot});
+    const task="assembleDebug";
+    const output=await processTool("bash",[gradle,"--no-daemon",task],checkout,45*60*1000,{ANDROID_HOME:installed.sdkRoot,ANDROID_SDK_ROOT:installed.sdkRoot});
     out.push(output.slice(-14000));
     const apkRoot=join(checkout,"app","build","outputs","apk");
     const apks=[];
