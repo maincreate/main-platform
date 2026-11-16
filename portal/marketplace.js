@@ -30,7 +30,7 @@ function renderMicrocontrollers(){
  if(!target.children.length)target.append(esc("p","No matching microcontrollers or SDKs."));
 }
 $("mcuSearch").addEventListener("input",renderMicrocontrollers);
-function compatible(b,r){return !!b.managedHost&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch);}
+function compatible(b,r){return !!b.managedHost&&!b.decommission&&!!b.githubRunnerName&&r.targets.some(t=>t.os===b.os&&t.arch===b.arch&&t.status==="supported");}
 function familyGroups(){
  const q=$("marketplaceSearch").value.toLowerCase().trim();
  return [...new Set(releases.filter(r=>!q||[r.name,r.family,r.category,r.version].join(" ").toLowerCase().includes(q)).map(r=>r.family))];
@@ -62,7 +62,7 @@ function openRelease(release){
  current=release;selection=new Set();placement="selected";
  $("marketplaceReleaseTitle").textContent=release.name+" "+release.version;
  $("placementSelected").checked=true;$("placementAll").checked=false;
- $("marketplacePlan").hidden=false;renderTargets();
+ $("marketplacePlan").hidden=false;$("androidLicenseRow").hidden=release.family!=="android-sdk";$("androidLicense").checked=false;renderTargets();
 }
 function renderTargets(){
  const list=$("marketplaceTargets");list.replaceChildren();
@@ -112,6 +112,7 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
  try{
   const input={family:current.family,version:current.version,placement};
   if(placement==="selected")input.builder_ids=[...selection];
+  if(current.family==="android-sdk")input.accept_android_sdk_license=$("androidLicense").checked;
   const result=await api("/api/local/marketplace/plan",input);
   $("marketplaceNotice").textContent="Plan "+result.plan.id+" saved. No installation job requested.";
   $("marketplaceRequest").hidden=!result.plan.installable;
@@ -119,7 +120,9 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
  }catch(e){$("marketplaceNotice").textContent=e.message;}finally{renderTargets();}
 });
 $("marketplaceRequest").addEventListener("click",async()=>{
- const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;button.disabled=true;
+ const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;
+ if(!confirm("Install "+plan.family+" "+plan.version+" on "+plan.targets.length+" selected builder(s)? This changes the selected machines but does not flash any devices."))return;
+ button.disabled=true;
  try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
  catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
