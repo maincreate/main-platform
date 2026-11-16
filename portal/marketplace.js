@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-let csrf=null,builders=[],releases=[],plans=[],historyCleanups=[],selection=new Set(),current=null;
+let csrf=null,builders=[],releases=[],plans=[],selection=new Set(),current=null;
 let placement="selected";
 const esc=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el;};
 async function api(path,data){
@@ -122,7 +122,7 @@ async function load(){
  try{
   const [overview,catalog,history,mcu]=await Promise.all([
    api("/api/local/overview"),api("/api/local/marketplace/releases"),api("/api/local/marketplace/plans"),api("/api/local/microcontrollers")]);
-  csrf=overview.csrf;builders=overview.runners.items||[];releases=catalog.releases||[];plans=history.plans||[];historyCleanups=history.cleanups||[];
+  csrf=overview.csrf;builders=overview.runners.items||[];releases=catalog.releases||[];plans=history.plans||[];
   microcontrollers=mcu.families||[];renderMicrocontrollers();
   render();renderPlans();
  }catch(e){$("marketplaceNotice").textContent=e.message;}
