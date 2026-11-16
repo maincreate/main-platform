@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "catalogRevision": "2026-11-08",
+  "catalogRevision": "2026-11-15",
   "policy": {
     "usbDescriptorIsChipProof": false,
     "flashRequiresActiveChipProbe": true,
@@ -24,7 +24,8 @@
         {
           "id": "esp-idf",
           "versions": [
-            "5.5.x"
+            "5.5.6",
+            "6.1.1"
           ],
           "status": "pilot"
         },
