@@ -69,7 +69,7 @@ const toolkitLabel=release=>{
  const raw=labels.find(x=>x.startsWith("toolkit-"))||("toolkit-"+release.family+"-"+release.version.replaceAll(".","-"));
  return raw.startsWith("maincreate-")?raw:"maincreate-"+raw;
 };
-function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef}){
+function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef,defaultBranch}){
  const family=release.family,version=release.version,tkLabel=toolkitLabel(release),android=family==="android-sdk";
  const buildFile=android?"build-android.yml":"build-esp-idf.yml";
  const operationOptions=android?"[build, android-probe, android-install, android-backup, android-restore]":
@@ -80,10 +80,10 @@ function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef}){
   '      toolkit_label: "'+tkLabel+'"',
   '      maincreate_ref: "'+maincreateRef+'"',
   ...(android?[
-   '      target_profile: __DOLLAR__{{ inputs.target_profile }}',
-   '      build_variant: __DOLLAR__{{ inputs.build_variant }}'
+   '      target_profile: __DOLLAR__{{ inputs.target_profile || \'android-legacy-api22-eink\' }}',
+   '      build_variant: __DOLLAR__{{ inputs.build_variant || \'debug\' }}'
   ]:[]),
-  '      artifact_name: __DOLLAR__{{ inputs.artifact_name }}'
+  '      artifact_name: __DOLLAR__{{ inputs.artifact_name || format(\'maincreate-android-{0}\', github.sha) }}'
  ].join("\n");
  const inputLines=android?[
   "      operation:",
@@ -182,7 +182,7 @@ function projectWorkflow({route,release,buildLabel,deviceLabel,maincreateRef}){
   "",
   "on:",
   "  push:",
-  "    branches: [main]",
+  "    branches: [" + defaultBranch + "]",
   "  workflow_dispatch:",
   "    inputs:",
   inputLines,
@@ -232,7 +232,7 @@ export function firmwareWorkflowPreview({route,project,builder,organization,flas
     needsLabelProvisioning:true,workflow:null};
   deviceLabel=route.githubFlashRunnerLabel;
  }
- const workflow=projectWorkflow({route,release,buildLabel:route.githubRunnerLabel,deviceLabel,maincreateRef});
+ const workflow=projectWorkflow({route,release,buildLabel:route.githubRunnerLabel,deviceLabel,maincreateRef,defaultBranch:project.defaultBranch||"main"});
  return {ready:true,reason:null,needsLabelProvisioning:false,workflow,
   filePath:".github/workflows/maincreate-device-pipeline.yml",runnerLabel:route.githubRunnerLabel,
   deviceRunnerLabel:deviceLabel,toolkitLabel:toolkitLabel(release),
