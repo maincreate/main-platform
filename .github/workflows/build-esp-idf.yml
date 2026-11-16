@@ -1,0 +1,56 @@
+name: Main{Create} ESP-IDF build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      toolkit_version:
+        required: true
+        type: string
+      build_runner_label:
+        required: true
+        type: string
+      toolkit_label:
+        required: true
+        type: string
+      maincreate_ref:
+        required: true
+        type: string
+      artifact_name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  firmware:
+    runs-on: [self-hosted, linux, "${{ inputs.build_runner_label }}", "${{ inputs.toolkit_label }}", maincreate-capability-firmware-build]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: maincreate/main-platform
+          ref: ${{ inputs.maincreate_ref }}
+          path: .maincreate
+          persist-credentials: false
+      - name: Build exact ESP-IDF version and create merged image
+        shell: bash
+        env:
+          TOOLKIT_VERSION: ${{ inputs.toolkit_version }}
+        run: bash .maincreate/scripts/maincreate-toolkit.sh build esp-idf "$TOOLKIT_VERSION"
+      - name: Upload firmware bundle and provenance manifest
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: |
+            build/maincreate-firmware.bin
+            build/maincreate-manifest.json
+            build/flasher_args.json
+            build/project_description.json
+          if-no-files-found: error
+          retention-days: 30
