@@ -28,7 +28,7 @@ export function runnerLabels(runner){
   if(p.name==="android-device-api22"&&p.version==="connected")
    labels.push("target-device-avalue-epd-42s");
  }
- const hasAdb=(runner.packages||[]).some(p=>p.name==="adb");
+ const hasEspIdf=(runner.packages||[]).some(p=>p.name==="esp-idf"&&["5.5.6","6.1.1"].includes(p.version));\n const hasUsbSerial=(runner.packages||[]).some(p=>p.name==="usb-serial-device"&&p.version==="connected");\n if(hasEspIdf&&hasUsbSerial)labels.push("capability-firmware-flash","capability-firmware-backup","capability-firmware-restore");\n const hasAdb=(runner.packages||[]).some(p=>p.name==="adb");
  const hasAndroid22=(runner.packages||[]).some(p=>p.name==="android-device-api22"&&p.version==="connected");
  if(hasAdb&&hasAndroid22)
   labels.push("capability-android-app-deploy","capability-android-app-backup","capability-android-app-restore");
