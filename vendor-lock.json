@@ -1,7 +1,7 @@
 {
   "builders": {
     "repository": "https://github.com/maincreate/main-builders",
-    "revision": "b7bbb807051022f35e8cce2b6c3f208e61550b9e",
+    "revision": "debff2772c382166b1c1175293fb47a67c9d0610",
     "paths": [
       "host",
       "runner",
