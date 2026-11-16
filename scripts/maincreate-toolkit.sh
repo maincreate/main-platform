@@ -50,6 +50,45 @@ adb_path(){
   else return 1; fi
 }
 
+install_arduino_cli(){
+  local version="$1" arch archive digest url stage binary dest
+  [[ "$version" == "1.5.1" ]] || die "Unsupported Arduino CLI version"
+  case "$(uname -m)" in
+    x86_64|amd64) arch="x64";archive="arduino-cli_1.5.1_Linux_64bit.tar.gz";digest="28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b" ;;
+    aarch64|arm64) arch="arm64";archive="arduino-cli_1.5.1_Linux_ARM64.tar.gz";digest="1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62" ;;
+    *) die "Arduino CLI installation supports Linux x64 and ARM64 only" ;;
+  esac
+  need curl;need sha256sum;need tar
+  local base="$HOME/.local/share/maincreate/sdks/arduino-cli/1.5.1/linux-$arch"
+  mkdir -p "$(dirname "$base")"
+  stage="$(mktemp -d)"
+  trap 'rm -rf "$stage"' RETURN
+  download_verified "https://github.com/arduino/arduino-cli/releases/download/v1.5.1/$archive" "$digest" "$stage/arduino.tar.gz"
+  tar -tzf "$stage/arduino.tar.gz" > "$stage/entries.txt"
+  if grep -E '(^/|(^|/)\.\.(/|$)|\\)' "$stage/entries.txt" >/dev/null; then die "Arduino CLI archive contains an unsafe path"; fi
+  tar -xzf "$stage/arduino.tar.gz" -C "$stage" --no-same-owner --no-same-permissions
+  binary="$(find "$stage" -maxdepth 2 -type f -name arduino-cli -print -quit)"
+  [[ -n "$binary" ]] || die "Arduino CLI archive did not contain its binary"
+  "$binary" version | grep -E 'Version:\s*v?1\.5\.1|arduino-cli\s+Version:\s*v?1\.5\.1' >/dev/null ||
+    die "Arduino CLI exact-version verification failed"
+  mkdir -p "$base"
+  install -m 0755 "$binary" "$base/arduino-cli.new"
+  mv -f "$base/arduino-cli.new" "$base/arduino-cli"
+  "$base/arduino-cli" version | grep -E 'Version:\s*v?1\.5\.1|arduino-cli\s+Version:\s*v?1\.5\.1' >/dev/null ||
+    die "Installed Arduino CLI failed exact-version verification"
+  rm -rf "$stage";trap - RETURN
+  printf 'Installed Arduino CLI %s for Linux %s\n' "$version" "$arch"
+}
+verify_arduino_cli(){
+  [[ "$1" == "1.5.1" ]] || die "Unsupported Arduino CLI version"
+  local arch; case "$(uname -m)" in x86_64|amd64) arch="x64";;aarch64|arm64) arch="arm64";;*) die "Unsupported architecture";;esac
+  local binary="$HOME/.local/share/maincreate/sdks/arduino-cli/1.5.1/linux-$arch/arduino-cli"
+  [[ -x "$binary" ]] || die "Arduino CLI 1.5.1 is not installed"
+  "$binary" version | grep -E 'Version:\s*v?1\.5\.1|arduino-cli\s+Version:\s*v?1\.5\.1' >/dev/null ||
+    die "Arduino CLI exact-version verification failed"
+  printf 'Arduino CLI 1.5.1 verified\n'
+}
+
 install_esp_idf(){
   local version="$1" machine archive digest url stage binary
   valid_version "$version" || die "Invalid ESP-IDF version"
@@ -439,6 +478,13 @@ cleanup_toolkit(){
   local family="$1" version="$2" confirm="$3"
   [[ "$confirm" == "true" ]] || { printf 'DRY RUN: would clean %s@%s only; no files changed.\n' "$family" "$version"; return 0; }
   case "$family" in
+    arduino-cli)
+      [[ "$version" == "1.5.1" ]] || die "Unsupported Arduino CLI version"
+      local arch; case "$(uname -m)" in x86_64|amd64) arch="x64";;aarch64|arm64) arch="arm64";;*) die "Unsupported architecture";;esac
+      local binary="$HOME/.local/share/maincreate/sdks/arduino-cli/1.5.1/linux-$arch/arduino-cli"
+      [[ -x "$binary" ]] || die "Arduino CLI 1.5.1 is not installed"
+      rm -f "$binary"
+      ;;
     esp-idf)
       valid_version "$version" || die "Invalid ESP-IDF version"
       local eim; eim="$(eim_path)"
@@ -462,6 +508,7 @@ usage(){
 cat <<'EOF'
 Main{Create} toolkit lifecycle adapter
   install esp-idf VERSION
+  install arduino-cli 1.5.1
   install android-sdk VERSION --accept-licenses
   verify esp-idf VERSION
   verify android-sdk VERSION
@@ -483,6 +530,7 @@ case "\${1:-}" in
  install)
   case "\${2:-}" in
    esp-idf) [[ $# -eq 3 ]] || die "Usage: install esp-idf VERSION"; install_esp_idf "$3" ;;
+   arduino-cli) [[ $# -eq 3 ]] || die "Usage: install arduino-cli VERSION"; install_arduino_cli "$3" ;;
    android-sdk) [[ $# -eq 4 && "$4" == "--accept-licenses" ]] || die "Usage: install android-sdk VERSION --accept-licenses"; install_android_sdk "$3" true ;;
    *) die "Unknown toolkit family" ;;
   esac ;;
