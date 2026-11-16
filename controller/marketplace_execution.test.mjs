@@ -80,7 +80,7 @@ test("Successful cleanup removes only the version label and marks that target cl
   if(url.includes("/toolkit-cleanup.yml/runs"))return json({workflow_runs:[{
    id:789,run_name:"Main{Create} cleanup / cleanup-123 / esp-idf@6.1.1",status:"completed",conclusion:"success",
    html_url:"https://github.com/maincreate/main-platform/actions/runs/789"}]});
-  if(url.endsWith("/labels")&&opts.method!=="GET")throw new Error("Expected label read first");
+  if(url.endsWith("/labels")&&opts.method&&opts.method!=="GET")throw new Error("Expected label read first");
   if(url.endsWith("/labels")&&(!opts.method||opts.method==="GET"))return json({labels:[
    {name:"maincreate-toolkit-esp-idf-6-1-1"},{name:"maincreate-capability-firmware-build"},
    {name:"maincreate-capability-firmware-device-io"},{name:"maincreate-capability-firmware-backup"},{name:"maincreate-capability-firmware-restore"},{name:"maincreate-target-esp32"}]});
