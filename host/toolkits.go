@@ -18,6 +18,7 @@ import (
  "os/exec"
  "path/filepath"
  "runtime"
+ "regexp"
  "strings"
  "time"
 )
@@ -44,14 +45,22 @@ func arduinoBinaryPath(goarch string)string{
  if err!=nil{return ""}
  return filepath.Join(arduinoRoot,arduinoCLIVersion,"linux-"+release.arch,"arduino-cli")
 }
-func arduinoVersionOK(binary string)bool{
+var arduinoVersionPattern=regexp.MustCompile(`(?i)\barduino-cli\s+(?:version:\s*)?v?1\.5\.1(?:\s|$)`)
+func arduinoVersionOutputMatches(output string)bool{
+ return arduinoVersionPattern.MatchString(strings.TrimSpace(output))
+}
+func checkArduinoVersion(binary string)error{
  ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second);defer cancel()
  output,err:=exec.CommandContext(ctx,binary,"version").CombinedOutput()
- if err!=nil||len(output)>8192{return false}
- text:=string(output)
- return strings.Contains(text,"Version: 1.5.1")||
-  strings.Contains(text,"Version: v1.5.1")
+ sample:=strings.TrimSpace(string(output))
+ if len(sample)>500{sample=sample[:500]}
+ if err!=nil{return fmt.Errorf("Arduino CLI version command failed (%s): %w",sample,err)}
+ if !arduinoVersionOutputMatches(string(output)){
+  return fmt.Errorf("unexpected Arduino CLI version output: %q",sample)
+ }
+ return nil
 }
+func arduinoVersionOK(binary string)bool{return checkArduinoVersion(binary)==nil}
 func fetchArduinoRelease(ctx context.Context,client *http.Client,release arduinoRelease)([]byte,error){
  url:="https://github.com/arduino/arduino-cli/releases/download/v"+
   arduinoCLIVersion+"/"+release.asset
@@ -132,14 +141,16 @@ func installArduinoCLI() (string,error){
  }}
  archive,err:=fetchArduinoRelease(ctx,client,target);if err!=nil{return "",err}
  binary,err:=extractArduinoBinary(archive);if err!=nil{return "",err}
- // Verify the staged image prior to replacing an existing SDK executable.
- tmpDir,err:=os.MkdirTemp("","maincreate-arduino-cli-")
+ // Verify from the executable's actual destination filesystem. In particular,
+ // the system's /tmp may be mounted noexec, so never execute candidates there.
+ if err=os.MkdirAll(filepath.Dir(dest),0755);err!=nil{return "",err}
+ tmpDir,err:=os.MkdirTemp(filepath.Dir(dest),".arduino-verify-")
  if err!=nil{return "",err}
  defer os.RemoveAll(tmpDir)
  candidate:=filepath.Join(tmpDir,"arduino-cli")
  if err=os.WriteFile(candidate,binary,0755);err!=nil{return "",err}
- if !arduinoVersionOK(candidate){return "",errors.New("Arduino executable failed version validation")}
+ if err=checkArduinoVersion(candidate);err!=nil{return "",err}
  if err=stageArduinoBinary(dest,binary);err!=nil{return "",err}
- if !arduinoVersionOK(dest){return "",errors.New("Installed Arduino CLI failed validation")}
+ if err=checkArduinoVersion(dest);err!=nil{return "",err}
  return "Arduino CLI 1.5.1 installed and verified on Linux "+target.arch,nil
 }

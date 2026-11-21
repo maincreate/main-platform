@@ -95,3 +95,19 @@ func TestArduinoVersionedInstallPath(t *testing.T){
 }
 type roundTripFunc func(*http.Request)(*http.Response,error)
 func (r roundTripFunc)RoundTrip(req *http.Request)(*http.Response,error){return r(req)}
+
+func TestArduinoVersionOutputFormats(t *testing.T){
+ for _,tc:=range []struct{output string;want bool}{
+  {"arduino-cli 1.5.1 Commit: 0123456 Date: 2026-10-01",true},
+  {"arduino-cli Version: 1.5.1 Commit: abc123",true},
+  {"arduino-cli  Version: v1.5.1",true},
+  {"arduino-cli Version: 1.5.0",false},
+  {"Arduino CLI Version: 1.5.1",false},
+  {"arduino-cli 1.5.11",false},
+  {"not-arduino 1.5.1",false},
+ }{
+  if observed:=arduinoVersionOutputMatches(tc.output);observed!=tc.want{
+   t.Fatalf("version output %q accepted=%t, want %t",tc.output,observed,tc.want)
+  }
+ }
+}
