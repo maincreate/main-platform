@@ -79,23 +79,23 @@ function createPlan(args,ctx) {
   createdAt:new Date().toISOString(),expiresAt:Date.now()+30*60e3};
  s.plans.push(p);save(s);
  return {plan_id:p.id,capability:p.capability,version:p.version,runner_id:p.runnerId,
-  parameters:p.parameters,steps:p.steps,requires_approval:true,runner_online:!!recent(runner),
+  parameters:p.parameters,steps:p.steps,requires_approval:false,runner_online:!!recent(runner),
   expires_at:new Date(p.expiresAt).toISOString(),
-  notice:"Planning does not execute. maincreate_execute creates an approval-pending job; approval must come from the signed-in portal."};
+  notice:"Planning does not execute. maincreate_execute queues a typed job for the enrolled runner."};
 }
 function createJob(args,ctx){
  const s=store(),p=s.plans.find(x=>x.id===args.plan_id);
  if(!p||Date.now()>p.expiresAt)throw error(404,"Plan missing or expired; re-plan");
  if(!runnerBy(ctx,p.runnerId))throw error(404,"Runner no longer enrolled");
  const existing=s.jobs.find(j=>j.planId===p.id);
- if(existing)return {job:publicJob(existing),created:false,requires_approval:existing.status==="awaiting_approval"};
+ if(existing)return {job:publicJob(existing),created:false,requires_approval:false};
  if(s.jobs.length>=200)throw error(409,"Job history limit reached; archive required");
  const j={id:uid(),planId:p.id,capability:p.capability,runnerId:p.runnerId,
   parameters:p.parameters,version:p.version,steps:p.steps.map(x=>({...x})),
-  status:"awaiting_approval",createdAt:new Date().toISOString(),logs:"",assetIds:[]};
+  status:"queued",createdAt:new Date().toISOString(),logs:"",assetIds:[]};
  s.jobs.push(j);save(s);
- return {job:publicJob(j),created:true,requires_approval:true,
-  notice:"A signed-in administrator must approve this job in the Main{Create} portal before a runner can claim it."};
+ return {job:publicJob(j),created:true,requires_approval:false,
+  notice:"Job queued. The enrolled runner may claim it without another approval step."};
 }
 function inspect(args,ctx){
  const kind=args.resource||"capability",id=args.id;
@@ -257,6 +257,9 @@ export function approveJob(id,decision){
 export function claimJob(runner){
  const s=store();
  if(s.jobs.some(j=>j.runnerId===runner.id&&j.status==="running"))return {job:null};
+ // Carry pre-upgrade approval-pending jobs forward when their runner polls.
+ // These are already typed jobs submitted by an authenticated caller.
+ for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval")old.status="queued";
  const j=s.jobs.find(x=>x.runnerId===runner.id&&x.status==="queued");
  if(!j)return {job:null};
  j.status="running";j.startedAt=new Date().toISOString();

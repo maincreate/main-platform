@@ -39,7 +39,7 @@ The **dedicated /topology page** includes a horizontal six-lane workspace topolo
 The dashboard shows actual connection status rather than pretending integrations are already configured:
 
 - **GitHub:** connect your account and choose an organization. Organizations are recommended for sharing runners across repositories. A single repository does not require an organization.
-- **Build machines:** enroll trusted Linux, macOS or Windows nodes when you're ready; use **Jobs & Builders** for enrollment, planning, approvals, jobs and artifacts. Runner execution is **disabled by default** until explicitly enabled by the operator.
+- **Build machines:** enroll trusted Linux, macOS or Windows nodes when you're ready; use **Jobs & Builders** for enrollment, planning, job tracking and artifacts. Typed job dispatch is **enabled by default**; set `MAIN_ENABLE_FABRIC_EXECUTION=0` only to pause execution.
 - **AI assistant (optional):** remote OAuth authorization and ChatGPT connection are future work. A private MCP gateway exists separately; AI is not required for the workspace.
 
 The dashboard defaults to **Midnight**, with **Graphite + Iris** and **Warm Paper** available as alternatives. Each browser remembers its selection.
@@ -56,9 +56,9 @@ See [OpenAI Secure MCP Tunnel setup](docs/openai-secure-mcp-tunnel.md).
 
 ## Capability Fabric v0.2
 
-The gateway exposes **six stable MCP tools**: `maincreate_discover`, `maincreate_inspect`, `maincreate_plan`, `maincreate_execute`, `maincreate_jobs`, and `maincreate_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, explicit execution approval and artifact downloads.
+The gateway exposes **six stable MCP tools**: `maincreate_discover`, `maincreate_inspect`, `maincreate_plan`, `maincreate_execute`, `maincreate_jobs`, and `maincreate_assets`. These resolve versioned capabilities and workflows from curated JSON manifests rather than adding new MCP tool names per technology. The portal has an authenticated **/jobs** page for machine enrollment, planning, queued job execution and artifact downloads.
 
-**The controller does not execute jobs by default.** Live job dispatch requires `MAIN_ENABLE_FABRIC_EXECUTION=1`, machine enrollment and a user-approved plan. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `MAIN_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
+**Typed job execution is enabled by default.** Live dispatch requires authenticated access, machine enrollment and a validated plan; no second portal approval is required. `MAIN_ENABLE_FABRIC_EXECUTION=0` is an optional emergency pause. ESP-IDF builds additionally require an operator-approved pinned clean local checkout and `MAIN_RUNNER_ENABLE_BUILDS=1` on the machine. Flash, deployment and automatic SDK installation remain unavailable. Existing runner agents must be updated to this version to claim jobs. Remote ChatGPT OAuth is not yet available; the MCP gateway continues to require a private bearer token. See [Capability Fabric v0.2](docs/capability-fabric.md).
 
 ## GitHub Actions project-specific build routing
 
@@ -70,7 +70,7 @@ After account creation, the **homepage is the workspace's real operational state
 
 - **Overview** (`/`): builds, repos, builders, attached devices and activity.
 - **Projects** (`/projects`): read-only synchronization of the selected GitHub App installation's repository metadata and associated Main{Create} jobs. Synchronization is manual for now.
-- **Builders & Jobs** (`/jobs`): machine enrollment, approved plans, logs and artifacts.
+- **Builders & Jobs** (`/jobs`): machine enrollment, validated plans, logs and artifacts.
 - **Devices** (`/devices`): read-only USB inventory reported by trusted builders. Devices are hidden after 7 unseen days, archived after 30 days, and recognized when they return.
 - **Topology** (`/topology`): correctly connects GitHub directly to the workspace, and devices to their reporting builder.
 - **Settings** (`/settings`): GitHub, optional AI, appearance, account and execution policy.
@@ -97,7 +97,7 @@ npm test
 
 Login behavior can also be checked from a trusted client using `scripts/smoke-login.mjs` (credentials are provided only to the local verification process, never as server login configuration).
 
-This release supports password-based administration, persistent settings, encrypted GitHub credentials, runner enrollment, versioned capability discovery, approval-pending jobs and an opt-in runner execution engine. It **does not** support arbitrary shell execution, automatic SDK installation, firmware flashing, production OAuth-protected ChatGPT access, or unmanaged deployments. Execution is explicitly disabled by default.
+This release supports password-based administration, persistent settings, encrypted GitHub credentials, runner enrollment, versioned capability discovery, directly queued typed jobs and an opt-in runner execution engine. It **does not** support arbitrary shell execution, automatic SDK installation, firmware flashing, production OAuth-protected ChatGPT access, or unmanaged deployments. Execution is enabled by default and can be paused by the operator.
 
 For deeper architecture and deployment details, see [architecture](docs/mvp-architecture.md), [portal API](portal/README.md), [appearance choices](docs/design-directions.md) and [a provider-specific deployment example](docs/coolify-deployment.md).
 

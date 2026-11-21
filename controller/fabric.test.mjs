@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync,readFileSync,existsSync,rmSync} from "node:fs";
+import {mkdtempSync,readFileSync,writeFileSync,existsSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createHash} from "node:crypto";
@@ -27,7 +27,7 @@ test("stable registry discovers real capabilities and marks flashing unavailable
 });
 test("plans validate schemas and do not execute or accept arbitrary commands",()=>{
  const p=invoke("maincreate_plan",snapshot);
- assert.equal(p.requires_approval,true);
+ assert.equal(p.requires_approval,false);
  assert.equal(p.steps.length,1);
  assert.equal(p.capability,"host.snapshot");
  assert.throws(()=>invoke("maincreate_plan",{...snapshot,parameters:{command:"sh -c anything"}}),/Unsupported parameter/);
@@ -35,15 +35,14 @@ test("plans validate schemas and do not execute or accept arbitrary commands",()
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.build",runner_id:runner.id,parameters:{repository:"Invalid"}}),/Invalid parameter/);
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.build",runner_id:runner.id,parameters:{repository:"org/repo",flags:"--flash"}}),/Unsupported parameter/);
 });
-test("execution requires signed-in portal approval before runner can claim",()=>{
+test("execution queues a typed job for immediate runner claim",()=>{
  const plan=invoke("maincreate_plan",snapshot),jobResult=invoke("maincreate_execute",{plan_id:plan.plan_id});
  const job=jobResult.job;
- assert.equal(job.status,"awaiting_approval");
- assert.equal(jobResult.requires_approval,true);
- assert.equal(claimJob(runner).job,null);
+ assert.equal(job.status,"queued");
+ assert.equal(jobResult.requires_approval,false);
  const duplicate=invoke("maincreate_execute",{plan_id:plan.plan_id});
  assert.equal(duplicate.job.id,job.id);
- approveJob(job.id,"approve");
+ assert.throws(()=>approveJob(job.id,"approve"),/already handled/);
  const claimed=claimJob(runner).job;
  assert.equal(claimed.id,job.id);
  assert.equal(claimJob(runner).job,null);
@@ -55,19 +54,17 @@ test("execution requires signed-in portal approval before runner can claim",()=>
  assert.equal(done.status,"completed");
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.logs,"Snapshot done");
 });
-test("Arduino install requests create one approval-pending job per builder and do not claim",()=>{
+test("Arduino installation requests are queued for compatible builders",()=>{
  const plans=[runner,other].map(r=>invoke("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:r.id,parameters:{}}));
  const jobs=plans.map(p=>invoke("maincreate_execute",{plan_id:p.plan_id}).job);
- assert.deepEqual(jobs.map(j=>j.status),["awaiting_approval","awaiting_approval"]);
- assert.equal(claimJob(runner).job,null);assert.equal(claimJob(other).job,null);
+ assert.deepEqual(jobs.map(j=>j.status),["queued","queued"]);
+ for(const job of jobs)assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:job.id}).job.status,"cancelled");
 });
-test("composed workflow is one approval with pinned ordered actions",()=>{
+test("composed workflow queues ordered pinned actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
   parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});
  assert.deepEqual(p.steps.map(x=>x.capability),["host.snapshot","firmware.esp_idf.build"]);
  const j=invoke("maincreate_execute",{plan_id:p.plan_id}).job;
- assert.equal(claimJob(other).job,null);
- approveJob(j.id,"approve");
  const claimed=claimJob(other).job;
  assert.equal(claimed.parameters.repository,"MainCreate/WaymarkerOS");
  assert.equal(claimed.steps.length,2);
@@ -76,15 +73,28 @@ test("composed workflow is one approval with pinned ordered actions",()=>{
  assert.equal(result.job.status,"failed");
  assert.equal(result.job.steps[1].status,"failed");
 });
-test("jobs may be cancelled or rejected before runner claim, never after",()=>{
+test("queued jobs may be cancelled before claim; handled jobs cannot be approved",()=>{
  const p1=invoke("maincreate_plan",snapshot);
  const j1=invoke("maincreate_execute",{plan_id:p1.plan_id}).job;
  const stopped=invoke("maincreate_jobs",{action:"cancel",job_id:j1.id});
  assert.equal(stopped.job.status,"cancelled");
  const p2=invoke("maincreate_plan",snapshot);
  const j2=invoke("maincreate_execute",{plan_id:p2.plan_id}).job;
- assert.equal(approveJob(j2.id,"reject").job.status,"rejected");
- assert.throws(()=>approveJob(j2.id,"approve"),/already handled/);
+ assert.throws(()=>approveJob(j2.id,"reject"),/already handled/);
+ assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:j2.id}).job.status,"cancelled");
+});
+test("pre-upgrade awaiting approval jobs are resumed without an approval click",()=>{
+ const plan=invoke("maincreate_plan",snapshot),created=invoke("maincreate_execute",{plan_id:plan.plan_id}).job;
+ const file=join(dir,"fabric.json"),saved=JSON.parse(readFileSync(file,"utf8"));
+ const legacy=saved.jobs.find(j=>j.id===created.id);
+ assert(legacy);
+ legacy.status="awaiting_approval";
+ writeFileSync(file,JSON.stringify(saved));
+ const claimed=claimJob(runner).job;
+ assert.equal(claimed.id,created.id);
+ const result=reportJob(runner,{job_id:created.id,success:true,logs:"Legacy job migrated",
+  steps:[{capability:"host.snapshot",status:"completed"}]});
+ assert.equal(result.job.status,"completed");
 });
 test("assets preserve offsets, digests, ownership and access boundaries",()=>{
  const payload=Buffer.from("original local test artifact");
@@ -105,7 +115,7 @@ test("assets preserve offsets, digests, ownership and access boundaries",()=>{
 });
 test("runner artifacts can be uploaded only to its own running job",()=>{
  const plan=invoke("maincreate_plan",snapshot),j=invoke("maincreate_execute",{plan_id:plan.plan_id}).job;
- approveJob(j.id,"approve");claimJob(runner);
+ claimJob(runner);
  const payload=Buffer.from("snapshot");
  assert.throws(()=>agentAsset(other,{job_id:j.id,action:"begin",size:payload.length,name:"snapshot.txt"}),/does not own/);
  const a=agentAsset(runner,{job_id:j.id,action:"begin",size:payload.length,name:"snapshot.txt"}).asset;

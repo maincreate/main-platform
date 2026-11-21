@@ -11,7 +11,7 @@ The authenticated `/mcp` gateway now advertises six tools. Capability IDs are ar
 | `maincreate_discover` | `resource`, optional `query` | List workspace, runners, capabilities, toolkits, jobs, or assets |
 | `maincreate_inspect` | `resource`, `id` | Read a capability input schema, runner, toolkit, or job |
 | `maincreate_plan` | `capability`, `runner_id`, `parameters` | Validate a versioned capability or workflow; persist a 30-minute plan |
-| `maincreate_execute` | `plan_id` | Request an approval-pending job, idempotently per plan |
+| `maincreate_execute` | `plan_id` | Queue one typed job, idempotently per plan |
 | `maincreate_jobs` | `action=list|get|logs|cancel`, `job_id` | Query or cancel **unclaimed** jobs |
 | `maincreate_assets` | `action=list|begin|chunk|finish|get` | Upload/download bounded artifacts with ordered chunks and SHA-256 |
 
@@ -26,16 +26,16 @@ The MCP server uses protocol version `2025-11-25`, returns `structuredContent` a
 Implemented adapters:
 - `host.snapshot@1.0.0`: read-only host diagnostics and a JSON asset.
 - `firmware.esp_idf.build@1.0.0`: compile a clean, operator-allowlisted local checkout at an exact pinned SHA; no clone, shell, install, flash, or deploy.
-- `workflow.esp_idf.preflight_build@1.0.0`: host snapshot then ESP-IDF build, with one approval covering the ordered steps.
+- `workflow.esp_idf.preflight_build@1.0.0`: host snapshot then ESP-IDF build in one ordered job.
 
-`sdk.arduino_cli.install` is the first executable SDK installer. It is Linux ARM64/x64 only, disabled unless the runner operator sets `MAIN_RUNNER_ENABLE_SDK_INSTALLS=1`, and still requires a signed-in portal approval job. The adapter downloads only these immutable official Arduino CLI v1.5.1 release assets and verifies the exact SHA-256 before per-user atomic installation:
+`sdk.arduino_cli.install` is the first executable SDK installer. It is Linux ARM64/x64 only, disabled unless the runner operator sets `MAIN_RUNNER_ENABLE_SDK_INSTALLS=1`, and is queued directly after authenticated execution requests. The adapter downloads only these immutable official Arduino CLI v1.5.1 release assets and verifies the exact SHA-256 before per-user atomic installation:
 
 - [Linux ARM64 release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz) — `1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62`
 - [Linux 64-bit release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz) — `28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b`
 
 The existing ESP-IDF 5.5.6 catalog remains review/catalog-only, and ESP-IDF 6.1 is review-only. No ESP-IDF installer is enabled by this MVP. `firmware.esp_idf.flash` and `deployment.release` remain unavailable.
 
-Marketplace **Save installation plan** is side-effect-free. A separate **Request installation** action validates the saved plan and creates one approval-pending fabric job per supported builder; it does not approve, claim, or install jobs. Repeated requests are rejected while a builder has an active or completed job, and partial builder failures remain visible per target.
+Marketplace **Save installation plan** is side-effect-free. A separate **Request installation** action validates the saved plan and queues one fabric job per supported builder; it does not claim or install jobs. Repeated requests are rejected while a builder has an active or completed job, and partial builder failures remain visible per target.
 
 Example planning request:
 
@@ -50,11 +50,11 @@ Example planning request:
 }
 ```
 
-Use that result's `plan_id` in `maincreate_execute`; it creates a job awaiting approval. A signed-in administrator approves the exact job on `/jobs`. The agent then claims approved work outbound.
+Use that result's `plan_id` in `maincreate_execute`; it queues a typed job. The enrolled runner claims queued work outbound. There is no separate portal approval step.
 
 ## Machine opt-in
 
-The operator must set `MAIN_ENABLE_FABRIC_EXECUTION=1` on the **controller** after testing. Its default is **off**, even after a job is approved.
+Fabric dispatch is enabled by default for authenticated, validated jobs in the development workspace. Set `MAIN_ENABLE_FABRIC_EXECUTION=0` on the controller only when intentionally pausing execution; remove an older deployment override set to `0` before testing. There are no per-job portal approvals.
 
 To enroll a machine, open **Jobs & Builders**, generate an expiring pairing token, and run the shown enrollment command from the trusted machine. Then start `node runner/agent.mjs run` using the same controller URL and saved enrollment state.
 
@@ -71,7 +71,7 @@ The runner checks the explicit local checkout allowlist, the planned 40-characte
 
 ## Jobs and files
 
-Job statuses include approval pending, queued, running, completed, failed, rejected and cancelled. Running jobs cannot yet be interrupted; crashed runners can leave a job `running` and require operator reconciliation. There is no automatic redispatch.
+Job statuses include queued, running, completed, failed and cancelled. Legacy approval-pending jobs automatically enter the queue when their enrolled runner polls. Running jobs cannot yet be interrupted; crashed runners can leave a job `running` and require operator reconciliation. There is no automatic redispatch.
 
 Artifacts use random IDs under `MAIN_DATA_DIR/assets`, with upload/download chunks no larger than **48 KiB**, a per-file limit of **8 MiB**, and **80 MiB** aggregate quota. Uploads support optional SHA-256 verification. The runner may upload only for its own claimed job. Incomplete uploads count toward quota; automated garbage collection is future work. Logs are bounded. Data persists in `MAIN_DATA_DIR/fabric.json` and `assets` and needs backup.
 
@@ -80,9 +80,9 @@ The state store is deliberately single-controller. Do not share its writable dir
 ## Verification before enabling live builds
 
 1. Run `npm test` on Node.js 22+ and verify the Docker image builds.
-2. With execution disabled, test the authenticated `/jobs` page, plan creation, approval flow, and rejected unsupported capabilities.
+2. Test authenticated job planning/queuing, rejected unsupported capabilities and idempotent job submission. To test the emergency pause, explicitly set `MAIN_ENABLE_FABRIC_EXECUTION=0`, then restore it.
 3. Enroll a machine and verify heartbeats.
-4. Deliberately enable controller execution; approve `host.snapshot` and retrieve the JSON artifact.
+4. Queue `host.snapshot` on a test builder and retrieve its JSON artifact without a second approval click.
 5. On a sandboxed ESP-IDF machine, opt into builds and verify a clean pinned checkout, logs, firmware artifacts, and SHA-256.
 6. Test cancellation before claim, failed jobs, and token rejection.
 7. Add standards-compliant remote MCP OAuth before treating a ChatGPT cloud connection as supported.
