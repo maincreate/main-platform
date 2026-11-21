@@ -25,7 +25,7 @@ type esp32Probe struct {
 
 var (
  esp32PortName=regexp.MustCompile(`^/dev/(ttyUSB[0-9]+|ttyACM[0-9]+)$`)
- esp32ChipPattern=regexp.MustCompile(`(?mi)^Chip is (ESP32(?:-[A-Za-z0-9]+)?)(?:\s|\(|$)`)
+ esp32ChipPattern=regexp.MustCompile(`(?mi)^(?:Chip is |Chip type: |Detecting chip type\.\.\.\s*)(ESP32(?:-[A-Za-z0-9]+)?)(?:\s|\(|$)`)
  esp32MACPattern=regexp.MustCompile(`(?mi)^(?:MAC|Base MAC):\s*([a-f0-9]{2}(?::[a-f0-9]{2}){5})\s*$`)
  esp32FlashPattern=regexp.MustCompile(`(?mi)^Detected flash size:\s*([0-9]+(?:KB|MB))\s*$`)
 )
@@ -40,18 +40,34 @@ func validateESP32Port(port string) error {
  return nil
 }
 
-func parseESP32Probe(port,chipOutput,flashOutput string)(esp32Probe,error){
- result:=esp32Probe{Port:port,SecurityVerified:false,FlashAllowed:false}
- chips:=esp32ChipPattern.FindAllStringSubmatch(chipOutput,-1)
- macs:=esp32MACPattern.FindAllStringSubmatch(chipOutput,-1)
- sizes:=esp32FlashPattern.FindAllStringSubmatch(flashOutput,-1)
- if len(chips)!=1||len(macs)!=1||len(sizes)!=1 {
-  return result,errors.New("incomplete or ambiguous active ESP32 chip probe")
+func uniqueProbeValues(matches [][]string) []string {
+ var values []string
+ seen:=make(map[string]bool)
+ for _,match:=range matches{
+  if len(match)<2{continue}
+  value:=strings.ToLower(match[1])
+  if !seen[value]{seen[value]=true;values=append(values,match[1])}
  }
- result.Chip=chips[0][1]
- result.MAC=strings.ToLower(macs[0][1])
- result.FlashSize=sizes[0][1]
+ return values
+}
+func parseESP32ProbeThree(port,chipOutput,macOutput,flashOutput string)(esp32Probe,error){
+ result:=esp32Probe{Port:port,SecurityVerified:false,FlashAllowed:false}
+ chips:=uniqueProbeValues(esp32ChipPattern.FindAllStringSubmatch(chipOutput,-1))
+ macs:=uniqueProbeValues(esp32MACPattern.FindAllStringSubmatch(macOutput,-1))
+ sizes:=uniqueProbeValues(esp32FlashPattern.FindAllStringSubmatch(flashOutput,-1))
+ if len(chips)!=1||len(macs)!=1||len(sizes)!=1 {
+  // Report only missing/conflicting field counts, never raw serial responses.
+  return result,fmt.Errorf("incomplete or ambiguous ESP32 identity (chip=%d mac=%d flash=%d)",len(chips),len(macs),len(sizes))
+ }
+ result.Chip=chips[0]
+ result.MAC=strings.ToLower(macs[0])
+ result.FlashSize=strings.ToUpper(sizes[0])
  return result,nil
+}
+// Legacy parser retained for existing fixtures where chip_id also includes MAC.
+// Modern esptool versions require a distinct read-mac command instead.
+func parseESP32Probe(port,chipOutput,flashOutput string)(esp32Probe,error){
+ return parseESP32ProbeThree(port,chipOutput,chipOutput,flashOutput)
 }
 
 // probeESP32ReadOnly must receive a trusted, absolute, operator-installed
@@ -73,7 +89,8 @@ func probeESP32ReadOnly(port,esptoolPath string)(esp32Probe,error){
   if len(output)>16*1024{return "",errors.New("ESP32 probe output exceeds limit")}
   return string(output),nil
  }
- chip,err:=run("chip_id");if err!=nil{return esp32Probe{},err}
- flash,err:=run("flash_id");if err!=nil{return esp32Probe{},err}
- return parseESP32Probe(port,chip,flash)
+ chip,err:=run("chip-id");if err!=nil{return esp32Probe{},err}
+ mac,err:=run("read-mac");if err!=nil{return esp32Probe{},err}
+ flash,err:=run("flash-id");if err!=nil{return esp32Probe{},err}
+ return parseESP32ProbeThree(port,chip,mac,flash)
 }
