@@ -395,7 +395,7 @@ export function importReviewedFirmwareBuild({repository,revision,runId,runnerId,
   status:"running",createdAt:now,startedAt:now,approvedAt:null,completedAt:null,
   logs:"",assetIds:[],error:null};
  s.jobs.push(job);save(s);
- const manifest={schema:1,job_id:id,framework:"esp-idf",framework_version:"5.5.6",
+ const manifest={schema:1,job_id:id,framework:"arduino-esp32",framework_version:"3.2.0",
   target:"esp32s3",source_sha256:sourceSha256,
   files:expected.map(name=>({name,size:images[name].length,sha256:sha(images[name])}))};
  const payloads=[...expected.map(name=>({name,mime:"application/octet-stream",bytes:images[name]})),
