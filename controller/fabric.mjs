@@ -1,6 +1,7 @@
 import {randomBytes,createHash} from "node:crypto";
 import {mkdirSync,existsSync,readFileSync,writeFileSync,renameSync,chmodSync,openSync,writeSync,readSync,closeSync,statSync,rmSync} from "node:fs";
 import {join} from "node:path";
+import {verifyFlashEvidence} from "./flash_evidence.mjs";
 
 const root=process.env.MAIN_DATA_DIR||"./.maincreate-data";
 const database=join(root,"fabric.json"),assetDir=join(root,"assets");
@@ -276,6 +277,8 @@ export function approveJob(id,decision,confirmedMAC=null){
  if(j.capability==="firmware.esp_idf.flash"&&decision==="approve"&&
     (typeof confirmedMAC!=="string"||confirmedMAC!==j.parameters?.expected_mac))
   throw error(422,"Exact device MAC confirmation required for firmware flash");
+ if(decision==="approve"&&j.capability==="firmware.esp_idf.flash")
+  verifyFlashEvidence({flashJob:j,jobs:s.jobs,assets:s.assets,readAsset:a=>readFileSync(assetFile(a.id))});
  j.status=decision==="approve"?"queued":"rejected";
  j.approvedAt=decision==="approve"?new Date().toISOString():null;
  if(decision==="reject")j.completedAt=new Date().toISOString();
@@ -330,6 +333,15 @@ export function reportJob(runner,args){
 export function agentAsset(runner,args){
  const jobId=args.job_id,s=store(),j=s.jobs.find(x=>x.id===jobId);
  if(!j||j.runnerId!==runner.id||j.status!=="running")throw error(403,"Runner does not own this running job");
+ if(args.action==="flash_preflight"){
+  if(j.capability!=="firmware.esp_idf.flash"||
+    args.port!==j.parameters?.port||args.expected_mac!==j.parameters?.expected_mac||
+    args.backup_job_id!==j.parameters?.backup_job_id||
+    args.security_job_id!==j.parameters?.security_job_id)
+   throw error(403,"Flash preflight is not bound to the approved job");
+  return verifyFlashEvidence({flashJob:j,jobs:s.jobs,assets:s.assets,
+    readAsset:a=>readFileSync(assetFile(a.id))});
+ }
  if(args.action==="source_get"){
   // Only the currently claimed, separately approved flash job can retrieve
   // firmware from its immutable, completed source build.
