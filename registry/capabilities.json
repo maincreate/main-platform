@@ -22,6 +22,37 @@
     ]
   },
   {
+    "id": "firmware.esp_idf.smoke_build",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "build",
+    "state": "available",
+    "description": "Compile a fixed-reviewed minimal ESP32-S3 firmware application with installed EIM-managed ESP-IDF 5.5.6, verify the exact SDK, then publish firmware, bootloader, partition-table binaries and SHA-256 manifest as authenticated assets. No remote source checkout, arbitrary command or device flash.",
+    "platforms": [
+      "linux"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "5.5.6"
+          ]
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.smoke_build"
+      }
+    ]
+  },
+  {
     "id": "host.snapshot",
     "version": "1.0.0",
     "kind": "action",
