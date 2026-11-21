@@ -2,9 +2,9 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade} from "./host_routes.mjs";
+import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade,pendingHostUpgrade} from "./host_routes.mjs";
 import {storageRoute} from "./storage.mjs";
-import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
+import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats,runnerHasExecutableFabricWork} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startOpenAiTunnel,stopOpenAiTunnel,openAiRuntimeStatus} from "./openai_tunnel_runtime.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
@@ -1301,7 +1301,7 @@ export async function localRoute(req) {
         runner.packagesObservedAt=runner.lastSeen;
       }
       if(runner.hostVersion&&process.env.MAIN_AUTO_HOST_UPGRADE!=="0"){
-       try{queueManagedHostUpgrade(s,runner,rnd)}
+       try{queueManagedHostUpgrade(s,runner,rnd,{fabricBusy:runnerHasExecutableFabricWork(runner)})}
        catch(e){console.warn("Managed host upgrade not queued:",e.message)}
       }
       save(s);return reply({ok:true});
@@ -1325,6 +1325,7 @@ export async function localRoute(req) {
           if(caps!==undefined&&(!Array.isArray(caps)||caps.length>12||
              !caps.every(v=>typeof v==="string"&&/^[a-z][a-z0-9_.]{2,80}$/.test(v))))
             return deny(422,"Invalid executor capability filter");
+          if(pendingHostUpgrade(s,runner.id))return reply({job:null,executionEnabled:true,hostUpgradePending:true});
           return reply({...claimJob(runner,caps===undefined?null:[...new Set(caps)]),executionEnabled:true});
         }
         if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return deny(403,"Runner execution disabled");
