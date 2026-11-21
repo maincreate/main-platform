@@ -23,7 +23,7 @@ import (
  "time"
 )
 
-const version="0.8.9"
+const version="0.8.10"
 var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
