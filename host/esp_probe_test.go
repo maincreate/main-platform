@@ -61,3 +61,9 @@ func TestESP32ProbeSeparateMACFailsClosed(t *testing.T){
   if _,err:=parseESP32ProbeThree("/dev/ttyACM0",chip,mac,flash);err==nil{t.Fatal("accepted missing or duplicate MAC")}
  }
 }
+
+func TestPinnedESPToolCommandsMatchInstalledIDF(t *testing.T){
+ if espToolChipCommand!="chip_id"||espToolMACCommand!="read_mac"||espToolFlashCommand!="flash_id"{
+  t.Fatal("ESP-IDF 5.5.6's pinned esptool requires underscored CLI subcommands")
+ }
+}
