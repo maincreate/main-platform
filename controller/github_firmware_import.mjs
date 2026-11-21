@@ -67,7 +67,7 @@ export function validateExpressionArtifacts(files,{repository,revision}){
  if(manifest.schema!==1||manifest.repository!==repository||manifest.revision!==revision||
   manifest.target!=="esp32s3"||
   manifest.board!=="Waveshare ESP32-S3-Touch-LCD-1.85B"||
-  manifest.sdk!=="ESP-IDF 5.5.6"||
+  manifest.framework!=="arduino-esp32"||manifest.framework_version!=="3.2.0"||manifest.lvgl!=="9.3.0"||
   manifest.waveshare_support_revision!=="5a98b8da1948340c07032a408ac0d93c47ca558f"||
   !Array.isArray(manifest.files)||manifest.files.length!==3)
    fail("board, SDK version or firmware revision mismatch");
