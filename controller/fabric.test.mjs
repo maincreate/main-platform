@@ -292,3 +292,19 @@ test("pending device-write approval is never silently promoted when a runner rec
  claimJob(runner,["firmware.esp_idf.flash"]);
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:j.id}).job.status,"awaiting_approval");
 });
+
+test("flash approval requires exact target MAC even after authenticated submit",()=>{
+ const plan=invoke("maincreate_plan",snapshot),job=invoke("maincreate_execute",{plan_id:plan.plan_id}).job;
+ const file=join(dir,"fabric.json"),s=JSON.parse(readFileSync(file,"utf8"));
+ const proposed=s.jobs.find(j=>j.id===job.id);
+ proposed.capability="firmware.esp_idf.flash";
+ proposed.parameters={expected_mac:"44:bd:8d:78:15:e8",port:"/dev/ttyACM0",source_job_id:"f".repeat(32)};
+ proposed.status="awaiting_approval";
+ proposed.steps=[{index:0,capability:"firmware.esp_idf.flash",status:"pending"}];
+ writeFileSync(file,JSON.stringify(s));
+ assert.throws(()=>approveJob(job.id,"approve"),/Exact device MAC/);
+ assert.throws(()=>approveJob(job.id,"approve","11:22:33:44:55:66"),/Exact device MAC/);
+ assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.status,"awaiting_approval");
+ assert.equal(approveJob(job.id,"approve","44:bd:8d:78:15:e8").job.status,"queued");
+ assert.throws(()=>approveJob(job.id,"approve","44:bd:8d:78:15:e8"),/already handled/);
+});
