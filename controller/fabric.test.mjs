@@ -305,6 +305,6 @@ test("flash approval requires exact target MAC even after authenticated submit",
  assert.throws(()=>approveJob(job.id,"approve"),/Exact device MAC/);
  assert.throws(()=>approveJob(job.id,"approve","11:22:33:44:55:66"),/Exact device MAC/);
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.status,"awaiting_approval");
- assert.equal(approveJob(job.id,"approve","44:bd:8d:78:15:e8").job.status,"queued");
- assert.throws(()=>approveJob(job.id,"approve","44:bd:8d:78:15:e8"),/already handled/);
+ assert.throws(()=>approveJob(job.id,"approve","44:bd:8d:78:15:e8"),/Flash preflight blocked/);
+ assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.status,"awaiting_approval");
 });
