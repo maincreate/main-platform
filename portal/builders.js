@@ -497,11 +497,25 @@ function renderBuilders(){
    const cell=el("td");cell.append(statusSignal(kind,label,signal));tr.append(cell);
   }
   const tools=el("td"),packages=host.packages||[];
+  const software=packages.filter(p=>["arduino-cli","esp-idf","android-sdk","adb"].includes(p.name));
+  const tags=el("div",undefined,"mc-software-tags");
+  for(const pkg of software){
+   const family=pkg.name==="adb"?"android-adb":pkg.name;
+   const version=(pkg.version.match(/(?:^|[^0-9])(\\d+\\.\\d+\\.\\d+)(?!\\d)/)||[])[1];
+   const tag=el("a",pkg.name+(version?" "+version:""),"mc-software-tag");
+   tag.href="/marketplace?software="+encodeURIComponent(family)+"&builder="+encodeURIComponent(host.id)+
+    (version?"&version="+encodeURIComponent(version):"");
+   tag.title="View verified "+pkg.name+" installation";tags.append(tag);
+  }
+  const add=el("a","+ Software","mc-software-tag");
+  add.href="/marketplace?builder="+encodeURIComponent(host.id);
+  add.title="Install software on "+host.name;tags.append(add);
+  tools.append(tags);
   if(packages.length){
-   const details=el("details"),summary=el("summary",packages.length+" detected"),ul=el("ul");
-   for(const p of packages)ul.append(el("li",p.name+" · "+p.version));
+   const details=el("details"),summary=el("summary",packages.length+" packages reported"),ul=el("ul");
+   for(const pkg of packages)ul.append(el("li",pkg.name+" · "+pkg.version));
    details.append(summary,ul);tools.append(details);
-  }else tools.textContent="Not yet reported";
+  }
   tr.append(tools);
   tr.append(el("td",health));
   const controls=el("td");
