@@ -1,14 +1,1076 @@
 [
   {
     "id": "esp-idf",
+    "schemaVersion": 2,
     "displayName": "Espressif IoT Development Framework",
     "category": "firmware",
-    "state": "catalog-only",
-    "installation": "operator-managed",
-    "description": "Toolchain version is detected by the operator-managed runner; no automatic installation in this release.",
+    "state": "pilot",
+    "installation": "maincreate-managed",
+    "description": "Versioned Espressif firmware toolchain. Builds complete ESP32 firmware bundles; deployment flashes firmware to a matching ESP32 device. Firmware backup and restore operate on firmware-image objects, not generic device backups.",
+    "publisher": {
+      "name": "Espressif Systems",
+      "source": "https://github.com/espressif/esp-idf"
+    },
+    "trust": {
+      "tier": "maincreate-endorsed-pending-validation",
+      "basis": "official-upstream-release",
+      "versionValidationRequired": true
+    },
     "capabilities": [
       "firmware.esp_idf.build",
-      "workflow.esp_idf.preflight_build"
+      "firmware.esp_idf.flash",
+      "firmware.esp_idf.backup",
+      "firmware.esp_idf.restore"
+    ],
+    "versions": [
+      {
+        "version": "5.5.6",
+        "channel": "stable",
+        "status": "pilot",
+        "releaseUrl": "https://github.com/espressif/esp-idf/releases/tag/v5.5.6",
+        "installer": {
+          "name": "Espressif Installation Manager CLI",
+          "version": "0.21.1",
+          "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+        },
+        "components": {
+          "framework": "ESP-IDF",
+          "frameworkVersion": "5.5.6",
+          "installer": "EIM CLI 0.21.1",
+          "buildTools": [
+            "CMake",
+            "Ninja",
+            "Python"
+          ],
+          "toolchain": "version-matched Espressif cross-compilers"
+        },
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            }
+          ],
+          "build": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            }
+          ],
+          "deploy": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "backup": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "restore": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ]
+        },
+        "deviceSupport": {
+          "families": [
+            "espressif-esp32"
+          ],
+          "chips": [
+            "ESP32",
+            "ESP32-S2",
+            "ESP32-S3",
+            "ESP32-C3",
+            "ESP32-C6",
+            "ESP32-H2",
+            "ESP32-P4"
+          ],
+          "transports": [
+            "usb-serial",
+            "usb-jtag"
+          ],
+          "probe": "esptool chip_id/read_mac",
+          "usbDescriptorIsChipProof": false,
+          "activeChipProbeRequired": true
+        },
+        "operations": {
+          "build": {
+            "capabilityId": "firmware.esp_idf.build",
+            "artifactType": "esp32-firmware-bundle",
+            "outputs": [
+              "bootloader",
+              "partition-table",
+              "application",
+              "declared-data-partitions",
+              "merged-full-firmware-image"
+            ],
+            "targetFamily": "espressif-esp32",
+            "runnerLabels": [
+              "toolkit-esp-idf-5-5-6",
+              "capability-firmware-build",
+              "target-esp32"
+            ]
+          },
+          "deploy": {
+            "capabilityId": "firmware.esp_idf.flash",
+            "operationType": "flash-firmware-image",
+            "artifactType": "esp32-firmware-bundle",
+            "targetObjectType": "esp32-device",
+            "requiresActiveChipProbe": true,
+            "requiresMatchingChipAndFlashLayout": true,
+            "requiresExplicitApproval": true,
+            "runnerLabels": [
+              "toolkit-esp-idf-5-5-6",
+              "capability-firmware-deploy",
+              "target-esp32"
+            ]
+          },
+          "backup": {
+            "capabilityId": "firmware.esp_idf.backup",
+            "objectType": "esp32-device-firmware-image",
+            "methods": [
+              "flash-readback",
+              "partition-table-read"
+            ],
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "limitations": [
+              "Readback can be blocked or unusable with flash encryption, secure boot, read protection, or chip-specific security configuration.",
+              "Backup manifest must record chip model, flash size, partition table, security observations, source device identity, SHA-256 and provenance.",
+              "This is a firmware-image backup, not a generic backup of all device state or external peripherals."
+            ],
+            "runnerLabels": [
+              "toolkit-esp-idf-5-5-6",
+              "capability-firmware-backup",
+              "target-esp32"
+            ]
+          },
+          "restore": {
+            "capabilityId": "firmware.esp_idf.restore",
+            "objectType": "esp32-device-firmware-image",
+            "operationType": "restore-firmware-image",
+            "requiresExactChipMatch": true,
+            "requiresFlashSizeMatch": true,
+            "requiresPartitionLayoutMatch": true,
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "limitations": [
+              "Reject incompatible chip family, flash size, partition layout or security state."
+            ],
+            "runnerLabels": [
+              "toolkit-esp-idf-5-5-6",
+              "capability-firmware-restore",
+              "target-esp32"
+            ]
+          }
+        },
+        "lifecycle": {
+          "install": {
+            "state": "pilot",
+            "recipeId": "espressif.esp-idf.install",
+            "versionScoped": true,
+            "requiresExplicitApproval": true,
+            "capabilityId": "sdk.esp_idf.install"
+          },
+          "build": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.build",
+            "requiresInstalledVersion": true,
+            "requiresPinnedProjectRevision": true,
+            "versionGuardRequired": true
+          },
+          "deploy": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.flash",
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "requiresMatchingChipAndImage": true
+          },
+          "backup": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.backup",
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true
+          },
+          "restore": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.restore",
+            "requiresExactDeviceMatch": true,
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true
+          },
+          "cleanup": {
+            "state": "pilot",
+            "recipeId": "espressif.esp-idf.remove-version",
+            "instructions": "Remove only the selected EIM-managed ESP-IDF version and its version-owned toolchain/cache after active jobs release it. Show a dry-run inventory and require approval.",
+            "preserves": [
+              "project checkouts",
+              "sdkconfig and sdkconfig.defaults",
+              "build outputs and firmware artifacts",
+              "logs",
+              "firmware backups",
+              "other installed ESP-IDF versions"
+            ]
+          }
+        },
+        "constraints": [
+          "A build runner and a firmware deployment runner may be different machines; pass a signed artifact manifest between them.",
+          "Register GitHub labels only after the exact version and capability are verified on that runner.",
+          "The current ESP-IDF build adapter is partial until it enforces the marketplace-selected installed version."
+        ],
+        "installers": [
+          {
+            "os": "linux",
+            "architecture": "x64",
+            "artifact": "eim-cli-linux-x64-v0.21.1.zip",
+            "sha256": "87a1d17c0208fe402269d39f471d862525ca902045b1a97f8af99902342fea8b",
+            "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+          },
+          {
+            "os": "linux",
+            "architecture": "arm64",
+            "artifact": "eim-cli-linux-aarch64-v0.21.1.zip",
+            "sha256": "dbb7db88869b985404757270c4b7e3a62a701759e0c224722a8cfa2414d08180",
+            "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+          }
+        ]
+      },
+      {
+        "version": "6.1.1",
+        "channel": "stable",
+        "status": "pilot",
+        "releaseUrl": "https://github.com/espressif/esp-idf/releases/tag/v6.1.1",
+        "installer": {
+          "name": "Espressif Installation Manager CLI",
+          "version": "0.21.1",
+          "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+        },
+        "components": {
+          "framework": "ESP-IDF",
+          "frameworkVersion": "6.1.1",
+          "installer": "EIM CLI 0.21.1",
+          "buildTools": [
+            "CMake",
+            "Ninja",
+            "Python"
+          ],
+          "toolchain": "version-matched Espressif cross-compilers"
+        },
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            }
+          ],
+          "build": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            }
+          ],
+          "deploy": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "backup": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "restore": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required",
+              "requiresConnectedDevice": true
+            }
+          ]
+        },
+        "deviceSupport": {
+          "families": [
+            "espressif-esp32"
+          ],
+          "chips": [
+            "ESP32",
+            "ESP32-S2",
+            "ESP32-S3",
+            "ESP32-C3",
+            "ESP32-C6",
+            "ESP32-H2",
+            "ESP32-P4"
+          ],
+          "transports": [
+            "usb-serial",
+            "usb-jtag"
+          ],
+          "probe": "esptool chip_id/read_mac",
+          "usbDescriptorIsChipProof": false,
+          "activeChipProbeRequired": true
+        },
+        "operations": {
+          "build": {
+            "capabilityId": "firmware.esp_idf.build",
+            "artifactType": "esp32-firmware-bundle",
+            "outputs": [
+              "bootloader",
+              "partition-table",
+              "application",
+              "declared-data-partitions",
+              "merged-full-firmware-image"
+            ],
+            "targetFamily": "espressif-esp32",
+            "runnerLabels": [
+              "toolkit-esp-idf-6-1-1",
+              "capability-firmware-build",
+              "target-esp32"
+            ]
+          },
+          "deploy": {
+            "capabilityId": "firmware.esp_idf.flash",
+            "operationType": "flash-firmware-image",
+            "artifactType": "esp32-firmware-bundle",
+            "targetObjectType": "esp32-device",
+            "requiresActiveChipProbe": true,
+            "requiresMatchingChipAndFlashLayout": true,
+            "requiresExplicitApproval": true,
+            "runnerLabels": [
+              "toolkit-esp-idf-6-1-1",
+              "capability-firmware-deploy",
+              "target-esp32"
+            ]
+          },
+          "backup": {
+            "capabilityId": "firmware.esp_idf.backup",
+            "objectType": "esp32-device-firmware-image",
+            "methods": [
+              "flash-readback",
+              "partition-table-read"
+            ],
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "limitations": [
+              "Readback can be blocked or unusable with flash encryption, secure boot, read protection, or chip-specific security configuration.",
+              "Backup manifest must record chip model, flash size, partition table, security observations, source device identity, SHA-256 and provenance.",
+              "This is a firmware-image backup, not a generic backup of all device state or external peripherals."
+            ],
+            "runnerLabels": [
+              "toolkit-esp-idf-6-1-1",
+              "capability-firmware-backup",
+              "target-esp32"
+            ]
+          },
+          "restore": {
+            "capabilityId": "firmware.esp_idf.restore",
+            "objectType": "esp32-device-firmware-image",
+            "operationType": "restore-firmware-image",
+            "requiresExactChipMatch": true,
+            "requiresFlashSizeMatch": true,
+            "requiresPartitionLayoutMatch": true,
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "limitations": [
+              "Reject incompatible chip family, flash size, partition layout or security state."
+            ],
+            "runnerLabels": [
+              "toolkit-esp-idf-6-1-1",
+              "capability-firmware-restore",
+              "target-esp32"
+            ]
+          }
+        },
+        "lifecycle": {
+          "install": {
+            "state": "pilot",
+            "recipeId": "espressif.esp-idf.install",
+            "versionScoped": true,
+            "requiresExplicitApproval": true,
+            "capabilityId": "sdk.esp_idf.install"
+          },
+          "build": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.build",
+            "requiresInstalledVersion": true,
+            "requiresPinnedProjectRevision": true,
+            "versionGuardRequired": true
+          },
+          "deploy": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.flash",
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true,
+            "requiresMatchingChipAndImage": true
+          },
+          "backup": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.backup",
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true
+          },
+          "restore": {
+            "state": "pilot",
+            "capabilityId": "firmware.esp_idf.restore",
+            "requiresExactDeviceMatch": true,
+            "requiresActiveChipProbe": true,
+            "requiresExplicitApproval": true
+          },
+          "cleanup": {
+            "state": "pilot",
+            "recipeId": "espressif.esp-idf.remove-version",
+            "instructions": "Remove only the selected EIM-managed ESP-IDF version and its version-owned toolchain/cache after active jobs release it. Show a dry-run inventory and require approval.",
+            "preserves": [
+              "project checkouts",
+              "sdkconfig and sdkconfig.defaults",
+              "build outputs and firmware artifacts",
+              "logs",
+              "firmware backups",
+              "other installed ESP-IDF versions"
+            ]
+          }
+        },
+        "constraints": [
+          "A build runner and a firmware deployment runner may be different machines; pass a signed artifact manifest between them.",
+          "Register GitHub labels only after the exact version and capability are verified on that runner.",
+          "The current ESP-IDF build adapter is partial until it enforces the marketplace-selected installed version."
+        ],
+        "installers": [
+          {
+            "os": "linux",
+            "architecture": "x64",
+            "artifact": "eim-cli-linux-x64-v0.21.1.zip",
+            "sha256": "87a1d17c0208fe402269d39f471d862525ca902045b1a97f8af99902342fea8b",
+            "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+          },
+          {
+            "os": "linux",
+            "architecture": "arm64",
+            "artifact": "eim-cli-linux-aarch64-v0.21.1.zip",
+            "sha256": "dbb7db88869b985404757270c4b7e3a62a701759e0c224722a8cfa2414d08180",
+            "source": "https://github.com/espressif/idf-im-ui/releases/tag/v0.21.1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "arduino-cli",
+    "schemaVersion": 2,
+    "displayName": "Arduino CLI",
+    "category": "firmware",
+    "state": "pilot",
+    "installation": "maincreate-managed",
+    "description": "Version-pinned Arduino CLI installation for Linux ARM64 and x64 builders. This toolkit installs and compiles Arduino sketches; device upload is a separate board- and transport-specific operation.",
+    "publisher": {
+      "name": "Arduino",
+      "source": "https://github.com/arduino/arduino-cli"
+    },
+    "trust": {
+      "tier": "maincreate-endorsed",
+      "basis": "official-upstream-release",
+      "versionValidationRequired": true
+    },
+    "capabilities": [
+      "sdk.arduino_cli.install"
+    ],
+    "versions": [
+      {
+        "version": "1.5.1",
+        "channel": "stable",
+        "status": "pilot",
+        "releaseUrl": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1",
+        "installer": {
+          "name": "Arduino CLI",
+          "version": "1.5.1",
+          "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+        },
+        "installers": [
+          {
+            "os": "linux",
+            "architecture": "arm64",
+            "artifact": "arduino-cli_1.5.1_Linux_ARM64.tar.gz",
+            "sha256": "1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62",
+            "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+          },
+          {
+            "os": "linux",
+            "architecture": "x64",
+            "artifact": "arduino-cli_1.5.1_Linux_64bit.tar.gz",
+            "sha256": "28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b",
+            "source": "https://github.com/arduino/arduino-cli/releases/tag/v1.5.1"
+          }
+        ],
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            }
+          ],
+          "build": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            }
+          ],
+          "deploy": [],
+          "backup": [],
+          "restore": []
+        },
+        "lifecycle": {
+          "install": {
+            "state": "available",
+            "recipeId": "arduino-cli.install",
+            "versionScoped": true,
+            "requiresExplicitApproval": true,
+            "capabilityId": "sdk.arduino_cli.install"
+          },
+          "build": {
+            "state": "planned",
+            "capabilityId": "arduino.sketch.build"
+          },
+          "deploy": {
+            "state": "unsupported"
+          },
+          "backup": {
+            "state": "unsupported"
+          },
+          "restore": {
+            "state": "unsupported"
+          },
+          "cleanup": {
+            "state": "planned",
+            "recipeId": "arduino-cli.remove-version",
+            "instructions": "Remove only the selected per-user Arduino CLI version after active jobs release it; preserve sketch projects, build artifacts and configuration."
+          }
+        },
+        "operations": {
+          "build": {
+            "capabilityId": "arduino.sketch.build",
+            "artifactType": "arduino-firmware-bundle"
+          },
+          "deploy": {
+            "capabilityId": "arduino.device.upload",
+            "operationType": "board-specific-upload"
+          },
+          "backup": {
+            "capabilityId": "arduino.device.backup",
+            "objectType": "device-firmware"
+          },
+          "restore": {
+            "capabilityId": "arduino.device.restore",
+            "objectType": "device-firmware"
+          }
+        },
+        "constraints": [
+          "Board cores and upload protocols are separate versioned dependencies; installing Arduino CLI alone does not enable flashing."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "android-sdk",
+    "schemaVersion": 2,
+    "displayName": "Android SDK & Device Tooling",
+    "category": "mobile",
+    "state": "pilot",
+    "installation": "maincreate-managed",
+    "description": "Versioned Android application build and deployment toolchain. Builds APK/AAB application artifacts and deploys APKs with ADB. It does not build or flash Android firmware/system images.",
+    "publisher": {
+      "name": "Google Android Developers",
+      "source": "https://developer.android.com/studio"
+    },
+    "trust": {
+      "tier": "maincreate-endorsed-pending-validation",
+      "basis": "official-upstream-release",
+      "versionValidationRequired": true
+    },
+    "capabilities": [
+      "android.app.build"
+    ],
+    "versions": [
+      {
+        "version": "2026.2.2-patch1",
+        "channel": "stable",
+        "status": "pilot",
+        "releaseUrl": "https://developer.android.com/studio/releases",
+        "installer": {
+          "name": "Android SDK Command-line Tools",
+          "version": "15859902",
+          "source": "https://developer.android.com/studio/releases"
+        },
+        "components": {
+          "androidStudio": "2026.2.2 Patch 1",
+          "commandLineTools": "15859902",
+          "platformTools": "37.0.1",
+          "buildTools": "36.0.0",
+          "sdkPlatforms": [
+            "android-37",
+            "android-22"
+          ],
+          "ndk": "install only for projects with native code"
+        },
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "unsupported",
+              "reason": "Google does not publish Linux ARM64 Android command-line tools and does not support Android Studio on ARM-based Linux hosts."
+            }
+          ],
+          "build": [
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            },
+            {
+              "os": "macos",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "macos",
+              "architecture": "arm64",
+              "status": "validation-required"
+            },
+            {
+              "os": "windows",
+              "architecture": "x64",
+              "status": "validation-required"
+            },
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "unsupported",
+              "reason": "Google does not publish Linux ARM64 Android command-line tools and does not support Android Studio on ARM-based Linux hosts."
+            }
+          ],
+          "deploy": [],
+          "backup": [],
+          "restore": []
+        },
+        "deviceSupport": {
+          "families": [
+            "android-device"
+          ],
+          "transports": [
+            "adb-usb"
+          ],
+          "adbAuthorizationRequired": true,
+          "deviceModelProbeRequired": true,
+          "targetProfiles": [
+            {
+              "id": "android-current-api37",
+              "androidVersion": "Android 17",
+              "apiLevel": 37,
+              "compileSdk": 37,
+              "targetSdk": 37,
+              "minSdk": "project-defined",
+              "artifactTypes": [
+                "apk",
+                "aab"
+              ],
+              "notes": "Current Android app build target. Deployment requires a separate Android 17 device profile and compatible ADB runner.",
+              "runnerLabels": [
+                "target-android-api-37"
+              ]
+            },
+            {
+              "id": "android-legacy-api22-eink",
+              "androidVersion": "Android 5.1.1",
+              "apiLevel": 22,
+              "compileSdk": 37,
+              "targetSdk": 22,
+              "minSdk": 22,
+              "installableArtifact": "apk",
+              "nativeAbi": "armeabi-v7a",
+              "deviceProfileRef": "avalue-epd-42s",
+              "notes": "Legacy application target for the user's 42-inch E Ink device. Build with modern tools but enforce API 22 runtime compatibility and 32-bit ARMv7 native ABI where native libraries are used.",
+              "runnerLabels": [
+                "target-android-api-22",
+                "target-device-avalue-epd-42s",
+                "target-abi-armeabi-v7a"
+              ]
+            }
+          ]
+        },
+        "operations": {
+          "build": {
+            "capabilityId": "android.app.build",
+            "artifactTypes": [
+              "apk",
+              "aab"
+            ],
+            "targetProfiles": [
+              "android-current-api37",
+              "android-legacy-api22-eink"
+            ],
+            "runnerLabels": [
+              "toolkit-android-sdk-2026-2-2-patch1",
+              "capability-android-app-build"
+            ]
+          }
+        },
+        "lifecycle": {
+          "install": {
+            "state": "pilot",
+            "recipeId": "android.sdk.install",
+            "versionScoped": true,
+            "requiresExplicitApproval": true,
+            "requiresGoogleSdkLicenseAcceptance": true,
+            "capabilityId": "sdk.android_sdk.install"
+          },
+          "build": {
+            "state": "pilot",
+            "capabilityId": "android.app.build",
+            "requiresPinnedProjectRevision": true,
+            "requiresProjectGradleWrapper": true
+          },
+          "deploy": {
+            "state": "unsupported",
+            "instructions": "Android application deployment is provided by the separate android-adb device toolkit; Android SDK installation is not required on the device-connected runner."
+          },
+          "backup": {
+            "state": "unsupported",
+            "instructions": "APK package backup is provided by the separate android-adb device toolkit."
+          },
+          "restore": {
+            "state": "unsupported",
+            "instructions": "APK package restore is provided by the separate android-adb device toolkit."
+          },
+          "cleanup": {
+            "state": "pilot",
+            "recipeId": "android.sdk.remove-version",
+            "instructions": "Remove only the selected Main{Create}-managed Android SDK/toolchain version after active jobs release it. Show a dry-run inventory and require approval. Reference-count shared SDK components, platform-tools and JDK before removal.",
+            "preserves": [
+              "Android project checkouts",
+              "Gradle wrapper configuration and caches",
+              "APK/AAB artifacts",
+              "application signing keystores and passwords",
+              "application backups and exports",
+              "ADB authorization keys",
+              "other Android SDK versions"
+            ]
+          }
+        },
+        "constraints": [
+          "Android app builds are supported on Linux x64, macOS x64/ARM64 and Windows x64; Linux ARM64 is not supported by Google's published host toolchain.",
+          "Android app deployment is ADB package installation, not Fastboot firmware flashing.",
+          "The Android 5.1.1 E Ink target is API 22 and ARMv7/armeabi-v7a; build an APK for direct sideloading.",
+          "The E Ink panel driver and vendor EPDC integration are device/BSP-specific and are not supplied by the generic Android SDK.",
+          "The current Android profile uses stable Platform-Tools 37.0.1; 37.0.3 is Canary and is not selected."
+        ],
+        "installers": [
+          {
+            "os": "linux",
+            "architecture": "x64",
+            "artifact": "commandlinetools-linux-15859902_latest.zip",
+            "sha256": "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583",
+            "source": "https://developer.android.com/studio/releases"
+          }
+        ],
+        "projectRequirements": {
+          "compileSdk": 37,
+          "defaultTargetSdk": 37,
+          "legacyTargetSdk": 22,
+          "legacyMinSdk": 22,
+          "legacyNativeAbi": "armeabi-v7a",
+          "androidGradlePlugin": "9.5.1",
+          "gradleWrapper": "9.6.0",
+          "jdkMinimum": 17
+        },
+        "prerequisites": [
+          {
+            "id": "java-runtime",
+            "minimumMajorVersion": 17,
+            "installation": "operator-managed",
+            "requiredFor": [
+              "sdkmanager",
+              "gradle-build"
+            ],
+            "validation": "java -version",
+            "reason": "Android SDK command-line tools and Gradle builds require a supported JDK; Main{Create} verifies JDK 17 or newer and does not silently replace a host Java installation."
+          }
+        ]
+      }
     ]
   },
   {
@@ -66,6 +1128,223 @@
     "capabilities": [
       "web.static.publish.github_pages",
       "web.static.publish.cloudflare"
+    ]
+  },
+  {
+    "id": "android-adb",
+    "schemaVersion": 2,
+    "displayName": "Android ADB Device Tools",
+    "category": "device-tools",
+    "state": "pilot",
+    "installation": "maincreate-managed",
+    "description": "Device-side Android application operations. Uses the host-native ADB client to inspect connected Android devices, install APKs, export installed APK/split packages and reinstall verified package artifacts. It does not build Android applications or flash Android OS firmware.",
+    "publisher": {
+      "name": "Android Open Source Project / Debian package maintainers",
+      "source": "https://developer.android.com/tools/adb"
+    },
+    "trust": {
+      "tier": "maincreate-endorsed-pending-validation",
+      "basis": "distribution-signed-package-and-runtime-probe",
+      "versionValidationRequired": true
+    },
+    "capabilities": [
+      "android.app.deploy",
+      "android.app.backup",
+      "android.app.restore"
+    ],
+    "versions": [
+      {
+        "version": "system",
+        "channel": "stable",
+        "status": "pilot",
+        "installer": {
+          "name": "Host-native Android Debug Bridge",
+          "version": "distribution-managed",
+          "source": "https://packages.debian.org/adb"
+        },
+        "installers": [],
+        "components": {
+          "packageName": "adb",
+          "packageManager": "apt",
+          "installScope": "per-user extracted Debian package when no system ADB is available",
+          "verification": [
+            "adb version",
+            "adb devices -l",
+            "device authorization and model probe"
+          ]
+        },
+        "compatibility": {
+          "install": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported"
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported"
+            }
+          ],
+          "build": [],
+          "deploy": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "backup": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            }
+          ],
+          "restore": [
+            {
+              "os": "linux",
+              "architecture": "arm64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            },
+            {
+              "os": "linux",
+              "architecture": "x64",
+              "status": "supported",
+              "requiresConnectedDevice": true
+            }
+          ]
+        },
+        "deviceSupport": {
+          "families": [
+            "android-device"
+          ],
+          "transports": [
+            "adb-usb"
+          ],
+          "adbAuthorizationRequired": true,
+          "deviceModelProbeRequired": true,
+          "supportedDeviceProfiles": [
+            "avalue-epd-42s"
+          ]
+        },
+        "operations": {
+          "deploy": {
+            "capabilityId": "android.app.deploy",
+            "operationType": "adb-install-apk",
+            "artifactType": "android-apk",
+            "targetObjectType": "android-application-on-device",
+            "requiresConnectedDevice": true,
+            "requiresAdbAuthorization": true,
+            "requiresPackageAndApiCompatibility": true,
+            "runnerLabels": [
+              "toolkit-android-adb-system",
+              "capability-android-app-deploy",
+              "target-device-avalue-epd-42s",
+              "target-android-api-22",
+              "target-abi-armeabi-v7a"
+            ]
+          },
+          "backup": {
+            "capabilityId": "android.app.backup",
+            "objectType": "android-application-package-artifact",
+            "methods": [
+              "installed-base-and-split-apk-export"
+            ],
+            "requiresConnectedDevice": true,
+            "limitations": [
+              "Backs up installed APK/split APK artifacts only; no private app data or full-device backup."
+            ],
+            "runnerLabels": [
+              "toolkit-android-adb-system",
+              "capability-android-app-backup",
+              "target-device-avalue-epd-42s"
+            ]
+          },
+          "restore": {
+            "capabilityId": "android.app.restore",
+            "objectType": "android-application-package-artifact",
+            "methods": [
+              "adb-install-or-install-multiple-verified-apks"
+            ],
+            "requiresConnectedDevice": true,
+            "requiresPackageAndSignatureValidation": true,
+            "limitations": [
+              "Reinstalls verified APK/split APK package artifacts only; no private app data or Android OS firmware."
+            ],
+            "runnerLabels": [
+              "toolkit-android-adb-system",
+              "capability-android-app-restore",
+              "target-device-avalue-epd-42s"
+            ]
+          }
+        },
+        "lifecycle": {
+          "install": {
+            "state": "pilot",
+            "recipeId": "android.adb.install-debian",
+            "versionScoped": true,
+            "requiresExplicitApproval": true,
+            "capabilityId": "sdk.android_adb.install"
+          },
+          "build": {
+            "state": "unsupported",
+            "instructions": "Android application builds use the android-sdk toolkit on a compatible build host."
+          },
+          "deploy": {
+            "state": "pilot",
+            "capabilityId": "android.app.deploy",
+            "requiresConnectedDevice": true,
+            "requiresAdbAuthorization": true,
+            "requiresExplicitApproval": true
+          },
+          "backup": {
+            "state": "pilot",
+            "capabilityId": "android.app.backup",
+            "requiresConnectedDevice": true,
+            "requiresExplicitApproval": true
+          },
+          "restore": {
+            "state": "pilot",
+            "capabilityId": "android.app.restore",
+            "requiresConnectedDevice": true,
+            "requiresExplicitApproval": true
+          },
+          "cleanup": {
+            "state": "pilot",
+            "recipeId": "android.adb.remove",
+            "instructions": "Remove only the Main{Create}-managed per-user ADB package copy and manifest. Preserve system ADB packages, device authorization keys, projects, APK artifacts and backups.",
+            "preserves": [
+              "system ADB package",
+              "ADB authorization keys",
+              "APK artifacts",
+              "application backups",
+              "Android projects"
+            ]
+          }
+        },
+        "constraints": [
+          "ADB is a device-operation adapter, not an Android SDK build host.",
+          "Linux ARM64 ADB is distribution-managed; its exact package version is recorded from the signed OS package and verified at runtime.",
+          "The EPD-42S profile requires Android 5.1.1/API 22 and armeabi-v7a compatibility.",
+          "Only APK package artifacts are backed up/restored; private app data and full-device images are out of scope."
+        ]
+      }
     ]
   }
 ]
