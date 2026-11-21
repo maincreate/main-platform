@@ -15,7 +15,7 @@ const host=(id,caps=["host.snapshot"])=>({
 const context=r=>({runners:[r]});
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
 test("Queued and claimed jobs defer automatic Host upgrades until execution finishes",()=>{
- assert.equal(HOST_RELEASE,"0.8.14");
+ assert.equal(HOST_RELEASE,"0.8.15");
  const runner=host("a");
  const planned=fabricCall("maincreate_plan",{capability:"host.snapshot",runner_id:runner.id,parameters:{}},context(runner));
  const job=fabricCall("maincreate_execute",{plan_id:planned.plan_id},context(runner)).job;
