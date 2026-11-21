@@ -293,7 +293,8 @@ export function claimJob(runner,supported=null){
  if(s.jobs.some(j=>j.runnerId===runner.id&&j.status==="running"))return {job:null};
  // Carry pre-upgrade approval-pending jobs forward when their runner polls.
  // These are already typed jobs submitted by an authenticated caller.
- for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval")old.status="queued";
+ for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval"&&
+   old.capability!=="firmware.esp_idf.flash")old.status="queued";
  const allowed=supported===null?null:new Set(supported);
  const j=s.jobs.find(x=>x.runnerId===runner.id&&x.status==="queued"&&
   (allowed===null||x.steps.every(step=>allowed.has(step.capability))));
@@ -326,6 +327,23 @@ export function reportJob(runner,args){
 export function agentAsset(runner,args){
  const jobId=args.job_id,s=store(),j=s.jobs.find(x=>x.id===jobId);
  if(!j||j.runnerId!==runner.id||j.status!=="running")throw error(403,"Runner does not own this running job");
+ if(args.action==="source_get"){
+  // Only the currently claimed, separately approved flash job can retrieve
+  // firmware from its immutable, completed source build.
+  if(j.capability!=="firmware.esp_idf.flash"||
+     !/^[a-f0-9]{32}$/.test(args.source_job_id||"")||
+     j.parameters?.source_job_id!==args.source_job_id)
+   throw error(403,"Source asset access is not authorized for this job");
+  const source=s.jobs.find(x=>x.id===args.source_job_id&&
+   x.status==="completed"&&x.capability==="firmware.esp_idf.smoke_build");
+  if(!source)throw error(403,"Approved firmware source build not available");
+  const allowed=["esp32s3-firmware.bin","esp32s3-bootloader.bin",
+   "esp32s3-partitions.bin","esp32s3-firmware-manifest.json"];
+  if(!allowed.includes(args.name))throw error(403,"Firmware source filename not approved");
+  const asset=s.assets.find(a=>a.jobId===source.id&&a.name===args.name&&a.complete);
+  if(!asset||!source.assetIds.includes(asset.id))throw error(404,"Source artifact incomplete");
+  return getAsset({asset_id:asset.id,offset:args.offset,length:args.length});
+ }
  if(args.action==="begin")return beginAsset(args,{jobId});
  const asset=s.assets.find(a=>a.id===args.asset_id&&a.jobId===jobId);
  if(!asset)throw error(403,"Asset not owned by running job");
