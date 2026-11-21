@@ -21,9 +21,14 @@
    cell(row,run.created_at?new Date(run.created_at).toLocaleString():"—");
    const actions=cell(row,""),link=el("a","View in GitHub");
    link.className="plain-button";link.href=run.url;link.target="_blank";link.rel="noopener noreferrer";actions.append(link);
-   if(run.conclusion==="success"){
-    const flash=el("button","Flash device");flash.type="button";flash.className="plain-button";
-    flash.addEventListener("click",()=>window.openGitHubFlash?.(run));actions.append(flash);
+   if(run.conclusion==="success"&&run.repository==="BuilderBench/esp32-expression"&&run.branch==="main"){
+    const importer=el("button","Import verified firmware");
+    importer.type="button";importer.className="plain-button";
+    importer.addEventListener("click",async()=>{
+      importer.disabled=true;
+      try{await window.importGitHubFirmware?.(run);}finally{importer.disabled=false;}
+    });
+    actions.append(importer);
    }
    tbody.append(row);
   }
