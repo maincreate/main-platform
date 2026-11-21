@@ -282,3 +282,11 @@ body>.main{margin:0 0 0 var(--maincreate-sidebar-width);width:calc(100% - var(--
 .maincreate-ai-advanced summary{cursor:pointer;color:var(--muted);font-size:13px}
 .maincreate-ai-advanced p{margin-top:12px}
 @media(max-width:650px){.maincreate-ai-connection .setting-row{align-items:flex-start;flex-direction:column;gap:7px}.maincreate-ai-step{grid-template-columns:28px minmax(0,1fr);gap:10px}}
+
+/* Shared software lifecycle affordances used on Builders and Projects. */
+.mc-software-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:7px}
+.mc-software-tag{display:inline-flex;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:11px;text-decoration:none;color:var(--text);white-space:nowrap}
+.mc-software-tag:hover{border-color:var(--accent);color:var(--accent)}
+.mc-project-readiness{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;margin-top:6px}
+.mc-project-readiness.ready{color:#198268}.mc-project-readiness.setup-needed{color:#a77428}
+.mc-project-readiness.unavailable{color:#a84f4f}.mc-project-readiness.unknown{color:var(--muted)}
