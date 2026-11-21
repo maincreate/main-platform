@@ -31,9 +31,9 @@ func probeESP32Managed(c config,jobID,port string)(string,error){
    "--do-not-track","true","run",
    "python -m esptool --port "+port+" "+subcommand,"v"+version)
  }
- chip,err:=run("chip-id");if err!=nil{return "",fmt.Errorf("read-only chip identification failed: %w",err)}
- mac,err:=run("read-mac");if err!=nil{return "",fmt.Errorf("read-only MAC identification failed: %w",err)}
- flash,err:=run("flash-id");if err!=nil{return "",fmt.Errorf("read-only flash identification failed: %w",err)}
+ chip,err:=run(espToolChipCommand);if err!=nil{return "",fmt.Errorf("read-only chip identification failed: %w",err)}
+ mac,err:=run(espToolMACCommand);if err!=nil{return "",fmt.Errorf("read-only MAC identification failed: %w",err)}
+ flash,err:=run(espToolFlashCommand);if err!=nil{return "",fmt.Errorf("read-only flash identification failed: %w",err)}
  result,err:=parseESP32ProbeThree(port,chip,mac,flash);if err!=nil{return "",err}
  // A successful probe is NOT a security-state check and NOT flash approval.
  result.SecurityVerified=false
