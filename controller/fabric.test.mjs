@@ -280,3 +280,15 @@ test("running flash job may read only immutable, explicitly bound firmware sourc
  assert.throws(()=>agentAsset(runner,{job_id:flash.id,action:"source_get",source_job_id:build.id,
   name:"esp32s3-firmware.bin"}),/not authorized/);
 });
+
+test("pending device-write approval is never silently promoted when a runner reconnects",()=>{
+ const p=invoke("maincreate_plan",snapshot),j=invoke("maincreate_execute",{plan_id:p.plan_id}).job;
+ const file=join(dir,"fabric.json"),s=JSON.parse(readFileSync(file,"utf8"));
+ const pending=s.jobs.find(x=>x.id===j.id);
+ pending.capability="firmware.esp_idf.flash";
+ pending.status="awaiting_approval";
+ pending.steps=[{index:0,capability:"firmware.esp_idf.flash",status:"pending"}];
+ writeFileSync(file,JSON.stringify(s));
+ claimJob(runner,["firmware.esp_idf.flash"]);
+ assert.equal(invoke("maincreate_jobs",{action:"get",job_id:j.id}).job.status,"awaiting_approval");
+});
