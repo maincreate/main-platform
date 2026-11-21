@@ -2,7 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
+import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade} from "./host_routes.mjs";
 import {storageRoute} from "./storage.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
@@ -1167,6 +1167,10 @@ export async function localRoute(req) {
        typeof p.version==="string"&&p.version.length<=100)){
         runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
         runner.packagesObservedAt=runner.lastSeen;
+      }
+      if(runner.hostVersion&&process.env.MAIN_AUTO_HOST_UPGRADE!=="0"){
+       try{queueManagedHostUpgrade(s,runner,rnd)}
+       catch(e){console.warn("Managed host upgrade not queued:",e.message)}
       }
       save(s);return reply({ok:true});
     }
