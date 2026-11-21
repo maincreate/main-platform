@@ -16,6 +16,15 @@
   <button type="button" class="plain-button" id="refreshActions">Refresh workflows</button></div>
   <div class="inventory-toolbar"><input id="actionSearch" type="search" placeholder="Search workflows or repositories" aria-label="Search GitHub Actions runs"><select id="actionStatus" aria-label="Filter workflow status"><option value="all">All runs</option><option value="success">Successful</option><option value="failure">Failed</option><option value="in_progress">In progress</option><option value="queued">Queued</option><option value="cancelled">Cancelled</option></select></div><div id="githubActionsRuns" aria-live="polite">Loading…</div>
  </section>
+ <section class="jobs-panel" aria-labelledby="expression-import-heading">
+  <div class="section-head"><div><h2 id="expression-import-heading">Import Expressions firmware</h2>
+   <p>Import a successful main-branch Luma Pet GitHub Actions build. Main{Create} verifies its source commit and SHA-256 binaries before offering a device flash.</p></div></div>
+  <label for="expressionsRunId">GitHub Actions run ID</label>
+  <div class="inventory-toolbar">
+   <input id="expressionsRunId" type="text" inputmode="numeric" autocomplete="off" placeholder="Paste successful Expressions workflow run ID" aria-label="GitHub Actions run ID">
+   <button id="importExpressionsRun" type="button" class="plain-button">Verify and import firmware</button>
+  </div>
+ </section>
  <section class="jobs-panel" aria-labelledby="history-heading">
   <div class="section-head" id="history"><div><h2 id="history-heading">Local operations and approvals</h2>
    <p>Select a job to inspect steps, logs and artifacts. Completed firmware builds can be associated with a device for a future approved flash operation.</p></div>
