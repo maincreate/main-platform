@@ -588,7 +588,7 @@ export async function localRoute(req) {
             if(active){target.status="already_queued";target.jobId=active.id;continue;}
             try{
               const jobPlan=fabricCall("maincreate_plan",{
-                capability:release.installCapabilityId,runner_id:host.id,parameters:{}},{runners:s.runners});
+                capability:release.installCapabilityId,runner_id:host.id,parameters:release.family==="esp-idf"?{version:release.version}:{}},{runners:s.runners});
               const job=fabricCall("maincreate_execute",{plan_id:jobPlan.plan_id},{runners:s.runners}).job;
               target.status=job.status;target.jobId=job.id;
             }catch(e){target.status="failed";target.error=String(e.message||"Installation scheduling failed").slice(0,240);}
@@ -635,7 +635,7 @@ export async function localRoute(req) {
             const match=classifyBuilder(runner,release,"install");
             if(!match.compatible){target.status="failed";target.error=match.reason;failures.push(target.builderId);continue;}
             try{
-              const fabricPlan=fabricCall("maincreate_plan",{capability:release.installCapabilityId,runner_id:runner.id,parameters:{}},{runners:s.runners});
+              const fabricPlan=fabricCall("maincreate_plan",{capability:release.installCapabilityId,runner_id:runner.id,parameters:release.family==="esp-idf"?{version:release.version}:{}},{runners:s.runners});
               const job=fabricCall("maincreate_execute",{plan_id:fabricPlan.plan_id},{runners:s.runners}).job;
               plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
             }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
