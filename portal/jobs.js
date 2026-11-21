@@ -56,8 +56,8 @@ async function checkFlashReadiness(){
  let security=null;
  for(const j of inspections){const x=await readJobJSON(j,"esp32-security-info.json");
   if(x?.mac===identity.mac&&x.port===selected.port&&x.chip==="ESP32-S3"&&
-   /Secure Boot:\\s*Disabled/.test(x.raw_security_info||"")&&
-   /Flash Encryption:\\s*Disabled/.test(x.raw_security_info||"")){security=j;break;}
+   /Secure Boot:\s*Disabled/.test(x.raw_security_info||"")&&
+   /Flash Encryption:\s*Disabled/.test(x.raw_security_info||"")){security=j;break;}
  }
  if(!security){$("flashExplanation").textContent="A completed disabled-security inspection for this device is required.";return;}
  flashPreflight={port:selected.port,expected_mac:identity.mac,source_job_id:selectedFirmwareJob.id,
