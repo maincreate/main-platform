@@ -7,10 +7,14 @@ import {versionSatisfied} from "./project_monitor.mjs";
 const packageNames={"arduino-cli":"arduino-cli","esp-idf":"esp-idf","android-sdk":"android-sdk","android-adb":"adb","nodejs":"node"};
 const online=r=>!!r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&!!r.managedHost;
 const buildAdapters={"esp-idf":"firmware.esp_idf.build","arduino-cli":"firmware.arduino.build","nodejs":"web.static.build"};
-export const validVersion=(observed,version)=>version==="system"?
-  typeof observed==="string"&&observed.length>0:
-  typeof observed==="string"&&versionSatisfied(observed,version)&&
-   (observed.match(/(?:^|[^0-9])v?(\d+(?:\.\d+){0,2})(?!\d)/i)?.[1]===version);
+export const validVersion=(observed,version)=>{
+ if(typeof observed!=="string")return false;
+ if(version==="system")return /^Android Debug Bridge version \d+\.\d+\.\d+$/.test(observed);
+ // The Host Service reports canonical identities; arbitrary strings containing
+ // a version number are not evidence that the expected SDK is installed.
+ const found=/^(?:Arduino CLI |ESP-IDF v?|)(\d+\.\d+\.\d+)$/.exec(observed);
+ return !!found&&found[1]===version;
+};
 export function verifiedInstall(host,release){
  const name=packageNames[release.family]||release.family;
  const pkg=(host.packages||[]).find(p=>p.name===name&&validVersion(p.version,release.version));
