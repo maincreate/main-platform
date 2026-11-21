@@ -23,8 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.7"
-var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install"}
+const version="0.8.8"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -342,10 +342,13 @@ func hostSnapshot(c config)([]byte,error){
  },"","  ")
 }
 func uploadFabricSnapshot(c config,jobID string,payload []byte)error{
- if len(payload)<1||len(payload)>8*1024*1024{return errors.New("host snapshot exceeds artifact limit")}
+ return uploadFabricAsset(c,jobID,"host-snapshot.json","application/json",payload)
+}
+func uploadFabricAsset(c config,jobID,name,mime string,payload []byte)error{
+ if len(payload)<1||len(payload)>8*1024*1024{return errors.New("Fabric artifact exceeds upload limit")}
  var begin struct{Asset struct{ID string};MaxChunkBytes int}
  start:=map[string]any{"id":c.ID,"job_id":jobID,"action":"begin",
-  "name":"host-snapshot.json","mime":"application/json","size":len(payload)}
+  "name":name,"mime":mime,"size":len(payload)}
  if err:=post(c.Controller,"/api/agent/assets",c.Token,start,&begin);err!=nil{return err}
  if begin.Asset.ID==""{return errors.New("artifact begin missing ID")}
  size:=48*1024;if begin.MaxChunkBytes>0&&begin.MaxChunkBytes<size{size=begin.MaxChunkBytes}
@@ -380,6 +383,8 @@ func executeFabricJob(c config,job fabricJob)error{
     message,err=installArduinoCLI()
    case "sdk.esp_idf.install":
     message,err=installESPIdf(job.Parameters.Version)
+   case "firmware.esp_idf.smoke_build":
+    message,err=buildESPIdfSmoke(c,job.ID,job.Parameters.Version)
    default:
     err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
    }

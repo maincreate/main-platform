@@ -49,6 +49,21 @@ test("ESP-IDF installation requires an exact approved version",()=>{
  assert.throws(()=>invoke("maincreate_plan",{capability:"sdk.esp_idf.install",runner_id:runner.id,
   parameters:{}}),/Missing parameter: version/);
 });
+test("Fixed ESP32-S3 smoke build enforces EIM-managed ESP-IDF v5.5.6",()=>{
+ const good=invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
+  parameters:{version:"5.5.6"}});
+ assert.equal(good.parameters.version,"5.5.6");
+ assert.deepEqual(good.steps.map(s=>s.capability),["firmware.esp_idf.smoke_build"]);
+ assert.equal(good.requires_approval,false);
+ for(const version of ["","5.5.5","6.1.1","latest","5.5.6;sh"]){
+  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
+   parameters:{version}}),/Invalid parameter: version/);
+ }
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
+  parameters:{}}),/Missing parameter: version/);
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
+  parameters:{version:"5.5.6",command:"rm -rf /"}}),/Unsupported parameter/);
+});
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
   managedHost:true,githubRunnerName:"builder-linux-arm64-01",labels:["linux-arm64"],
