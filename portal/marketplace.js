@@ -113,6 +113,8 @@ function updateDetail(){
 function openInstaller(){
  if(!activeVersion)return;
  selection.clear();activeOperation=null;
+ const requested=qs.get("builder");
+ if(requested&&store?.hosts.some(h=>h.id===requested&&targetStatus(h,activeVersion).state==="available"))selection.add(requested);
  $("marketplaceInstallTitle").textContent="Install "+activeVersion.name+" "+activeVersion.version;
  $("marketplaceInstallFeedback").textContent="";
  $("marketplaceInstallProgress").replaceChildren();
