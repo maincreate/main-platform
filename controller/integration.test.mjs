@@ -214,7 +214,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const discovered=await fabricCall("maincreate_discover",{resource:"capabilities"});
    assert.equal(discovered.status,200);
    assert(discovered.data.capabilities.some(x=>x.id==="host.snapshot"));
-   assert(discovered.data.capabilities.some(x=>x.id==="firmware.esp_idf.flash"&&x.state==="unavailable"));
+   assert(discovered.data.capabilities.some(x=>x.id==="firmware.esp_idf.flash"&&x.state==="available"));
    const planned=await fabricCall("maincreate_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
    assert.equal(planned.status,200);
    assert.equal(planned.data.requires_approval,false);
