@@ -54,7 +54,7 @@ Use that result's `plan_id` in `maincreate_execute`; it queues a typed job. The 
 
 ## Machine opt-in
 
-The operator must set `MAIN_ENABLE_FABRIC_EXECUTION=1` on the **controller** after testing. Its default is **off** in this release; set it once per deployment. It does not require approving individual jobs.
+Fabric dispatch is enabled by default for authenticated, validated jobs in the development workspace. Set `MAIN_ENABLE_FABRIC_EXECUTION=0` on the controller only when intentionally pausing execution; remove an older deployment override set to `0` before testing. There are no per-job portal approvals.
 
 To enroll a machine, open **Jobs & Builders**, generate an expiring pairing token, and run the shown enrollment command from the trusted machine. Then start `node runner/agent.mjs run` using the same controller URL and saved enrollment state.
 
@@ -80,9 +80,9 @@ The state store is deliberately single-controller. Do not share its writable dir
 ## Verification before enabling live builds
 
 1. Run `npm test` on Node.js 22+ and verify the Docker image builds.
-2. With execution disabled, test authenticated job planning/queuing, rejected unsupported capabilities, and that jobs cannot be claimed yet.
+2. Test authenticated job planning/queuing, rejected unsupported capabilities and idempotent job submission. To test the emergency pause, explicitly set `MAIN_ENABLE_FABRIC_EXECUTION=0`, then restore it.
 3. Enroll a machine and verify heartbeats.
-4. Deliberately enable controller execution; request `host.snapshot` and retrieve the JSON artifact without a second approval click.
+4. Queue `host.snapshot` on a test builder and retrieve its JSON artifact without a second approval click.
 5. On a sandboxed ESP-IDF machine, opt into builds and verify a clean pinned checkout, logs, firmware artifacts, and SHA-256.
 6. Test cancellation before claim, failed jobs, and token rejection.
 7. Add standards-compliant remote MCP OAuth before treating a ChatGPT cloud connection as supported.
