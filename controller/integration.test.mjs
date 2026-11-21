@@ -212,6 +212,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(inspectReady.data.host_service.expected_version,"0.8.2");
    assert.equal(inspectReady.data.host_service.version_status,"current");
    assert.equal(inspectReady.data.github_runner.name,null);
+   assert.equal(inspectReady.data.github_runner.lookup_status,"not_registered");
+   assert.equal("installed_version" in inspectReady.data.github_runner,false);
    assert.deepEqual(inspectReady.data.packages,[{name:"node",version:"v22.0.0"}]);
    assert.equal("tokenHash" in inspectReady.data,false);
    const discoveredRunners=await fabricCall("maincreate_discover",{resource:"runners"});
