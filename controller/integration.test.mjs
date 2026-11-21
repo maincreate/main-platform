@@ -193,6 +193,22 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(hb.status,200);
    assert.equal(hb.data.ok,true);
    // End-to-end fabric API: authenticated planning queues immediately; the explicit emergency pause blocks claims.
+   // Marketplace: one verified inventory and no prerequisite saved-plan request.
+   assert.equal((await fetch(base+"/api/local/marketplace/state")).status,401);
+   const marketplace=await (await fetch(base+"/api/local/marketplace/state",{headers:{cookie}})).json();
+   assert(marketplace.software.some(x=>x.id==="arduino-cli"));
+   assert(marketplace.software.some(x=>x.id==="esp-idf"));
+   assert(marketplace.hosts.some(x=>x.id===enrolled.data.id));
+   assert(marketplace.releases.some(x=>x.family==="esp-idf"&&x.version==="5.5.6"));
+   assert.equal((await json(base,"/api/local/marketplace/install",{
+     request_id:"test-install-request-001",family:"arduino-cli",version:"1.5.1",
+     builder_ids:[enrolled.data.id]})).status,401);
+   assert.equal((await json(base,"/api/local/marketplace/install",{
+     request_id:"test-install-request-001",family:"arduino-cli",version:"1.5.1",
+     builder_ids:[enrolled.data.id]},{cookie})).status,403);
+   assert.equal((await json(base,"/api/local/marketplace/install",{
+     request_id:"bad",family:"arduino-cli",version:"1.5.1",
+     builder_ids:[enrolled.data.id]},{cookie,"x-maincreate-csrf":csrf})).status,422);
    const fabricHeaders={cookie,"x-maincreate-csrf":csrf};
    const fabricCall=async(tool,args={})=>json(base,"/api/local/fabric",{tool,arguments:args},fabricHeaders);
    const discovered=await fabricCall("maincreate_discover",{resource:"capabilities"});
