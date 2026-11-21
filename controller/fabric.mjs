@@ -293,7 +293,8 @@ export function claimJob(runner,supported=null){
  if(s.jobs.some(j=>j.runnerId===runner.id&&j.status==="running"))return {job:null};
  // Carry pre-upgrade approval-pending jobs forward when their runner polls.
  // These are already typed jobs submitted by an authenticated caller.
- for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval")old.status="queued";
+ for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval"&&
+   old.capability!=="firmware.esp_idf.flash")old.status="queued";
  const allowed=supported===null?null:new Set(supported);
  const j=s.jobs.find(x=>x.runnerId===runner.id&&x.status==="queued"&&
   (allowed===null||x.steps.every(step=>allowed.has(step.capability))));
