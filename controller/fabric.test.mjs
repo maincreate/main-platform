@@ -64,6 +64,20 @@ test("Fixed ESP32-S3 smoke build enforces EIM-managed ESP-IDF v5.5.6",()=>{
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
   parameters:{version:"5.5.6",command:"rm -rf /"}}),/Unsupported parameter/);
 });
+test("read-only ESP32 probe is typed and does not enable writes",()=>{
+ const capability=invoke("maincreate_discover",{resource:"capabilities"}).capabilities.find(x=>x.id==="firmware.esp_idf.probe");
+ assert.equal(capability.state,"available");
+ assert.equal(capability.risk,"read");
+ const planned=invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{port:"/dev/ttyACM0"}});
+ assert.equal(planned.parameters.port,"/dev/ttyACM0");
+ assert.deepEqual(planned.steps.map(s=>s.capability),["firmware.esp_idf.probe"]);
+ for(const port of ["/dev/ttyS0","/tmp/ttyUSB0","/dev/ttyUSB0;sh","/dev/ttyUSB0 --help","/dev/ttyUSB0/../ttyUSB1"]){
+  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{port}}),/Invalid parameter: port/);
+ }
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{}}),/Missing parameter: port/);
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{port:"/dev/ttyUSB0",command:"flash"}}),/Unsupported parameter/);
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
+});
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
   managedHost:true,githubRunnerName:"builder-linux-arm64-01",labels:["linux-arm64"],
