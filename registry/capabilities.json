@@ -6,9 +6,20 @@
     "risk": "host-modify",
     "state": "available",
     "description": "Install Arduino CLI 1.5.1 from an immutable official GitHub release tarball with an architecture-specific SHA-256 pin. Execution queues on any enrolled Linux host that advertises this native installer; downloads are SHA-256 pinned and installation never flashes devices.",
-    "platforms": ["linux"],
-    "parameters": {"type":"object","properties":{},"required":[],"additionalProperties":false},
-    "steps": [{"capability":"sdk.arduino_cli.install"}]
+    "platforms": [
+      "linux"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "sdk.arduino_cli.install"
+      }
+    ]
   },
   {
     "id": "host.snapshot",
@@ -110,18 +121,35 @@
   },
   {
     "id": "sdk.esp_idf.install",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "kind": "action",
     "risk": "host-modify",
-    "state": "unavailable",
-    "description": "Reserved for a signed and reviewed version-pinned installation recipe. Not executable.",
-    "platforms": [],
+    "state": "available",
+    "description": "Install only ESP-IDF v5.5.6 or v6.1.1 using official SHA-256 pinned EIM CLI 0.21.1, fixed Debian package prerequisites, private writable runtime home and idf.py exact version verification. Never executes arbitrary commands or flashes devices.",
+    "platforms": [
+      "linux"
+    ],
     "parameters": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "5.5.6",
+            "6.1.1"
+          ]
+        }
+      },
+      "required": [
+        "version"
+      ],
       "additionalProperties": false
     },
-    "steps": []
+    "steps": [
+      {
+        "capability": "sdk.esp_idf.install"
+      }
+    ]
   },
   {
     "id": "firmware.esp_idf.flash",
