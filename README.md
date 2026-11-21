@@ -138,3 +138,11 @@ curl -fsSLo /tmp/maincreate-install.sh https://main.ayusohaylock.com/install.sh 
 After installing, pair over SSH with the controller and confirm the fingerprint, then watch GitHub runner registration progress and confirm **Online**. **Validate runner**, **Upgrade Host Service** (checksum-pinned remote upgrade with rollback), and **Remove runner** / decommission behave identically for ARM64 and x64. The controller publishes `/downloads/maincreate-host-linux-{arm64,amd64}` with separate checksum manifests.
 
 A successful Host Service install or GitHub registration **does not** imply that an ESP-IDF/Android toolchain has been installed or a real build has passed; these remain separate capabilities and validations.
+
+## Production deployment verification
+
+Main{Create} runs as the Coolify **Main-Platform** application, sourced from `maincreate/main-platform` on branch `main`. An approved merge to `main` must produce a **webhook-triggered** Coolify deployment of that exact commit without a manual MCP/API deployment. CI passing or the merge succeeding alone does not establish that the running container changed.
+
+For each release, inspect Coolify → Main-Platform → Deployments: verify the commit SHA equals GitHub `main`, the deployment finished successfully, and the source indicates a webhook. Then verify the live controller's expected Host Service version and both enrolled builder versions. The application must be connected to the `maincreate` GitHub App and configured for **Advanced → Deployment → Auto deploy → Deploy on push (webhooks)**. If the app was created as a public-repository URL, configure a verified manual GitHub webhook or migrate its Git source to the GitHub App; merely enabling auto-deploy without an event source is insufficient.
+
+Do not use an MCP-triggered deployment as proof that GitHub-to-Coolify automation works.
