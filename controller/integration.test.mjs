@@ -189,7 +189,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(enrolled.status,200);
    assert.equal((await json(base,"/api/agent/enroll",request)).status,401);
    assert(!readFileSync(join(dir,"state.json"),"utf8").includes(enrolled.data.token));
-   const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id},{authorization:"Bearer "+enrolled.data.token});
+   const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id,fabricCapabilities:["host.snapshot"]},{authorization:"Bearer "+enrolled.data.token});
    assert.equal(hb.status,200);
    assert.equal(hb.data.ok,true);
    // End-to-end fabric API: authenticated planning queues immediately; the explicit emergency pause blocks claims.
@@ -225,6 +225,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(topoOverview.runners.items[0].name,"build-pi");
    assert.equal(topoOverview.runners.items[0].os,"linux");
    assert.equal(topoOverview.runners.items[0].arch,"arm64");
+   assert.equal(topoOverview.runners.items[0].fabricReady,true);
+   assert.deepEqual(topoOverview.runners.items[0].executorCapabilities,["host.snapshot"]);
    assert.equal(typeof topoOverview.runners.items[0].lastSeen,"string");
    assert(!("token" in topoOverview.runners.items[0]));
    assert(!("tokenHash" in topoOverview.runners.items[0]));

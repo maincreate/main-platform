@@ -65,6 +65,7 @@ function publicJob(j){return {id:j.id,plan_id:j.planId,capability:j.capability,r
 function publicAsset(a){return {id:a.id,name:a.name,mime:a.mime,size:a.size,received:a.received,
  complete:a.complete,sha256:a.complete?a.sha256:null,job_id:a.jobId||null};}
 const recent=r=>r?.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&Date.now()-Date.parse(r.lastSeen)>-120000;
+const fabricReady=r=>!!recent(r)&&!!r.fabricObservedAt&&Date.now()-Date.parse(r.fabricObservedAt)<120000&&Array.isArray(r.fabricCapabilities)&&r.fabricCapabilities.length>0;
 function createPlan(args,ctx) {
  const id=args.capability,cap=manifest(id);
  if(!cap||cap.state!=="available")throw error(422,"Capability is not available");
@@ -80,6 +81,7 @@ function createPlan(args,ctx) {
  s.plans.push(p);save(s);
  return {plan_id:p.id,capability:p.capability,version:p.version,runner_id:p.runnerId,
   parameters:p.parameters,steps:p.steps,requires_approval:false,runner_online:!!recent(runner),
+  runner_execution_ready:fabricReady(runner),executor_capabilities:runner.fabricCapabilities||[],
   expires_at:new Date(p.expiresAt).toISOString(),
   notice:"Planning does not execute. maincreate_execute queues a typed job for the enrolled runner."};
 }
@@ -120,7 +122,8 @@ function inspect(args,ctx){
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
-  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)};
+  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
+    fabric_ready:fabricReady(r),executor_capabilities:r.fabricCapabilities||[]};
  }
  if(kind==="job"){
   const j=store().jobs.find(x=>x.id===id);
@@ -137,7 +140,8 @@ function discover(args,ctx){
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="toolkits")result.toolkits=TOOLKITS.filter(t=>!q||(t.id+" "+t.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
-  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r)
+  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
+  fabric_ready:fabricReady(r),executor_capabilities:r.fabricCapabilities||[]
  })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
  if(resource==="all"||resource==="devices")result.devices=(ctx.devices||[]).filter(d=>
   !q||((d.label||"")+" "+(d.product||"")+" "+(d.port||"")+" "+(d.runnerName||"")).toLowerCase().includes(q))
@@ -254,13 +258,15 @@ export function approveJob(id,decision){
  if(decision==="reject")j.completedAt=new Date().toISOString();
  save(s);return {job:publicJob(j)};
 }
-export function claimJob(runner){
+export function claimJob(runner,supported=null){
  const s=store();
  if(s.jobs.some(j=>j.runnerId===runner.id&&j.status==="running"))return {job:null};
  // Carry pre-upgrade approval-pending jobs forward when their runner polls.
  // These are already typed jobs submitted by an authenticated caller.
  for(const old of s.jobs)if(old.runnerId===runner.id&&old.status==="awaiting_approval")old.status="queued";
- const j=s.jobs.find(x=>x.runnerId===runner.id&&x.status==="queued");
+ const allowed=supported===null?null:new Set(supported);
+ const j=s.jobs.find(x=>x.runnerId===runner.id&&x.status==="queued"&&
+  (allowed===null||x.steps.every(step=>allowed.has(step.capability))));
  if(!j)return {job:null};
  j.status="running";j.startedAt=new Date().toISOString();
  j.steps=j.steps.map(x=>({...x,status:"pending"}));

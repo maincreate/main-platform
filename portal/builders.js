@@ -55,7 +55,10 @@ function builderSignals(host){
   github:!host.githubRunnerName?{level:"bad",text:"Not registered"}:
    !runner?{level:"warn",text:"Registered · GitHub check unavailable"}:
    runner.status!=="online"?{level:"warn",text:"Registered · "+runner.status}:
-   {level:"good",text:"Registered · "+(runner.busy?"busy":"online")}
+   {level:"good",text:"Registered · "+(runner.busy?"busy":"online")},
+  fabric:!reachable?{level:"unknown",text:"Host offline"}:
+   host.fabricReady?{level:"good",text:"Ready · "+(host.executorCapabilities||[]).join(", ")}:
+   {level:"warn",text:"Connected · executor unavailable"}
  };
 }
 function statusSignal(kind,label,signal){
@@ -472,7 +475,7 @@ function builderHealth(host,signals){
  if(signals.host.level==="bad"||host.decommission?.phase==="failed"||host.upgrade?.phase==="failed"||
     (!host.githubRunnerName&&["failed","expired"].includes(provision?.status)))return "Failed";
  if(host.decommission||["queued","installing"].includes(host.upgrade?.phase)||
-    signals.software.level!=="good"||signals.github.level!=="good")return "Degraded";
+    signals.software.level!=="good"||signals.github.level!=="good"||signals.fabric.level!=="good")return "Degraded";
  return "Online";
 }
 function renderBuilders(){
@@ -485,12 +488,12 @@ function renderBuilders(){
   (!search||[host.name,host.os,host.arch,...(host.packages||[]).map(p=>p.name)].join(" ").toLowerCase().includes(search)));
  if(!shown.length){holder.append(el("p","No builders match this filter."));return}
  const table=el("table",undefined,"inventory-table"),head=el("tr");
- for(const label of ["Hostname","Platform","Build Host","Main{Create} Software","GitHub Registration","Toolchains","Status","Actions"])head.append(el("th",label));
+ for(const label of ["Hostname","Platform","Build Host","Main{Create} Software","GitHub Registration","Fabric Jobs","Toolchains","Status","Actions"])head.append(el("th",label));
  const thead=el("thead");thead.append(head);table.append(thead);const tbody=el("tbody");
  for(const {host,signals,health} of shown){
   const tr=el("tr");
   tr.append(el("td",host.name),el("td",(host.os||"unknown")+" / "+(host.arch||"unknown")));
-  for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","Main{Create} Software",signals.software],["github","GitHub Runner Registration",signals.github]]){
+  for(const [kind,label,signal] of [["server","Build Host",signals.host],["tools","Main{Create} Software",signals.software],["github","GitHub Runner Registration",signals.github],["tools","Fabric Job Executor",signals.fabric]]){
    const cell=el("td");cell.append(statusSignal(kind,label,signal));tr.append(cell);
   }
   const tools=el("td"),packages=host.packages||[];

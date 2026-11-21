@@ -2,7 +2,7 @@ import {randomBytes, createHash, timingSafeEqual, createCipheriv, createDecipher
 import {promisify} from "node:util";
 import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync} from "node:fs";
 import {join} from "node:path";
-import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity} from "./host_routes.mjs";
+import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade} from "./host_routes.mjs";
 import {storageRoute} from "./storage.mjs";
 import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats} from "./fabric.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
@@ -965,6 +965,10 @@ export async function localRoute(req) {
             count:stored.runners.length,
             items:stored.runners.slice(0,24).map(r=>({
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
+              fabricReady:!!r.fabricObservedAt&&Date.now()-Date.parse(r.fabricObservedAt)<120000&&
+               !!r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&
+               Array.isArray(r.fabricCapabilities)&&r.fabricCapabilities.length>0,
+              executorCapabilities:r.fabricCapabilities||[],
               labels:r.labels||["maincreate-"+r.os,"maincreate-"+r.arch],packages:r.packages||[],
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
               software:{
@@ -1154,11 +1158,20 @@ export async function localRoute(req) {
         runner.upgrade.phase='completed';runner.upgrade.completedAt=runner.lastSeen;
        }
       }
+      if(Array.isArray(b.fabricCapabilities)&&b.fabricCapabilities.length<=12&&
+       b.fabricCapabilities.every(v=>typeof v==="string"&&/^[a-z][a-z0-9_.]{2,80}$/.test(v))){
+        runner.fabricCapabilities=[...new Set(b.fabricCapabilities)];
+        runner.fabricObservedAt=runner.lastSeen;
+      }
       if(Array.isArray(b.packages)&&b.packages.length<=20&&b.packages.every(p=>
        p&&typeof p.name==="string"&&/^[a-z0-9_-]{1,32}$/.test(p.name)&&
        typeof p.version==="string"&&p.version.length<=100)){
         runner.packages=b.packages.map(p=>({name:p.name,version:p.version}));
         runner.packagesObservedAt=runner.lastSeen;
+      }
+      if(runner.hostVersion&&process.env.MAIN_AUTO_HOST_UPGRADE!=="0"){
+       try{queueManagedHostUpgrade(s,runner,rnd)}
+       catch(e){console.warn("Managed host upgrade not queued:",e.message)}
       }
       save(s);return reply({ok:true});
     }
@@ -1177,7 +1190,11 @@ export async function localRoute(req) {
         if(path==="/api/agent/jobs/claim"){
           runner.lastSeen=new Date().toISOString();save(s);
           if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return reply({job:null,executionEnabled:false});
-          return reply({...claimJob(runner),executionEnabled:true});
+          const caps=b.capabilities;
+          if(caps!==undefined&&(!Array.isArray(caps)||caps.length>12||
+             !caps.every(v=>typeof v==="string"&&/^[a-z][a-z0-9_.]{2,80}$/.test(v))))
+            return deny(422,"Invalid executor capability filter");
+          return reply({...claimJob(runner,caps===undefined?null:[...new Set(caps)]),executionEnabled:true});
         }
         if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return deny(403,"Runner execution disabled");
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));

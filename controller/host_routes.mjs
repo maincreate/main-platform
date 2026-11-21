@@ -22,12 +22,34 @@ function expireStaleHostActions(s,id,now=Date.now()){
 }
 
 // Active work must have a live action lease. Persisted phases alone are not evidence.
-export const HOST_RELEASE = "0.8.1";
+export const HOST_RELEASE = "0.8.2";
 const parseHostVersion = value => /^\d+\.\d+\.\d+$/.test(value || '') ? value.split('.').map(Number) : null;
 const compareHostVersions = (a, b) => a[0]-b[0] || a[1]-b[1] || a[2]-b[2];
 export function supportsRemoteHostUpgrade(version) {
  const installed = parseHostVersion(version);
  return installed !== null && compareHostVersions(installed, [0, 7, 0]) >= 0;
+}
+
+// Development workspaces keep managed agents current without an extra approval click.
+// Failed or in-flight upgrades are never automatically retried; checksum and host
+// rollback protections remain enforced by the installed Host Service.
+export function queueManagedHostUpgrade(s,host,rnd,{now=Date.now(),binaryHash=null}={}){
+ if(!host||host.os!=='linux'||!['arm64','x64'].includes(host.arch)||host.decommission||
+    !supportsRemoteHostUpgrade(host.hostVersion))return null;
+ const current=parseHostVersion(host.hostVersion),target=parseHostVersion(HOST_RELEASE);
+ if(!current||!target||compareHostVersions(current,target)>=0)return null;
+ if(host.upgrade?.targetVersion===HOST_RELEASE&&host.upgrade.phase!=='completed')return null;
+ if((s.hostActions||[]).some(a=>a.runnerId===host.id&&actionLeaseActive(a,now)))return null;
+ const binaryName=host.arch==='x64'?'maincreate-host-linux-amd64':'maincreate-host-linux-arm64';
+ const hash=binaryHash||createHash('sha256').update(
+  readFileSync(new URL('../downloads/'+binaryName,import.meta.url))).digest('hex');
+ if(!/^[a-f0-9]{64}$/.test(hash))throw Error('Host upgrade checksum unavailable');
+ const action={id:rnd(),runnerId:host.id,runnerName:host.name,type:'host.upgrade',
+  targetVersion:HOST_RELEASE,sha256:hash,status:'queued',createdAt:new Date(now).toISOString(),
+  expiresAt:new Date(now+10*60*1000).toISOString()};
+ s.hostActions=[...(s.hostActions||[]).slice(-99),action];
+ host.upgrade={phase:'queued',targetVersion:HOST_RELEASE,actionId:action.id,startedAt:action.createdAt};
+ return action;
 }
 
 export function removalActivity(host,actions=[],now=Date.now()){

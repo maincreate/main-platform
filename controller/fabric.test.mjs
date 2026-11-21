@@ -60,6 +60,21 @@ test("Arduino installation requests are queued for compatible builders",()=>{
  assert.deepEqual(jobs.map(j=>j.status),["queued","queued"]);
  for(const job of jobs)assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:job.id}).job.status,"cancelled");
 });
+test("managed Host Service only claims jobs for its advertised adapters",()=>{
+ const sdkPlan=invoke("maincreate_plan",{capability:"sdk.arduino_cli.install",runner_id:runner.id,parameters:{}});
+ const sdk=invoke("maincreate_execute",{plan_id:sdkPlan.plan_id}).job;
+ const snapPlan=invoke("maincreate_plan",snapshot);
+ const snap=invoke("maincreate_execute",{plan_id:snapPlan.plan_id}).job;
+ const claimed=claimJob(runner,["host.snapshot"]).job;
+ assert.equal(claimed.id,snap.id);
+ assert.equal(claimJob(runner,["host.snapshot"]).job,null);
+ const done=reportJob(runner,{job_id:snap.id,success:true,logs:"native snapshot",
+  steps:[{capability:"host.snapshot",status:"completed"}]});
+ assert.equal(done.job.status,"completed");
+ assert.equal(invoke("maincreate_jobs",{action:"get",job_id:sdk.id}).job.status,"queued");
+ assert.equal(claimJob(runner,[]).job,null);
+ assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:sdk.id}).job.status,"cancelled");
+});
 test("composed workflow queues ordered pinned actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
   parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});

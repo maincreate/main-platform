@@ -1,10 +1,11 @@
-// Main{Create} Host Service: controller-owned SSH pairing and outbound management.
+// Main{Create} Host Service: outbound management, typed Fabric execution, and host lifecycle.
 package main
 
 import (
  "bytes"
  "crypto/sha256"
  "encoding/hex"
+ "encoding/base64"
  "encoding/json"
  "errors"
  "fmt"
@@ -16,12 +17,13 @@ import (
  "os/signal"
  "path/filepath"
  "runtime"
+ "strconv"
  "strings"
  "syscall"
  "time"
 )
 
-const version="0.8.1"
+const version="0.8.2"
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -110,8 +112,8 @@ func run()error{
   c,e:=load();if e!=nil{continue}
   if time.Since(lastHeartbeat)>30*time.Second{
    if time.Since(lastInventory)>2*time.Minute{
-    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"packages":packages()},nil);lastInventory=time.Now()
-   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version},nil)}
+    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":[]string{"host.snapshot"},"packages":packages()},nil);lastInventory=time.Now()
+   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":[]string{"host.snapshot"}},nil)}
    if e!=nil{log.Printf("heartbeat: %v",e)};lastHeartbeat=time.Now()
   }
   // Read-only discovery occurs on startup and every minute. An unreadable
@@ -127,6 +129,7 @@ func run()error{
    lastDevices=time.Now()
   }
   if len(storageBusy)>0{continue}
+  if err:=pollFabric(c);err!=nil{log.Printf("fabric job polling: %v",err)}
   var out struct{Action *action `json:"action"`}
   if e=post(c.Controller,"/api/agent/actions/claim",c.Token,map[string]string{"id":c.ID},&out);e!=nil{log.Printf("action polling: %v",e);continue}
   if out.Action==nil{continue}
@@ -287,4 +290,88 @@ func main(){
  command:="";if len(os.Args)>1{command=os.Args[1]}
  var err error;switch command{case "join":err=join();case "serve":err=run();case "version":fmt.Println(version);case "apply-upgrade":err=applyUpgrade();default:err=errors.New("usage: maincreate-host serve|join|version|apply-upgrade")}
  if err!=nil{log.Fatal(err)}
+}
+
+
+// The managed Host Service also executes bounded Fabric jobs. The controller
+// filters by declared capabilities, so this process never claims firmware or
+// installer jobs that need their own reviewed adapters.
+type fabricStep struct{ Capability string }
+type fabricJob struct{ ID string; Steps []fabricStep }
+
+func hostSnapshot(c config)([]byte,error){
+ if runtime.GOOS!="linux"{return nil,errors.New("host snapshot requires Linux")}
+ raw,err:=os.ReadFile("/proc/meminfo");if err!=nil{return nil,err}
+ var total,available uint64
+ for _,line:=range strings.Split(string(raw),"\n"){
+  fields:=strings.Fields(line);if len(fields)<2{continue}
+  n,e:=strconv.ParseUint(fields[1],10,64);if e!=nil{continue}
+  switch fields[0]{
+  case "MemTotal:":total=n*1024
+  case "MemAvailable:":available=n*1024
+  case "MemFree:":if available==0{available=n*1024}
+  }
+ }
+ if total==0{return nil,errors.New("kernel memory inventory unavailable")}
+ up,err:=os.ReadFile("/proc/uptime");if err!=nil{return nil,err}
+ fields:=strings.Fields(string(up));if len(fields)==0{return nil,errors.New("kernel uptime unavailable")}
+ secs,err:=strconv.ParseFloat(fields[0],64);if err!=nil{return nil,err}
+ return json.MarshalIndent(map[string]any{
+  "host":c.Name,"os":runtime.GOOS,"architecture":controllerArchFor(runtime.GOARCH),
+  "hostname":hostname(),"cpus":runtime.NumCPU(),"totalMemoryBytes":total,
+  "freeMemoryBytes":available,"uptimeSeconds":int64(secs),
+  "hostServiceVersion":version,"observedAt":time.Now().UTC().Format(time.RFC3339),
+ },"","  ")
+}
+func uploadFabricSnapshot(c config,jobID string,payload []byte)error{
+ if len(payload)<1||len(payload)>8*1024*1024{return errors.New("host snapshot exceeds artifact limit")}
+ var begin struct{Asset struct{ID string};MaxChunkBytes int}
+ start:=map[string]any{"id":c.ID,"job_id":jobID,"action":"begin",
+  "name":"host-snapshot.json","mime":"application/json","size":len(payload)}
+ if err:=post(c.Controller,"/api/agent/assets",c.Token,start,&begin);err!=nil{return err}
+ if begin.Asset.ID==""{return errors.New("artifact begin missing ID")}
+ size:=48*1024;if begin.MaxChunkBytes>0&&begin.MaxChunkBytes<size{size=begin.MaxChunkBytes}
+ for offset:=0;offset<len(payload);offset+=size{
+  end:=offset+size;if end>len(payload){end=len(payload)}
+  chunk:=map[string]any{"id":c.ID,"job_id":jobID,"action":"chunk",
+   "asset_id":begin.Asset.ID,"offset":offset,
+   "content_base64":base64.StdEncoding.EncodeToString(payload[offset:end])}
+  if err:=post(c.Controller,"/api/agent/assets",c.Token,chunk,nil);err!=nil{return err}
+ }
+ digest:=sha256.Sum256(payload)
+ finish:=map[string]any{"id":c.ID,"job_id":jobID,"action":"finish",
+  "asset_id":begin.Asset.ID,"sha256":hex.EncodeToString(digest[:])}
+ return post(c.Controller,"/api/agent/assets",c.Token,finish,nil)
+}
+func executeFabricJob(c config,job fabricJob)error{
+ if job.ID==""||len(job.Steps)==0||len(job.Steps)>8{return errors.New("invalid claimed Fabric job")}
+ statuses:=make([]map[string]string,0,len(job.Steps));failed:=false
+ logLines:=[]string{}
+ for _,step:=range job.Steps{
+  status:="completed"
+  if failed{status="skipped"}else if step.Capability!="host.snapshot"{
+   status="failed";failed=true;logLines=append(logLines,"Unsupported Fabric capability: "+step.Capability)
+  }else{
+   data,err:=hostSnapshot(c)
+   if err==nil{err=uploadFabricSnapshot(c,job.ID,data)}
+   if err!=nil{
+    status="failed";failed=true;logLines=append(logLines,"Host snapshot failed: "+err.Error())
+   }else{logLines=append(logLines,"Host snapshot recorded and SHA-256 verified")}
+  }
+  statuses=append(statuses,map[string]string{"capability":step.Capability,"status":status})
+ }
+ logs:=strings.Join(logLines,"\n")
+ if len(logs)>24000{logs=logs[:24000]}
+ completion:=map[string]any{"id":c.ID,"job_id":job.ID,"success":!failed,
+  "logs":logs,"steps":statuses}
+ if err:=post(c.Controller,"/api/agent/jobs/complete",c.Token,completion,nil);err!=nil{return err}
+ log.Printf("Fabric job %s completed; success=%t",job.ID,!failed)
+ return nil
+}
+func pollFabric(c config)error{
+ var response struct{Job *fabricJob}
+ request:=map[string]any{"id":c.ID,"capabilities":[]string{"host.snapshot"}}
+ if err:=post(c.Controller,"/api/agent/jobs/claim",c.Token,request,&response);err!=nil{return err}
+ if response.Job==nil{return nil}
+ return executeFabricJob(c,*response.Job)
 }

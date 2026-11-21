@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agentHostRoute} from './host_routes.mjs';
+import {agentHostRoute,queueManagedHostUpgrade,HOST_RELEASE} from './host_routes.mjs';
 function harness(){
  const s={runners:[{id:'host-1',tokenHash:'expected',name:'pi'}],hostActions:[{id:'action-1',runnerId:'host-1',runnerName:'maincreate-pi',organization:'MainCreate',labels:['maincreate-arm64'],secret:{opaque:true},expiresAt:new Date(Date.now()+600000).toISOString(),status:'queued'}]};
  const ctx={state:()=>s,save:()=>{},body:async req=>await req.json(),reply:obj=>new Response(JSON.stringify(obj)),deny:(status,msg)=>new Response(JSON.stringify({error:msg}),{status}),digest:x=>x,equal:(x,y)=>x===y,unseal:()=> 'short-lived-secret'};
@@ -48,4 +48,30 @@ test('storage completion cannot advance a concurrent builder removal',async()=>{
  await agentHostRoute(new Request('http://localhost/api/agent/actions/complete',{method:'POST',headers:{authorization:'Bearer expected'},body:JSON.stringify({id:'host-1',action_id:'action-1',success:true,message:'mounted'})}),ctx);
  assert.equal(s.runners[0].decommission.phase,'stopping');
  assert.equal(s.runners[0].githubRunnerName,undefined);
+});
+
+test('managed builder upgrades are automatic, single-flight and checksum-pinned',()=>{
+ const host={id:'host-1',name:'builder-test',os:'linux',arch:'arm64',
+  hostVersion:'0.8.1',lastSeen:new Date().toISOString()};
+ const s={runners:[host],hostActions:[]};
+ const action=queueManagedHostUpgrade(s,host,()=> 'action-test',{binaryHash:'a'.repeat(64)});
+ assert.equal(action?.targetVersion,HOST_RELEASE);
+ assert.equal(action?.sha256,'a'.repeat(64));
+ assert.equal(action?.type,'host.upgrade');
+ assert.equal(action?.status,'queued');
+ assert.equal(s.hostActions.length,1);
+ assert.equal(queueManagedHostUpgrade(s,host,()=> 'should-not-queue',{binaryHash:'b'.repeat(64)}),null);
+ assert.equal(s.hostActions.length,1);
+});
+test('no automatic retry for failed updates, removal or unsupported versions',()=>{
+ const make=()=>({id:'host-2',name:'builder-x64',os:'linux',arch:'x64',hostVersion:'0.8.1'});
+ const options={binaryHash:'c'.repeat(64)};
+ const fail=make();fail.upgrade={phase:'failed',targetVersion:HOST_RELEASE};
+ assert.equal(queueManagedHostUpgrade({hostActions:[]},fail,()=> 'x',options),null);
+ const removing=make();removing.decommission={phase:'stopping'};
+ assert.equal(queueManagedHostUpgrade({hostActions:[]},removing,()=> 'x',options),null);
+ const unsupported=make();unsupported.hostVersion='0.6.5';
+ assert.equal(queueManagedHostUpgrade({hostActions:[]},unsupported,()=> 'x',options),null);
+ const newer=make();newer.hostVersion='9.0.0';
+ assert.equal(queueManagedHostUpgrade({hostActions:[]},newer,()=> 'x',options),null);
 });
