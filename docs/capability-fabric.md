@@ -28,7 +28,7 @@ Implemented adapters:
 - `firmware.esp_idf.build@1.0.0`: compile a clean, operator-allowlisted local checkout at an exact pinned SHA; no clone, shell, install, flash, or deploy.
 - `workflow.esp_idf.preflight_build@1.0.0`: host snapshot then ESP-IDF build in one ordered job.
 
-`sdk.arduino_cli.install` is the first executable SDK installer. It is Linux ARM64/x64 only, disabled unless the runner operator sets `MAIN_RUNNER_ENABLE_SDK_INSTALLS=1`, and is queued directly after authenticated execution requests. The adapter downloads only these immutable official Arduino CLI v1.5.1 release assets and verifies the exact SHA-256 before per-user atomic installation:
+`sdk.arduino_cli.install` is the first executable SDK installer. It is Linux ARM64/x64 only and runs natively under the enrolled Go Host Service without a second approval click or Node agent. The adapter downloads official Arduino CLI v1.5.1 release assets, verifies the exact SHA-256, validates the executable and atomically installs it into a versioned system toolkit directory readable by builders:
 
 - [Linux ARM64 release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz) — `1e69e077479f300614d4551334e0a33f08ee40b04315d83b8e7e0e94f0d0ee62`
 - [Linux 64-bit release](https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz) — `28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b`
