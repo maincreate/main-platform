@@ -1039,7 +1039,8 @@ export async function localRoute(req) {
       if(path==="/api/local/fabric"&&method==="POST"){
         const b=await body(req),s=state();
         const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
-          runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
+          runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen,
+            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[]})),
           devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
         try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
@@ -1214,7 +1215,8 @@ export async function localRoute(req) {
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
       const b=await body(req),s=state();
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
-        runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),
+        runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen,
+            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[]})),
           devices:listDevices({mode:"visible"}).devices};
       try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
