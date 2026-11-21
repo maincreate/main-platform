@@ -501,7 +501,7 @@ function renderBuilders(){
   const tags=el("div",undefined,"mc-software-tags");
   for(const pkg of software){
    const family=pkg.name==="adb"?"android-adb":pkg.name;
-   const version=(pkg.version.match(/(?:^|[^0-9])(\\d+\\.\\d+\\.\\d+)(?!\\d)/)||[])[1];
+   const version=(pkg.version.match(/(?:^|[^0-9])(\d+\.\d+\.\d+)(?!\d)/)||[])[1];
    const tag=el("a",pkg.name+(version?" "+version:""),"mc-software-tag");
    tag.href="/marketplace?software="+encodeURIComponent(family)+"&builder="+encodeURIComponent(host.id)+
     (version?"&version="+encodeURIComponent(version):"");
