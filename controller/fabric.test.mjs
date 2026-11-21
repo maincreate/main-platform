@@ -7,7 +7,7 @@ import {createHash} from "node:crypto";
 
 const dir=mkdtempSync(join(tmpdir(),"maincreate-fabric-"));
 process.env.MAIN_DATA_DIR=dir;
-const {fabricCall,approveJob,claimJob,reportJob,agentAsset}=await import("./fabric.mjs");
+const {fabricCall,approveJob,claimJob,reportJob,agentAsset,importReviewedFirmwareBuild}=await import("./fabric.mjs");
 const runner={id:"runner-123",name:"approved-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
 const other={id:"runner-456",name:"other-pi",os:"linux",arch:"arm64",lastSeen:new Date().toISOString()};
 const ctx={runners:[runner,other],workspace:{name:"Test",githubOrganization:"Example"}};
@@ -307,4 +307,27 @@ test("flash approval requires exact target MAC even after authenticated submit",
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.status,"awaiting_approval");
  assert.throws(()=>approveJob(job.id,"approve","44:bd:8d:78:15:e8"),/Flash preflight blocked/);
  assert.equal(invoke("maincreate_jobs",{action:"get",job_id:job.id}).job.status,"awaiting_approval");
+});
+
+test("authenticated external Arduino source becomes immutable, completed flash evidence",()=>{
+ const images={
+  "esp32s3-bootloader.bin":Buffer.alloc(2048,1),
+  "esp32s3-partitions.bin":Buffer.alloc(2048,2),
+  "esp32s3-firmware.bin":Buffer.alloc(4096,3),
+ };
+ const args={repository:"BuilderBench/esp32-expression",revision:"a".repeat(40),
+  runId:44961900475,runnerId:"b".repeat(32),images,sourceSha256:"c".repeat(64)};
+ const imported=importReviewedFirmwareBuild(args);
+ assert.equal(imported.created,true);
+ assert.equal(imported.job.capability,"firmware.esp_idf.import_build");
+ assert.equal(imported.job.status,"completed");
+ const assets=invoke("maincreate_assets",{action:"list",job_id:imported.job.id}).assets;
+ assert.deepEqual(new Set(assets.map(a=>a.name)),new Set([
+  "esp32s3-bootloader.bin","esp32s3-partitions.bin",
+  "esp32s3-firmware.bin","esp32s3-firmware-manifest.json"
+ ]));
+ assert.equal(assets.every(x=>x.complete&&x.sha256.length===64),true);
+ assert.equal(importReviewedFirmwareBuild(args).created,false);
+ assert.throws(()=>importReviewedFirmwareBuild({...args,runId:44961900476,
+  revision:"x".repeat(40)}),/provenance required/);
 });
