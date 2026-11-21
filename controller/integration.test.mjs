@@ -192,7 +192,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id},{authorization:"Bearer "+enrolled.data.token});
    assert.equal(hb.status,200);
    assert.equal(hb.data.ok,true);
-   // End-to-end fabric API: authenticated planning, explicit approval and default no-execution.
+   // End-to-end fabric API: authenticated planning queues immediately; the explicit emergency pause blocks claims.
    const fabricHeaders={cookie,"x-maincreate-csrf":csrf};
    const fabricCall=async(tool,args={})=>json(base,"/api/local/fabric",{tool,arguments:args},fabricHeaders);
    const discovered=await fabricCall("maincreate_discover",{resource:"capabilities"});
@@ -201,18 +201,17 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert(discovered.data.capabilities.some(x=>x.id==="firmware.esp_idf.flash"&&x.state==="unavailable"));
    const planned=await fabricCall("maincreate_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
    assert.equal(planned.status,200);
-   assert.equal(planned.data.requires_approval,true);
+   assert.equal(planned.data.requires_approval,false);
    const jobRequest=await fabricCall("maincreate_execute",{plan_id:planned.data.plan_id});
    assert.equal(jobRequest.status,200);
-   assert.equal(jobRequest.data.job.status,"awaiting_approval");
+   assert.equal(jobRequest.data.job.status,"queued");
    const noClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
      {authorization:"Bearer "+enrolled.data.token});
    assert.equal(noClaim.data.job,null);
    assert.equal(noClaim.data.executionEnabled,false);
    assert.equal((await json(base,"/api/local/jobs/approval",{job_id:jobRequest.data.job.id,decision:"approve"}, {cookie})).status,403);
-   const approved=await json(base,"/api/local/jobs/approval",{job_id:jobRequest.data.job.id,decision:"approve"},fabricHeaders);
-   assert.equal(approved.status,200);
-   assert.equal(approved.data.job.status,"queued");
+   const redundantApproval=await json(base,"/api/local/jobs/approval",{job_id:jobRequest.data.job.id,decision:"approve"},fabricHeaders);
+   assert.equal(redundantApproval.status,409);
    const stillNoClaim=await json(base,"/api/agent/jobs/claim",{id:enrolled.data.id},
      {authorization:"Bearer "+enrolled.data.token});
    assert.equal(stillNoClaim.data.job,null);
