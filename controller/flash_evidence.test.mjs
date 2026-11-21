@@ -84,3 +84,19 @@ test("enabled security flags or mismatched firmware manifest cannot authorize wr
  const modified=Buffer.from(JSON.stringify(doc));f.payloads.set(source.id,modified);source.size=modified.length;source.sha256=hash(modified);
  assert.throws(()=>verifyFlashEvidence(f),/manifest not supported/);
 });
+
+test("verified Arduino 3.2.0 Expressions import satisfies the same recovery and security gate",()=>{
+ const f=fixture();
+ const source=f.jobs.find(j=>j.id===ids.source);
+ source.capability="firmware.esp_idf.import_build";
+ const artifact=f.assets.find(a=>a.jobId===ids.source&&a.name==="esp32s3-firmware-manifest.json");
+ const doc=JSON.parse(f.payloads.get(artifact.id).toString());
+ doc.framework="arduino-esp32";doc.framework_version="3.2.0";
+ const valid=Buffer.from(JSON.stringify(doc));
+ f.payloads.set(artifact.id,valid);artifact.size=valid.length;artifact.sha256=hash(valid);
+ assert.equal(verifyFlashEvidence(f).authorized,true);
+ doc.framework_version="3.2.1";
+ const invalid=Buffer.from(JSON.stringify(doc));
+ f.payloads.set(artifact.id,invalid);artifact.size=invalid.length;artifact.sha256=hash(invalid);
+ assert.throws(()=>verifyFlashEvidence(f),/manifest not supported/);
+});
