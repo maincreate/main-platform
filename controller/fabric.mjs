@@ -350,7 +350,7 @@ export function agentAsset(runner,args){
      j.parameters?.source_job_id!==args.source_job_id)
    throw error(403,"Source asset access is not authorized for this job");
   const source=s.jobs.find(x=>x.id===args.source_job_id&&
-   x.status==="completed"&&x.capability==="firmware.esp_idf.smoke_build");
+   x.status==="completed"&&["firmware.esp_idf.smoke_build","firmware.esp_idf.import_build"].includes(x.capability));
   if(!source)throw error(403,"Approved firmware source build not available");
   const allowed=["esp32s3-firmware.bin","esp32s3-bootloader.bin",
    "esp32s3-partitions.bin","esp32s3-firmware-manifest.json"];
@@ -365,6 +365,64 @@ export function agentAsset(runner,args){
  if(args.action==="chunk")return chunkAsset(args);
  if(args.action==="finish")return finishAsset(args);
  throw error(422,"Invalid runner asset action");
+}
+export function importReviewedFirmwareBuild({repository,revision,runId,runnerId,images,sourceSha256}){
+ if(repository!=="BuilderBench/esp32-expression"||
+  !/^[a-f0-9]{40}$/.test(revision||"")||
+  !Number.isSafeInteger(runId)||runId<1||
+  !/^[a-f0-9]{64}$/.test(sourceSha256||""))
+  throw error(422,"Verified GitHub Actions firmware provenance required");
+ if(!/^[a-f0-9]{32}$/.test(runnerId||""))throw error(422,"Existing runner ID required");
+ const expected=["esp32s3-firmware.bin","esp32s3-bootloader.bin","esp32s3-partitions.bin"];
+ if(Object.keys(images||{}).length!==3)throw error(422,"Exactly three firmware images required");
+ for(const name of expected){
+  const data=images[name];
+  if(!Buffer.isBuffer(data)||data.length<1024||data.length>8*1024*1024)
+   throw error(422,"Firmware image not within reviewed size bounds");
+ }
+ const s=store();
+ const duplicate=s.jobs.find(j=>j.capability==="firmware.esp_idf.import_build"&&
+   j.parameters?.repository===repository&&j.parameters?.run_id===runId);
+ if(duplicate){
+  if(duplicate.status!=="completed"||duplicate.parameters.revision!==revision)
+   throw error(409,"Conflicting or incomplete firmware source import");
+  return {job:publicJob(duplicate),created:false};
+ }
+ const id=uid(),now=new Date().toISOString();
+ const job={id,planId:null,capability:"firmware.esp_idf.import_build",
+  version:"1.0.0",runnerId,parameters:{repository,revision,run_id:runId},
+  steps:[{index:0,capability:"firmware.esp_idf.import_build",status:"pending"}],
+  status:"running",createdAt:now,startedAt:now,approvedAt:null,completedAt:null,
+  logs:"",assetIds:[],error:null};
+ s.jobs.push(job);save(s);
+ const manifest={schema:1,job_id:id,framework:"esp-idf",framework_version:"5.5.6",
+  target:"esp32s3",source_sha256:sourceSha256,
+  files:expected.map(name=>({name,size:images[name].length,sha256:sha(images[name])}))};
+ const payloads=[...expected.map(name=>({name,mime:"application/octet-stream",bytes:images[name]})),
+  {name:"esp32s3-firmware-manifest.json",mime:"application/json",
+   bytes:Buffer.from(JSON.stringify(manifest))}];
+ try{
+  for(const entry of payloads){
+   const a=beginAsset({size:entry.bytes.length,name:entry.name,mime:entry.mime},{jobId:id}).asset;
+   for(let offset=0;offset<entry.bytes.length;offset+=MAX_CHUNK){
+    const bytes=entry.bytes.subarray(offset,Math.min(offset+MAX_CHUNK,entry.bytes.length));
+    chunkAsset({asset_id:a.id,offset,content_base64:bytes.toString("base64")});
+   }
+   finishAsset({asset_id:a.id,sha256:sha(entry.bytes)});
+  }
+  const updated=store(),finished=updated.jobs.find(j=>j.id===id);
+  finished.status="completed";finished.completedAt=new Date().toISOString();
+  finished.steps=[{index:0,capability:job.capability,status:"completed"}];
+  finished.logs="GitHub Actions verified source "+repository+"@"+revision+" run "+runId+
+   "; three immutable firmware images and SHA-256 manifest imported";
+  save(updated);
+  return {job:publicJob(finished),created:true};
+ }catch(e){
+  const updated=store(),failed=updated.jobs.find(j=>j.id===id);
+  if(failed){failed.status="failed";failed.completedAt=new Date().toISOString();
+   failed.error="Authenticated firmware artifact import failed";save(updated);}
+  throw e;
+ }
 }
 export function fabricStats(){
  const s=store();return {capabilities:CAPS.length,jobs:s.jobs.length,assets:s.assets.length};
