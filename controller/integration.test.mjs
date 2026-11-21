@@ -225,7 +225,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(inspectReady.data.fabric_ready,true);
    assert.deepEqual(inspectReady.data.executor_capabilities,["host.snapshot"]);
    assert.equal(inspectReady.data.host_service.installed_version,"0.8.8");
-   assert.equal(inspectReady.data.host_service.expected_version,"0.8.11");
+   assert.equal(inspectReady.data.host_service.expected_version,"0.8.12");
    assert.equal(inspectReady.data.host_service.version_status,"update_available");
    assert.equal(inspectReady.data.github_runner.name,null);
    assert.equal(inspectReady.data.github_runner.lookup_status,"not_registered");
