@@ -52,7 +52,7 @@ func TestManagedFabricSnapshotLifecycle(t *testing.T){
   switch r.URL.Path{
   case "/api/agent/jobs/claim":
    caps,ok:=body["capabilities"].([]any)
-   if !ok||len(caps)!=2||caps[0]!="host.snapshot"||caps[1]!="sdk.arduino_cli.install"{t.Errorf("unexpected capability filter: %v",body["capabilities"])}
+   if !ok||len(caps)!=3||caps[0]!="host.snapshot"||caps[1]!="sdk.arduino_cli.install"||caps[2]!="sdk.esp_idf.install"{t.Errorf("unexpected capability filter: %v",body["capabilities"])}
    _=json.NewEncoder(w).Encode(map[string]any{"job":map[string]any{
     "id":jobID,"steps":[]map[string]string{{"capability":"host.snapshot"}}}})
   case "/api/agent/assets":
