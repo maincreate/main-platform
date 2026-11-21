@@ -41,7 +41,7 @@ export function planBuildFlashRoute(input,{organization,projects=[],builders=[],
  if(sdkFamily!==null){
    const release=releases().find(r=>r.family===sdkFamily&&r.version===sdkVersion);
    if(!release)throw bad("Unknown or unapproved marketplace release");
-   const variant=classifyBuilder(builder,release);
+   const variant=classifyBuilder(builder,release,"build");
    if(!variant.compatible)throw bad("The SDK release does not support that builder OS and architecture",409);
    sdk={family:sdkFamily,version:sdkVersion,readiness:variant.readiness};
  }
