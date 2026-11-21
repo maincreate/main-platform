@@ -1179,7 +1179,19 @@ export async function localRoute(req) {
       if(path==="/api/local/jobs/approval"&&method==="POST"){
         const b=await body(req);
         if(typeof b.job_id!=="string")return deny(422,"job_id required");
-        try{return reply(approveJob(b.job_id,b.decision));}
+        try{
+          const job=fabricCall("maincreate_jobs",{action:"get",job_id:b.job_id}).job;
+          if(job.capability==="firmware.esp_idf.flash"&&b.decision==="approve"){
+            if(limited("flash-approval:"+session(req).username,6))return deny(429,"Too many flash approval attempts");
+            const admin=state().admin;
+            if(!admin||typeof b.password!=="string"||
+               !(await verifyPassword(b.password,admin.password)))
+             return deny(401,"Administrator password required for firmware flash approval");
+            if(b.confirm_mac!==job.target_mac)
+             return deny(422,"Type the exact device MAC to approve a firmware flash");
+          }
+          return reply(approveJob(b.job_id,b.decision,b.confirm_mac));
+        }
         catch(e){return deny(e.status||422,e.message);}
       }
 
