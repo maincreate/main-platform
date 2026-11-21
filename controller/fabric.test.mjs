@@ -78,6 +78,24 @@ test("read-only ESP32 probe is typed and does not enable writes",()=>{
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{port:"/dev/ttyUSB0",command:"flash"}}),/Unsupported parameter/);
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
 });
+test("ESP32 full-chip backup is read-only, bound to a canonical MAC and cannot substitute for flashing",()=>{
+ const caps=invoke("maincreate_discover",{resource:"capabilities"}).capabilities;
+ const cap=caps.find(c=>c.id==="firmware.esp_idf.backup");
+ assert.equal(cap.state,"available");
+ assert.equal(cap.risk,"device-read");
+ const good=invoke("maincreate_plan",{capability:cap.id,runner_id:runner.id,
+  parameters:{port:"/dev/ttyACM0",expected_mac:"44:bd:8d:78:15:e8"}});
+ assert.deepEqual(good.steps.map(s=>s.capability),["firmware.esp_idf.backup"]);
+ for(const expected_mac of ["44:BD:8D:78:15:E8","44:bd:8d:78:15:e8;sh","unknown","ff:ff:ff"]){
+  assert.throws(()=>invoke("maincreate_plan",{capability:cap.id,runner_id:runner.id,
+   parameters:{port:"/dev/ttyACM0",expected_mac}}),/Invalid parameter: expected_mac/);
+ }
+ assert.throws(()=>invoke("maincreate_plan",{capability:cap.id,runner_id:runner.id,
+  parameters:{port:"/dev/ttyACM0"}}),/Missing parameter: expected_mac/);
+ assert.throws(()=>invoke("maincreate_plan",{capability:cap.id,runner_id:runner.id,
+  parameters:{port:"/dev/ttyACM0",expected_mac:"44:bd:8d:78:15:e8",command:"write_flash"}}),/Unsupported parameter/);
+ assert.equal(caps.find(c=>c.id==="firmware.esp_idf.flash").state,"unavailable");
+});
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
   managedHost:true,githubRunnerName:"builder-linux-arm64-01",labels:["linux-arm64"],
