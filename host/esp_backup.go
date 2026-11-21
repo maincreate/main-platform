@@ -20,6 +20,7 @@ import (
 const backupPartSize=4*1024*1024
 const espS3BackupSize=16*1024*1024
 const espBackupVersion="5.5.6"
+const backupSerialBaud="460800"
 var exactMACPattern=regexp.MustCompile(`^[a-f0-9]{2}(:[a-f0-9]{2}){5}$`)
 
 type firmwareBackupPart struct {
@@ -75,7 +76,7 @@ func backupESP32Managed(c config,jobID,port,expectedMAC string)(string,error){
  home:=espRuntimeHome()
  eim:=eimBinaryPath(runtime.GOARCH)
  ctx,cancel:=context.WithTimeout(context.Background(),15*time.Minute);defer cancel()
- command:="python -m esptool --port "+port+" read_flash 0x0 0x1000000 "+path
+ command:="python -m esptool --port "+port+" --baud "+backupSerialBaud+" read_flash 0x0 0x1000000 "+path
  if _,err:=runBoundedCommand(ctx,home,home,eim,"--do-not-track","true","run",command,"v"+espBackupVersion);err!=nil{
   return "",fmt.Errorf("read-only full flash backup failed: %w",err)
  }
