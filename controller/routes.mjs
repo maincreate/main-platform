@@ -966,7 +966,8 @@ export async function localRoute(req) {
             items:stored.runners.slice(0,24).map(r=>({
               id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,
               fabricReady:!!r.fabricObservedAt&&Date.now()-Date.parse(r.fabricObservedAt)<120000&&
-               !!r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000,
+               !!r.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&
+               Array.isArray(r.fabricCapabilities)&&r.fabricCapabilities.length>0,
               executorCapabilities:r.fabricCapabilities||[],
               labels:r.labels||["maincreate-"+r.os,"maincreate-"+r.arch],packages:r.packages||[],
               githubRunnerName:r.githubRunnerName||null,managedHost:r.managedHost||null,
