@@ -111,3 +111,17 @@ func TestArduinoVersionOutputFormats(t *testing.T){
   }
  }
 }
+
+func TestArduinoVersionUsesWritableManagedHome(t *testing.T){
+ root:=t.TempDir()
+ executable:=filepath.Join(root,"arduino-cli-test")
+ script:="#!/bin/sh\nmkdir -p \"$HOME/.arduino15\" || exit 7\nprintf 'arduino-cli 1.5.1 Commit: test\\n'\n"
+ if err:=os.WriteFile(executable,[]byte(script),0755);err!=nil{t.Fatal(err)}
+ home:=filepath.Join(root,"managed-arduino-home")
+ if err:=checkArduinoVersionInHome(executable,home);err!=nil{t.Fatal(err)}
+ if _,err:=os.Stat(filepath.Join(home,".arduino15"));err!=nil{
+  t.Fatalf("Arduino CLI did not create private state directory under managed HOME: %v",err)
+ }
+ stat,err:=os.Stat(home);if err!=nil{t.Fatal(err)}
+ if stat.Mode().Perm()!=0700{t.Fatalf("SDK state home must be private: %v",stat.Mode())}
+}
