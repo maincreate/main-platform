@@ -1039,8 +1039,15 @@ export async function localRoute(req) {
       if(path==="/api/local/fabric"&&method==="POST"){
         const b=await body(req),s=state();
         const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
+        expectedHostVersion:HOST_RELEASE,
           runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen,
-            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[]})),
+            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[],
+            hostVersion:r.hostVersion||null,hostVersionObservedAt:r.hostVersionObservedAt||null,
+            managedHost:!!r.managedHost,githubRunnerName:r.githubRunnerName||null,
+            labels:Array.isArray(r.labels)?r.labels.filter(x=>typeof x==="string").slice(0,30):[],
+            packages:Array.isArray(r.packages)?r.packages.slice(0,20).map(p=>({name:p.name,version:p.version})):[],
+            upgrade:r.upgrade?{phase:r.upgrade.phase,targetVersion:r.upgrade.targetVersion,
+              completedAt:r.upgrade.completedAt,error:r.upgrade.error}:null})),
           devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
         try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
@@ -1215,8 +1222,15 @@ export async function localRoute(req) {
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
       const b=await body(req),s=state();
       const ctx={workspace:{name:s.config.name,githubOrganization:githubIdentityCurrent(s.github)?s.github.selectedOrganization:null},
+        expectedHostVersion:HOST_RELEASE,
         runners:s.runners.map(r=>({id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen,
-            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[]})),
+            fabricObservedAt:r.fabricObservedAt||null,fabricCapabilities:r.fabricCapabilities||[],
+            hostVersion:r.hostVersion||null,hostVersionObservedAt:r.hostVersionObservedAt||null,
+            managedHost:!!r.managedHost,githubRunnerName:r.githubRunnerName||null,
+            labels:Array.isArray(r.labels)?r.labels.filter(x=>typeof x==="string").slice(0,30):[],
+            packages:Array.isArray(r.packages)?r.packages.slice(0,20).map(p=>({name:p.name,version:p.version})):[],
+            upgrade:r.upgrade?{phase:r.upgrade.phase,targetVersion:r.upgrade.targetVersion,
+              completedAt:r.upgrade.completedAt,error:r.upgrade.error}:null})),
           devices:listDevices({mode:"visible"}).devices};
       try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
