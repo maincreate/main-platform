@@ -120,7 +120,7 @@ $("marketplaceSubmit").addEventListener("click",async()=>{
 });
 $("marketplaceRequest").addEventListener("click",async()=>{
  const button=$("marketplaceRequest");const plan=plans[0];if(!plan)return;button.disabled=true;
- try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation requested; approval is still required for each builder.";plans.unshift(result.plan);renderPlans();}
+ try{const result=await api("/api/local/marketplace/request",{plan_id:plan.id});$("marketplaceNotice").textContent=result.partial?"Installation request partially queued; inspect each builder status.":"Installation jobs queued on selected compatible builders; progress appears in Jobs.";plans.unshift(result.plan);renderPlans();}
  catch(e){$("marketplaceNotice").textContent=e.message;}finally{button.disabled=false;}
 });
 load();

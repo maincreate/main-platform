@@ -573,7 +573,7 @@ export async function localRoute(req) {
               plan.job_ids.push(job.id);target.status=job.status;target.fabric_plan_id=fabricPlan.plan_id;delete target.error;
             }catch(e){target.status="failed";target.error=e.message;failures.push(target.builderId)}
           }
-          plan.execution=plan.job_ids.length?"awaiting_approval":"failed";plan.requestedAt=new Date().toISOString();save(s);
+          plan.execution=plan.job_ids.length?"queued":"failed";plan.requestedAt=new Date().toISOString();save(s);
           return reply({plan,partial:failures.length>0,failed_builders:failures},plan.job_ids.length?202:422);
         }catch(e){return deny(e.status||422,e.message)}
       }

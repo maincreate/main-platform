@@ -42,7 +42,7 @@ export function makeInstallationPlan(input,builders,actor){
   return {id:crypto.randomUUID(),family:release.family,version:release.version,installable:release.installable===true,
   placement:input.placement,targets:recorded,createdBy:actor,createdAt:new Date().toISOString(),
   status:'planned',execution:'not_started',
-  reason:release.installable?'Validated recipe selected; execution still requires an explicit approved fabric job and runner opt-in. No host changes made.':'Review-only catalog entry; no installer is enabled for this release. No host changes made.'};
+  reason:release.installable?'Validated native installer selected; request execution to queue this SDK on each compatible enrolled builder. Planning itself changes no host.':'Review-only catalog entry; no installer is enabled for this release. No host changes made.'};
 }
 export function validateAssignment(input){
  if(!input||typeof input!=='object')throw bad('Invalid builder metadata');
