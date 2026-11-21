@@ -25,6 +25,28 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
 });
+test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
+ const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
+  managedHost:true,githubRunnerName:"builder-linux-arm64-01",labels:["linux-arm64"],
+  packages:[{name:"node",version:"v22"}],upgrade:{phase:"completed",targetVersion:"0.8.2"}};
+ const local={...ctx,expectedHostVersion:"0.8.2",runners:[enriched,other]};
+ const current=fabricCall("maincreate_inspect",{resource:"runner",id:enriched.id},local);
+ assert.equal(current.host_service.installed_version,"0.8.2");
+ assert.equal(current.host_service.version_status,"current");
+ assert.equal(current.host_service.upgrade.phase,"completed");
+ assert.equal(current.github_runner.name,"builder-linux-arm64-01");
+ assert.deepEqual(current.github_runner.labels,["linux-arm64"]);
+ assert.deepEqual(current.packages,[{name:"node",version:"v22"}]);
+ assert.equal("tokenHash" in current,false);
+ assert.equal("version" in current.github_runner,false);
+ const future=fabricCall("maincreate_discover",{resource:"runners"},{
+  ...local,expectedHostVersion:"0.8.1"});
+ assert.equal(future.runners[0].host_service.version_status,"newer");
+ const behind=fabricCall("maincreate_discover",{resource:"runners"},{
+  ...local,expectedHostVersion:"0.8.3"});
+ assert.equal(behind.runners[0].host_service.version_status,"update_available");
+ assert.equal(behind.runners[1].host_service.version_status,"unknown");
+});
 test("plans validate schemas and do not execute or accept arbitrary commands",()=>{
  const p=invoke("maincreate_plan",snapshot);
  assert.equal(p.requires_approval,false);

@@ -66,6 +66,29 @@ function publicAsset(a){return {id:a.id,name:a.name,mime:a.mime,size:a.size,rece
  complete:a.complete,sha256:a.complete?a.sha256:null,job_id:a.jobId||null};}
 const recent=r=>r?.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&Date.now()-Date.parse(r.lastSeen)>-120000;
 const fabricReady=r=>!!recent(r)&&!!r.fabricObservedAt&&Date.now()-Date.parse(r.fabricObservedAt)<120000&&Array.isArray(r.fabricCapabilities)&&r.fabricCapabilities.length>0;
+
+const semver=v=>/^\d+\.\d+\.\d+$/.test(v||"")?v.split(".").map(Number):null;
+function hostReleaseStatus(installed,expected){
+ const current=semver(installed),target=semver(expected);
+ if(!current||!target)return "unknown";
+ for(let i=0;i<3;i++){if(current[i]<target[i])return "update_available";if(current[i]>target[i])return "newer";}
+ return "current";
+}
+function publicRunner(r,ctx){
+ const installed=r.hostVersion||null,expected=ctx.expectedHostVersion||null;
+ const upgrade=r.upgrade&&typeof r.upgrade==="object"?{
+  phase:r.upgrade.phase||null,target_version:r.upgrade.targetVersion||null,
+  completed_at:r.upgrade.completedAt||null,error:r.upgrade.error||null}:null;
+ return {
+  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
+  fabric_ready:fabricReady(r),executor_capabilities:r.fabricCapabilities||[],
+  host_service:{managed:!!r.managedHost,installed_version:installed,expected_version:expected,
+   version_status:hostReleaseStatus(installed,expected),observed_at:r.hostVersionObservedAt||null,upgrade},
+  github_runner:{name:r.githubRunnerName||null,labels:Array.isArray(r.labels)?r.labels:[]},
+  packages:Array.isArray(r.packages)?r.packages:[]
+ };
+}
+
 function createPlan(args,ctx) {
  const id=args.capability,cap=manifest(id);
  if(!cap||cap.state!=="available")throw error(422,"Capability is not available");
@@ -122,8 +145,7 @@ function inspect(args,ctx){
  if(kind==="runner"){
   const r=runnerBy(ctx,id);
   if(!r)throw error(404,"Unknown runner");
-  return {id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
-    fabric_ready:fabricReady(r),executor_capabilities:r.fabricCapabilities||[]};
+  return publicRunner(r,ctx);
  }
  if(kind==="job"){
   const j=store().jobs.find(x=>x.id===id);
@@ -139,10 +161,7 @@ function discover(args,ctx){
  const result={};
  if(resource==="all"||resource==="capabilities")result.capabilities=CAPS.filter(x=>!q||(x.id+" "+x.description).toLowerCase().includes(q));
  if(resource==="all"||resource==="toolkits")result.toolkits=TOOLKITS.filter(t=>!q||(t.id+" "+t.description).toLowerCase().includes(q));
- if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>({
-  id:r.id,name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen||null,online:!!recent(r),
-  fabric_ready:fabricReady(r),executor_capabilities:r.fabricCapabilities||[]
- })).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
+ if(resource==="all"||resource==="runners")result.runners=(ctx.runners||[]).map(r=>publicRunner(r,ctx)).filter(x=>!q||(x.name+" "+x.os).toLowerCase().includes(q));
  if(resource==="all"||resource==="devices")result.devices=(ctx.devices||[]).filter(d=>
   !q||((d.label||"")+" "+(d.product||"")+" "+(d.port||"")+" "+(d.runnerName||"")).toLowerCase().includes(q))
   .slice(0,50).map(d=>({id:d.id,runnerId:d.runnerId,runnerName:d.runnerName,

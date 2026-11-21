@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Replace superseded attempts on the same PR/branch; retain distinct branch runs.
+concurrency:
+  group: maincreate-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   validate:
     # Persistent self-hosted runners must not execute untrusted fork PR code.
@@ -18,6 +22,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test portal account provisioning and MCP
+        timeout-minutes: 4
         run: npm test
       - name: Validate UX support documentation matches flow contracts
         run: npm run docs:check
