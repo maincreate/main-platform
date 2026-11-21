@@ -50,8 +50,16 @@ func arduinoVersionOutputMatches(output string)bool{
  return arduinoVersionPattern.MatchString(strings.TrimSpace(output))
 }
 func checkArduinoVersion(binary string)error{
+ return checkArduinoVersionInHome(binary,filepath.Join(dataDir,"sdk-runtime","arduino-cli"))
+}
+func checkArduinoVersionInHome(binary,home string)error{
+ // ProtectHome=yes on the managed systemd service intentionally hides /root.
+ // Give the official CLI a dedicated writable and private state directory.
+ if err:=os.MkdirAll(home,0700);err!=nil{return fmt.Errorf("Arduino CLI runtime directory: %w",err)}
  ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second);defer cancel()
- output,err:=exec.CommandContext(ctx,binary,"version").CombinedOutput()
+ cmd:=exec.CommandContext(ctx,binary,"version")
+ cmd.Env=append(os.Environ(),"HOME="+home,"XDG_CONFIG_HOME="+filepath.Join(home,".config"))
+ output,err:=cmd.CombinedOutput()
  sample:=strings.TrimSpace(string(output))
  if len(sample)>500{sample=sample[:500]}
  if err!=nil{return fmt.Errorf("Arduino CLI version command failed (%s): %w",sample,err)}

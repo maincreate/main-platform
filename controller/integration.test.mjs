@@ -189,7 +189,7 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(enrolled.status,200);
    assert.equal((await json(base,"/api/agent/enroll",request)).status,401);
    assert(!readFileSync(join(dir,"state.json"),"utf8").includes(enrolled.data.token));
-   const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id,hostVersion:"0.8.4",fabricCapabilities:["host.snapshot"],packages:[{name:"node",version:"v22.0.0"}]},{authorization:"Bearer "+enrolled.data.token});
+   const hb=await json(base,"/api/agent/heartbeat",{id:enrolled.data.id,hostVersion:"0.8.5",fabricCapabilities:["host.snapshot"],packages:[{name:"node",version:"v22.0.0"}]},{authorization:"Bearer "+enrolled.data.token});
    assert.equal(hb.status,200);
    assert.equal(hb.data.ok,true);
    // End-to-end fabric API: authenticated planning queues immediately; the explicit emergency pause blocks claims.
@@ -208,8 +208,8 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(inspectReady.status,200);
    assert.equal(inspectReady.data.fabric_ready,true);
    assert.deepEqual(inspectReady.data.executor_capabilities,["host.snapshot"]);
-   assert.equal(inspectReady.data.host_service.installed_version,"0.8.4");
-   assert.equal(inspectReady.data.host_service.expected_version,"0.8.4");
+   assert.equal(inspectReady.data.host_service.installed_version,"0.8.5");
+   assert.equal(inspectReady.data.host_service.expected_version,"0.8.5");
    assert.equal(inspectReady.data.host_service.version_status,"current");
    assert.equal(inspectReady.data.github_runner.name,null);
    assert.equal(inspectReady.data.github_runner.lookup_status,"not_registered");
