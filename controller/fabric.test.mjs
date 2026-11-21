@@ -25,6 +25,19 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
 });
+test("versioned Marketplace registry advertises compatibility without enabling unimplemented SDK execution",()=>{
+ const result=invoke("maincreate_discover",{resource:"toolkits"});
+ const idf=result.toolkits.find(x=>x.id==="esp-idf");
+ assert.equal(idf.schemaVersion,2);
+ assert.equal(idf.installation,"maincreate-managed");
+ const v=idf.versions.find(x=>x.version==="5.5.6");
+ assert(v,"ESP-IDF 5.5.6 needs a versioned recipe");
+ assert(v.compatibility.install.some(x=>x.os==="linux"&&x.architecture==="arm64"&&x.status==="supported"));
+ assert(v.compatibility.install.some(x=>x.os==="linux"&&x.architecture==="x64"&&x.status==="supported"));
+ const caps=invoke("maincreate_discover",{resource:"capabilities"}).capabilities;
+ assert.equal(caps.find(x=>x.id==="sdk.esp_idf.install").state,"unavailable",
+  "metadata alone must not enable an unimplemented installer");
+});
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
   managedHost:true,githubRunnerName:"builder-linux-arm64-01",labels:["linux-arm64"],

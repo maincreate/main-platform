@@ -11,10 +11,11 @@
   },
   "marketplace": {
     "repository": "https://github.com/maincreate/main-marketplace",
-    "revision": "136efc8e3db23c7e500de487f312ff3812d66a11",
+    "revision": "9168368f4d121e6f568560bd048ee471142d8adf",
     "paths": [
       "registry/toolkits.json",
-      "registry/microcontrollers.json"
+      "registry/microcontrollers.json",
+      "registry/android-devices.json"
     ]
   }
 }
