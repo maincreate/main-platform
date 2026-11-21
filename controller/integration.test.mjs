@@ -202,6 +202,12 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    const planned=await fabricCall("maincreate_plan",{capability:"host.snapshot",runner_id:enrolled.data.id,parameters:{}});
    assert.equal(planned.status,200);
    assert.equal(planned.data.requires_approval,false);
+   assert.equal(planned.data.runner_execution_ready,true);
+   assert.deepEqual(planned.data.executor_capabilities,["host.snapshot"]);
+   const inspectReady=await fabricCall("maincreate_inspect",{resource:"runner",id:enrolled.data.id});
+   assert.equal(inspectReady.status,200);
+   assert.equal(inspectReady.data.fabric_ready,true);
+   assert.deepEqual(inspectReady.data.executor_capabilities,["host.snapshot"]);
    const jobRequest=await fabricCall("maincreate_execute",{plan_id:planned.data.plan_id});
    assert.equal(jobRequest.status,200);
    assert.equal(jobRequest.data.job.status,"queued");
