@@ -23,8 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.14"
-var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe","firmware.esp_idf.backup","firmware.esp_idf.security_preflight"}
+const version="0.8.15"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe","firmware.esp_idf.backup","firmware.esp_idf.security_preflight","firmware.esp_idf.flash"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -315,7 +315,7 @@ func main(){
 // filters by declared capabilities, so this process never claims firmware or
 // installer jobs that need their own reviewed adapters.
 type fabricStep struct{ Capability string }
-type fabricJob struct{ ID string; Parameters struct{Version string;Port string;ExpectedMAC string `json:"expected_mac"`}; Steps []fabricStep }
+type fabricJob struct{ ID string; Parameters struct{Version string;Port string;ExpectedMAC string `json:"expected_mac"`;SourceJobID string `json:"source_job_id"`;BackupJobID string `json:"backup_job_id"`;SecurityJobID string `json:"security_job_id"`}; Steps []fabricStep }
 
 func hostSnapshot(c config)([]byte,error){
  if runtime.GOOS!="linux"{return nil,errors.New("host snapshot requires Linux")}
@@ -391,6 +391,8 @@ func executeFabricJob(c config,job fabricJob)error{
     message,err=backupESP32Managed(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC)
    case "firmware.esp_idf.security_preflight":
     message,err=esp32SecurityPreflight(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC)
+   case "firmware.esp_idf.flash":
+    message,err=flashESP32Managed(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC,job.Parameters.SourceJobID,job.Parameters.BackupJobID,job.Parameters.SecurityJobID)
    default:
     err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
    }
