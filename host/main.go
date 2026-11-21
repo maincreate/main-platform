@@ -23,8 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.12"
-var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe","firmware.esp_idf.backup"}
+const version="0.8.13"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe","firmware.esp_idf.backup","firmware.esp_idf.security_preflight"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -389,6 +389,8 @@ func executeFabricJob(c config,job fabricJob)error{
     message,err=probeESP32Managed(c,job.ID,job.Parameters.Port)
    case "firmware.esp_idf.backup":
     message,err=backupESP32Managed(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC)
+   case "firmware.esp_idf.security_preflight":
+    message,err=esp32SecurityPreflight(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC)
    default:
     err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
    }
