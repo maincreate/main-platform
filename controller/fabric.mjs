@@ -62,7 +62,7 @@ function publicJob(j){return {id:j.id,plan_id:j.planId,capability:j.capability,r
  status:j.status,created_at:j.createdAt,approved_at:j.approvedAt||null,started_at:j.startedAt||null,
  source:j.parameters?.repository?{repository:j.parameters.repository,revision:j.parameters.revision||null}:null,
  completed_at:j.completedAt||null,steps:j.steps,logs:j.logs||"",asset_ids:j.assetIds||[],
- error:j.error||null};}
+ error:j.error||null,target_mac:j.capability==="firmware.esp_idf.flash"?j.parameters?.expected_mac:null};}
 function publicAsset(a){return {id:a.id,name:a.name,mime:a.mime,size:a.size,received:a.received,
  complete:a.complete,sha256:a.complete?a.sha256:null,job_id:a.jobId||null};}
 const recent=r=>r?.lastSeen&&Date.now()-Date.parse(r.lastSeen)<120000&&Date.now()-Date.parse(r.lastSeen)>-120000;
@@ -104,7 +104,7 @@ function createPlan(args,ctx) {
   createdAt:new Date().toISOString(),expiresAt:Date.now()+30*60e3};
  s.plans.push(p);save(s);
  return {plan_id:p.id,capability:p.capability,version:p.version,runner_id:p.runnerId,
-  parameters:p.parameters,steps:p.steps,requires_approval:false,runner_online:!!recent(runner),
+  parameters:p.parameters,steps:p.steps,requires_approval:cap.risk==="device-write",runner_online:!!recent(runner),
   runner_execution_ready:fabricReady(runner),executor_capabilities:runner.fabricCapabilities||[],
   expires_at:new Date(p.expiresAt).toISOString(),
   notice:"Planning does not execute. maincreate_execute queues a typed job for the enrolled runner."};
@@ -114,14 +114,14 @@ function createJob(args,ctx){
  if(!p||Date.now()>p.expiresAt)throw error(404,"Plan missing or expired; re-plan");
  if(!runnerBy(ctx,p.runnerId))throw error(404,"Runner no longer enrolled");
  const existing=s.jobs.find(j=>j.planId===p.id);
- if(existing)return {job:publicJob(existing),created:false,requires_approval:false};
+ if(existing)return {job:publicJob(existing),created:false,requires_approval:existing.status==="awaiting_approval"};
  if(s.jobs.length>=200)throw error(409,"Job history limit reached; archive required");
  const j={id:uid(),planId:p.id,capability:p.capability,runnerId:p.runnerId,
   parameters:p.parameters,version:p.version,steps:p.steps.map(x=>({...x})),
-  status:"queued",createdAt:new Date().toISOString(),logs:"",assetIds:[]};
+  status:manifest(p.capability)?.risk==="device-write"?"awaiting_approval":"queued",createdAt:new Date().toISOString(),logs:"",assetIds:[]};
  s.jobs.push(j);save(s);
- return {job:publicJob(j),created:true,requires_approval:false,
-  notice:"Job queued. The enrolled runner may claim it without another approval step."};
+ return {job:publicJob(j),created:true,requires_approval:j.status==="awaiting_approval",
+  notice:j.status==="awaiting_approval"?"Explicit administrator approval is required before any device write.":"Job queued. The enrolled runner may claim it without another approval step."};
 }
 function inspect(args,ctx){
  const kind=args.resource||"capability",id=args.id;
@@ -268,11 +268,14 @@ export function fabricCall(tool,raw,ctx={}){
   default:throw error(404,"Unknown fabric tool");
  }
 }
-export function approveJob(id,decision){
+export function approveJob(id,decision,confirmedMAC=null){
  const s=store(),j=s.jobs.find(x=>x.id===id);
  if(!j)throw error(404,"Job not found");
  if(j.status!=="awaiting_approval")throw error(409,"Job already handled");
  if(!["approve","reject"].includes(decision))throw error(422,"Invalid decision");
+ if(j.capability==="firmware.esp_idf.flash"&&decision==="approve"&&
+    (typeof confirmedMAC!=="string"||confirmedMAC!==j.parameters?.expected_mac))
+  throw error(422,"Exact device MAC confirmation required for firmware flash");
  j.status=decision==="approve"?"queued":"rejected";
  j.approvedAt=decision==="approve"?new Date().toISOString():null;
  if(decision==="reject")j.completedAt=new Date().toISOString();
