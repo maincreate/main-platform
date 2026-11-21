@@ -4,7 +4,8 @@ import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSyn
 import {join} from "node:path";
 import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade,pendingHostUpgrade} from "./host_routes.mjs";
 import {storageRoute} from "./storage.mjs";
-import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats,runnerHasExecutableFabricWork} from "./fabric.mjs";
+import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats,runnerHasExecutableFabricWork,importReviewedFirmwareBuild} from "./fabric.mjs";
+import {decodeFirmwareZip,validateExpressionArtifacts} from "./github_firmware_import.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startOpenAiTunnel,stopOpenAiTunnel,openAiRuntimeStatus} from "./openai_tunnel_runtime.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
@@ -1158,6 +1159,61 @@ export async function localRoute(req) {
         const s=state();
         try {const result=await verifyGithub(s);s.github.verifiedAt=new Date().toISOString();save(s);return reply({verified:true,...result});}
         catch(e){s.github.verifiedAt=null;save(s);return deny(502,e.message);}
+      }
+      if(path==="/api/local/firmware/import-actions"&&method==="POST"){
+        const input=await body(req),s=state(),gh=s.github||{};
+        if(limited("firmware-import:"+session(req).username,6))
+          return deny(429,"Too many firmware artifact import attempts");
+        if(!githubIdentityCurrent(gh)||gh.selectedOrganization!=="BuilderBench"||!gh.oauthToken)
+          return deny(409,"Connect Main{Create}'s GitHub account to the BuilderBench organization");
+        if(!Number.isSafeInteger(input.run_id)||input.run_id<1||
+          typeof input.runner_id!=="string"||!s.runners.some(r=>r.id===input.runner_id&&
+          r.managedHost&&Date.now()-Date.parse(r.lastSeen||"")<120000))
+          return deny(422,"Valid Actions run ID and online managed builder required");
+        const repository="BuilderBench/esp32-expression";
+        try{
+          await refreshGithubAuthorization();
+          const latest=state().github;
+          if(!githubIdentityCurrent(latest)||latest.selectedOrganization!=="BuilderBench")
+            return deny(409,"GitHub authorization changed during import");
+          const headers={"authorization":"Bearer "+unseal(latest.oauthToken),
+           "accept":"application/vnd.github+json","user-agent":"Main{Create}",
+           "x-github-api-version":"2022-11-28"};
+          const base="https://api.github.com/repos/BuilderBench/esp32-expression";
+          const request=async suffix=>{
+            const response=await fetch(base+suffix,{headers,signal:AbortSignal.timeout(15000)});
+            if(!response.ok)throw Object.assign(new Error("GitHub Actions read failed (HTTP "+response.status+")"),
+              {status:response.status===403?403:502});
+            return response.json();
+          };
+          const run=await request("/actions/runs/"+input.run_id);
+          if(run.id!==input.run_id||run.head_repository?.full_name!==repository||
+            run.head_branch!=="main"||run.event!=="push"||
+            run.status!=="completed"||run.conclusion!=="success"||
+            !/^[0-9a-f]{40}$/.test(run.head_sha||"")||
+            !String(run.path||"").endsWith(".github/workflows/arduino-build.yml"))
+            return deny(422,"Only successful Luma Pet main-branch builds are importable");
+          const listing=await request("/actions/runs/"+input.run_id+"/artifacts?per_page=100");
+          const matching=(listing.artifacts||[]).filter(a=>
+            a.name==="luma-pet-esp32s3-touch-lcd-1.85B-34554"&&!a.expired);
+          if(matching.length!==1||matching[0].size_in_bytes>12*1024*1024||
+             !Number.isSafeInteger(matching[0].id))
+            return deny(422,"Exactly one non-expired, bounded Luma Pet artifact required");
+          const archive=await fetch(base+"/actions/artifacts/"+matching[0].id+"/zip",
+            {headers,signal:AbortSignal.timeout(30000)});
+          if(!archive.ok)return deny(502,"GitHub firmware ZIP download failed");
+          const chunks=[];let received=0;
+          for await (const chunk of archive.body){
+            received+=chunk.length;
+            if(received>12*1024*1024)return deny(422,"GitHub artifact ZIP exceeds limit");
+            chunks.push(Buffer.from(chunk));
+          }
+          const files=decodeFirmwareZip(Buffer.concat(chunks));
+          const verified=validateExpressionArtifacts(files,{repository,revision:run.head_sha});
+          return reply(importReviewedFirmwareBuild({repository,revision:run.head_sha,
+            runId:run.id,runnerId:input.runner_id,images:verified.images,
+            sourceSha256:verified.sourceSha256}));
+        }catch(e){return deny(e.status||422,e.message)}
       }
       if(path==="/api/local/fabric"&&method==="POST"){
         const b=await body(req),s=state();

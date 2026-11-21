@@ -46,7 +46,9 @@ export function verifyFlashEvidence({flashJob,jobs,assets,readAsset,now=Date.now
   reject("exact device path and expected MAC required");
  const backup=selectJob(jobs,p.backup_job_id,"firmware.esp_idf.backup");
  const security=selectJob(jobs,p.security_job_id,"firmware.esp_idf.security_preflight");
- const source=selectJob(jobs,p.source_job_id,"firmware.esp_idf.smoke_build");
+ const source=jobs.find(j=>j.id===p.source_job_id&&j.status==="completed"&&
+  ["firmware.esp_idf.smoke_build","firmware.esp_idf.import_build"].includes(j.capability))||
+  reject("required completed approved firmware source job not found");
  for(const prior of [backup,security]){
   if(prior.runnerId!==flashJob.runnerId||
     prior.parameters?.port!==p.port||prior.parameters?.expected_mac!==p.expected_mac)
@@ -84,7 +86,9 @@ export function verifyFlashEvidence({flashJob,jobs,assets,readAsset,now=Date.now
  const firmwareManifest=readVerifiedAsset(source,assets,"esp32s3-firmware-manifest.json",readAsset);
  const firmwareDoc=parseJSON(firmwareManifest,"Firmware manifest");
  if(firmwareDoc.schema!==1||firmwareDoc.job_id!==source.id||
-  firmwareDoc.framework!=="esp-idf"||firmwareDoc.framework_version!=="5.5.6"||
+  !((firmwareDoc.framework==="esp-idf"&&firmwareDoc.framework_version==="5.5.6")||
+    (firmwareDoc.framework==="arduino-esp32"&&firmwareDoc.framework_version==="3.2.0"&&
+     source.capability==="firmware.esp_idf.import_build"))||
   firmwareDoc.target!=="esp32s3"||!hex64.test(firmwareDoc.source_sha256||"")||
   !Array.isArray(firmwareDoc.files)||firmwareDoc.files.length!==3)
   reject("firmware source manifest not supported");

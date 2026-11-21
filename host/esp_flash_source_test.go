@@ -67,3 +67,22 @@ func TestFlashSourceTransportChecksSHAAndBoundaries(t *testing.T){
  if _,e=fetchFlashSourceAsset(c,job,source,"../secret");e==nil{t.Fatal("accepted arbitrary firmware source name")}
  if _,e=fetchFlashSourceAsset(c,"invalid",source,"esp32s3-firmware.bin");e==nil{t.Fatal("accepted invalid job ID")}
 }
+
+func TestFlashBundleAcceptsPinnedArduinoSourceOnly(t *testing.T){
+ sourceID:="0123456789abcdef0123456789abcdef"
+ images:=map[string][]byte{}
+ manifest:=flashSourceManifest{Schema:1,JobID:sourceID,Framework:"arduino-esp32",
+  FrameworkVersion:"3.2.0",Target:"esp32s3",SourceSHA256:strings.Repeat("b",64)}
+ for i,name:=range flashArtifactNames{
+  data:=bytes.Repeat([]byte{byte(i+1)},2048+i*1024)
+  images[name]=data
+  sum:=sha256.Sum256(data)
+  manifest.Files=append(manifest.Files,flashManifestFile{Name:name,Size:len(data),
+   SHA256:hex.EncodeToString(sum[:])})
+ }
+ raw,_:=json.Marshal(manifest)
+ if err:=verifyFlashSourceBundle(sourceID,raw,images);err!=nil{t.Fatal(err)}
+ manifest.FrameworkVersion="3.2.1"
+ raw,_=json.Marshal(manifest)
+ if err:=verifyFlashSourceBundle(sourceID,raw,images);err==nil{t.Fatal("accepted unreviewed Arduino SDK")}
+}

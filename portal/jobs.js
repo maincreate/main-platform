@@ -34,7 +34,7 @@ async function checkFlashReadiness(){
  const selected=devices.find(d=>d.id===$("flashDevice").value&&d.lifecycle==="connected");
  flashPreflight=null;$("requestFlash").disabled=true;
  if(!selected){$("flashExplanation").textContent="No connected target device is selected.";return;}
- if(selectedFirmwareJob?.capability!=="firmware.esp_idf.smoke_build"||
+ if(!["firmware.esp_idf.smoke_build","firmware.esp_idf.import_build"].includes(selectedFirmwareJob?.capability)||
   !currentAssets.some(a=>a.job_id===selectedFirmwareJob.id&&a.name==="esp32s3-firmware-manifest.json"&&a.complete)){
   $("flashExplanation").textContent="Select a completed, verified ESP-IDF ESP32-S3 firmware build.";return;
  }
@@ -111,7 +111,7 @@ function render(){
   for(const a of artifactList)detailCell.append(action("Download "+a.name,()=>download(a)));
   buttons.append(action("Details",()=>{details.hidden=!details.hidden;}));
   if(new URLSearchParams(location.search).get("job")===j.id)details.hidden=false;
-  if(j.status==="completed"&&j.capability==="firmware.esp_idf.smoke_build")buttons.append(action("Flash device",()=>showFlash(j)));
+  if(j.status==="completed"&&["firmware.esp_idf.smoke_build","firmware.esp_idf.import_build"].includes(j.capability))buttons.append(action("Flash device",()=>showFlash(j)));
   if(j.status==="awaiting_approval"){
    buttons.append(action("Approve",async()=>{if(j.capability==="firmware.esp_idf.flash")return showFlashApproval(j);await api("/api/local/jobs/approval",{job_id:j.id,decision:"approve"});await load();}));
    buttons.append(action("Reject",async()=>{await api("/api/local/jobs/approval",{job_id:j.id,decision:"reject"});await load();}));
@@ -152,6 +152,22 @@ async function load(){
 $("localJobSearch").addEventListener("input",render);
 $("localJobStatus").addEventListener("change",render);
 $("refreshJobs").addEventListener("click",load);
+window.importGitHubFirmware=async run=>{
+ if(run?.repository!=="BuilderBench/esp32-expression"||run?.branch!=="main"||
+  run?.conclusion!=="success"||!Number.isSafeInteger(run.id)){
+  message("Select a successful main-branch Expressions build.");return;
+ }
+ const connected=devices.filter(d=>d.lifecycle==="connected"&&d.runnerId&&
+  /^\/dev\/tty(?:ACM|USB)[0-9]+$/.test(d.port||""));
+ if(connected.length!==1){message("Connect exactly one target ESP32-S3 to import firmware for its builder.");return;}
+ try{
+  message("Verifying GitHub Actions archive and importing firmware…");
+  const out=await api("/api/local/firmware/import-actions",{run_id:run.id,runner_id:connected[0].runnerId});
+  await load();
+  message("Firmware source imported as job "+out.job.id.slice(0,12)+
+   ". Select that completed build to request an approved device flash.");
+ }catch(e){message(e.message);}
+};
 window.openGitHubFlash=showFlash;
 $("flashDevice").addEventListener("change",()=>checkFlashReadiness().catch(e=>message(e.message)));
 $("requestFlash").addEventListener("click",async()=>{

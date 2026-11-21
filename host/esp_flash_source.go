@@ -87,8 +87,9 @@ func fetchFlashSourceAsset(c config,flashJobID,sourceJobID,name string)([]byte,e
 func verifyFlashSourceBundle(sourceJobID string,manifestBytes []byte,images map[string][]byte)error{
  var m flashSourceManifest
  if err:=json.Unmarshal(manifestBytes,&m);err!=nil{return err}
- if m.Schema!=1||m.JobID!=sourceJobID||m.Framework!="esp-idf"||
-    m.FrameworkVersion!="5.5.6"||m.Target!="esp32s3"||
+ if m.Schema!=1||m.JobID!=sourceJobID||!((m.Framework=="esp-idf"&&m.FrameworkVersion=="5.5.6")||
+      (m.Framework=="arduino-esp32"&&m.FrameworkVersion=="3.2.0"))||
+    m.Target!="esp32s3"||
     !sha256HexPattern.MatchString(m.SourceSHA256)||len(m.Files)!=len(flashArtifactNames){
   return errors.New("firmware build manifest not an approved ESP32-S3 release")
  }
