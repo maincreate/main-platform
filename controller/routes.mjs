@@ -982,7 +982,7 @@ export async function localRoute(req) {
               decommission:r.decommission?{phase:r.decommission.phase,error:r.decommission.error||null,...removalActivity(r,stored.hostActions||[])}:null
             })),
             truncated:stored.runners.length>24,
-            executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION==="1"
+            executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="0"
           },
           devices:{...deviceOverview(),items:listDevices({mode:"visible"}).devices.slice(0,12)},
           projects:(()=>{const gh=stored.github,org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
@@ -1176,10 +1176,10 @@ export async function localRoute(req) {
       try{
         if(path==="/api/agent/jobs/claim"){
           runner.lastSeen=new Date().toISOString();save(s);
-          if(process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="1")return reply({job:null,executionEnabled:false});
+          if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return reply({job:null,executionEnabled:false});
           return reply({...claimJob(runner),executionEnabled:true});
         }
-        if(process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="1")return deny(403,"Runner execution disabled");
+        if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return deny(403,"Runner execution disabled");
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
         return reply(agentAsset(runner,b));
       }catch(e){return deny(e.status||422,e.message);}
@@ -1204,7 +1204,7 @@ export async function localRoute(req) {
     }
     if(path==="/api/internal/status"&&method==="GET"){
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
-      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION==="1",fabric:fabricStats()});
+      const s=state();return reply({name:s.config.name,githubVerified:!!s.github.verifiedAt,runners:s.runners.map(r=>({name:r.name,os:r.os,arch:r.arch,lastSeen:r.lastSeen})),executionEnabled:process.env.MAIN_ENABLE_FABRIC_EXECUTION!=="0",fabric:fabricStats()});
     }
     return deny(404,"Not found");
   } catch(e) {
