@@ -49,7 +49,8 @@ function validParams(schema,input){
  const allowed=schema.properties||{};
  for(const k of Object.keys(input)){
   if(!Object.hasOwn(allowed,k))throw error(422,"Unsupported parameter: "+k);
-  if(typeof input[k]!=="string"||input[k].length>256||!new RegExp(allowed[k].pattern||"^.*$").test(input[k]))
+  if(typeof input[k]!=="string"||input[k].length>256||!new RegExp(allowed[k].pattern||"^.*$").test(input[k])||
+     (Array.isArray(allowed[k].enum)&&!allowed[k].enum.includes(input[k])))
    throw error(422,"Invalid parameter: "+k);
  }
  for(const k of schema.required||[])if(!Object.hasOwn(input,k))throw error(422,"Missing parameter: "+k);
