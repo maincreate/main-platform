@@ -10,7 +10,7 @@ const MAX_ASSET=8*1024*1024,MAX_CHUNK=48*1024,MAX_STORED=80*1024*1024;
 const readManifest=name=>JSON.parse(readFileSync(new URL("../registry/"+name,import.meta.url),"utf8"));
 const CAPS=readManifest("capabilities.json");
 const TOOLKITS=readManifest("toolkits.json");
-const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install"]);
+const RUNNER_ADAPTERS=new Set(["host.snapshot","firmware.esp_idf.build","sdk.arduino_cli.install","sdk.esp_idf.install"]);
 function validateRegistry(){
  const ids=new Set();
  for(const c of CAPS){
@@ -49,7 +49,8 @@ function validParams(schema,input){
  const allowed=schema.properties||{};
  for(const k of Object.keys(input)){
   if(!Object.hasOwn(allowed,k))throw error(422,"Unsupported parameter: "+k);
-  if(typeof input[k]!=="string"||input[k].length>256||!new RegExp(allowed[k].pattern||"^.*$").test(input[k]))
+  if(typeof input[k]!=="string"||input[k].length>256||!new RegExp(allowed[k].pattern||"^.*$").test(input[k])||
+     (Array.isArray(allowed[k].enum)&&!allowed[k].enum.includes(input[k])))
    throw error(422,"Invalid parameter: "+k);
  }
  for(const k of schema.required||[])if(!Object.hasOwn(input,k))throw error(422,"Missing parameter: "+k);

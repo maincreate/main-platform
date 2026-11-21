@@ -35,8 +35,19 @@ test("versioned Marketplace registry advertises compatibility without enabling u
  assert(v.compatibility.install.some(x=>x.os==="linux"&&x.architecture==="arm64"&&x.status==="supported"));
  assert(v.compatibility.install.some(x=>x.os==="linux"&&x.architecture==="x64"&&x.status==="supported"));
  const caps=invoke("maincreate_discover",{resource:"capabilities"}).capabilities;
- assert.equal(caps.find(x=>x.id==="sdk.esp_idf.install").state,"unavailable",
-  "metadata alone must not enable an unimplemented installer");
+ assert.equal(caps.find(x=>x.id==="sdk.esp_idf.install").state,"available");
+ assert.deepEqual(caps.find(x=>x.id==="sdk.esp_idf.install").parameters.properties.version.enum,["5.5.6","6.1.1"]);
+});
+test("ESP-IDF installation requires an exact approved version",()=>{
+ const good=invoke("maincreate_plan",{capability:"sdk.esp_idf.install",runner_id:runner.id,
+  parameters:{version:"5.5.6"}});
+ assert.equal(good.parameters.version,"5.5.6");
+ for(const version of ["latest","5.5","6.4","../5.5.6","5.5.6;sh"]){
+  assert.throws(()=>invoke("maincreate_plan",{capability:"sdk.esp_idf.install",runner_id:runner.id,
+   parameters:{version}}),/Invalid parameter: version/);
+ }
+ assert.throws(()=>invoke("maincreate_plan",{capability:"sdk.esp_idf.install",runner_id:runner.id,
+  parameters:{}}),/Missing parameter: version/);
 });
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),

@@ -290,10 +290,10 @@
         },
         "lifecycle": {
           "install": {
-            "state": "pilot",
+            "state": "available",
             "recipeId": "espressif.esp-idf.install",
             "versionScoped": true,
-            "requiresExplicitApproval": true,
+            "requiresExplicitApproval": false,
             "capabilityId": "sdk.esp_idf.install"
           },
           "build": {
