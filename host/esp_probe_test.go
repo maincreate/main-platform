@@ -41,3 +41,23 @@ func TestESP32PortRejectsInjectionAndRegularFile(t *testing.T){
 func TestESP32ProbeRejectsNonAbsoluteEsptool(t *testing.T){
  if _,err:=probeESP32ReadOnly("/dev/ttyUSB0","esptool");err==nil{t.Fatal("accepted untrusted command search path")}
 }
+
+func TestESP32ProbeModernEsptoolSeparatesMAC(t *testing.T){
+ chip:="esptool v5.0\nSerial port /dev/ttyACM0\nDetecting chip type... ESP32-S3\nChip is ESP32-S3 (QFN56)\n"
+ // The modern output may include both detection and chip display. Pass only
+ // the result of the exact chip-id command to the parser; ambiguity fails closed.
+ chip="esptool v5.0\nChip type: ESP32-S3\n"
+ mac:="esptool v5.0\nMAC: 24:58:7c:11:22:ab\n"
+ flash:="Detected flash size: 8MB\n"
+ got,err:=parseESP32ProbeThree("/dev/ttyACM0",chip,mac,flash)
+ if err!=nil{t.Fatal(err)}
+ if got.Chip!="ESP32-S3"||got.MAC!="24:58:7c:11:22:ab"||got.FlashSize!="8MB"{t.Fatalf("wrong identity: %+v",got)}
+ if got.SecurityVerified||got.FlashAllowed{t.Fatal("probe must not authorize writes")}
+}
+func TestESP32ProbeSeparateMACFailsClosed(t *testing.T){
+ chip:="Chip is ESP32-S3 (QFN56)"
+ flash:="Detected flash size: 8MB"
+ for _,mac:=range []string{"","unavailable","MAC: ff:ff:ff:ff:ff:ff\nMAC: 24:58:7c:11:22:ab"}{
+  if _,err:=parseESP32ProbeThree("/dev/ttyACM0",chip,mac,flash);err==nil{t.Fatal("accepted missing or duplicate MAC")}
+ }
+}
