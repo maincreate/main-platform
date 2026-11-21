@@ -328,6 +328,62 @@ function applyApprovalPreference(tool,args,context){
   }
   return result;
 }
+// Resolve GitHub runner runtime facts only when a caller inspects one host.
+// Never conflate the local managed-runner record with GitHub's live status.
+async function enrichFabricRunner(tool,args,context){
+ const result=applyApprovalPreference(tool,args,context);
+ if(tool!=="maincreate_inspect"||args?.resource!=="runner"||!result?.github_runner)return result;
+ const ghName=result.github_runner.name;
+ if(!ghName)return {...result,github_runner:{...result.github_runner,lookup_status:"not_registered"}};
+ await refreshGithubAuthorization();
+ const gh=state().github||{},org=gh.selectedOrganization;
+ if(!githubIdentityCurrent(gh)||!org)
+  return {...result,github_runner:{...result.github_runner,lookup_status:"github_disconnected"}};
+ try{
+  const headers={authorization:"Bearer "+unseal(gh.oauthToken),accept:"application/vnd.github+json",
+   "user-agent":"Main{Create}","x-github-api-version":"2022-11-28"};
+  const url="https://api.github.com/orgs/"+encodeURIComponent(org)+"/actions/runners";
+  const res=await fetch(url+"?per_page=100",{headers,signal:AbortSignal.timeout(10000)});
+  if(!res.ok)throw Error("Runner inventory not available");
+  const data=await res.json();
+  if(!Array.isArray(data.runners))throw Error("Invalid GitHub runner inventory");
+  const matches=data.runners.filter(r=>r.name===ghName);
+  if(matches.length!==1){
+   const incomplete=Number(data.total_count)>data.runners.length;
+   return {...result,github_runner:{...result.github_runner,
+    lookup_status:matches.length>1?"ambiguous":incomplete?"inventory_incomplete":"not_found"}};
+  }
+  const found=matches[0];
+  const installed=/^\d+\.\d+\.\d+$/.test(String(found.version||""))?found.version:null;
+  let available=null;
+  try{
+   const downloads=await fetch(url+"/downloads",{headers,signal:AbortSignal.timeout(10000)});
+   if(downloads.ok){
+    const list=await downloads.json();
+    const os=String(found.os||"").toLowerCase();
+    const targetOs=os==="macos"?"osx":os==="windows"?"win":os;
+    const targetArch=result.arch;
+    if(Array.isArray(list))for(const item of list){
+     if(String(item.os||"").toLowerCase()!==targetOs||
+       String(item.architecture||"").toLowerCase()!==targetArch)continue;
+     const match=/-(\d+\.\d+\.\d+)\.(?:tar\.gz|zip)$/.exec(String(item.filename||""));
+     if(match)available=match[1];
+    }
+   }
+  }catch{/* Keep installed version available even if rollout metadata is down. */}
+  const parts=v=>v?.split(".").map(Number);
+  const older=(a,b)=>{const x=parts(a),y=parts(b);if(!x||!y)return null;
+   for(let i=0;i<3;i++){if(x[i]<y[i])return true;if(x[i]>y[i])return false;}return false;};
+  return {...result,github_runner:{...result.github_runner,
+   lookup_status:"verified",organization:org,id:Number.isSafeInteger(found.id)?found.id:null,
+   status:["online","offline"].includes(found.status)?found.status:"unknown",
+   busy:typeof found.busy==="boolean"?found.busy:null,
+   installed_version:installed,available_version:available,update_available:older(installed,available),
+   observed_at:new Date().toISOString()}};
+ }catch{
+  return {...result,github_runner:{...result.github_runner,lookup_status:"unavailable"}};
+ }
+}
 function githubOnboardingReady(g){
  return githubIdentityCurrent(g)&&typeof g.selectedOrganization==="string"&&g.selectedOrganization.length>0&&
    Array.isArray(g.oauthOrganizations)&&g.oauthOrganizations.some(o=>o.login===g.selectedOrganization);
@@ -1050,7 +1106,7 @@ export async function localRoute(req) {
               completedAt:r.upgrade.completedAt,error:r.upgrade.error}:null})),
           devices:listDevices({mode:"visible"}).devices};
         if(typeof b.tool!=="string")return deny(422,"Fabric tool required");
-        try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
+        try{return reply(await enrichFabricRunner(b.tool,b.arguments||{},ctx));}
         catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/jobs/approval"&&method==="POST"){
@@ -1232,7 +1288,7 @@ export async function localRoute(req) {
             upgrade:r.upgrade?{phase:r.upgrade.phase,targetVersion:r.upgrade.targetVersion,
               completedAt:r.upgrade.completedAt,error:r.upgrade.error}:null})),
           devices:listDevices({mode:"visible"}).devices};
-      try{return reply(applyApprovalPreference(b.tool,b.arguments||{},ctx));}
+      try{return reply(await enrichFabricRunner(b.tool,b.arguments||{},ctx));}
       catch(e){return deny(e.status||422,e.message);}
     }
     if(path==="/api/internal/status"&&method==="GET"){
