@@ -168,6 +168,18 @@ window.importGitHubFirmware=async run=>{
    ". Select that completed build to request an approved device flash.");
  }catch(e){message(e.message);}
 };
+$("importExpressionsRun").addEventListener("click",async()=>{
+ const value=$("expressionsRunId").value.trim();
+ if(!/^[1-9][0-9]{4,17}$/.test(value)){message("Enter the numeric GitHub Actions run ID.");return;}
+ const runId=Number(value);
+ if(!Number.isSafeInteger(runId)){message("Invalid GitHub Actions run ID.");return;}
+ const button=$("importExpressionsRun");button.disabled=true;
+ try{
+  await window.importGitHubFirmware({
+   id:runId,repository:"BuilderBench/esp32-expression",branch:"main",conclusion:"success"
+  });
+ }finally{button.disabled=false;}
+});
 window.openGitHubFlash=showFlash;
 $("flashDevice").addEventListener("change",()=>checkFlashReadiness().catch(e=>message(e.message)));
 $("requestFlash").addEventListener("click",async()=>{
