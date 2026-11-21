@@ -14,6 +14,7 @@ import {firmwareWorkflowPreview,provisionRunnerLabel} from "./github_workflow_ro
 import {projectSummary,setProjectIgnored,requestRequirementRefresh} from "./project_monitor.mjs";
 import {visibilityDefault,validateRepositoryRequest,createOrganizationRepository} from "./repository_creation.mjs";
 import {releases,classifyBuilder,makeInstallationPlan,validateAssignment} from "./marketplace_planning.mjs";
+import {marketplaceView,verifiedInstall} from "./marketplace_state.mjs";
 
 const dataDir = process.env.MAIN_DATA_DIR || "./.maincreate-data";
 const dataFile = join(dataDir, "state.json");
@@ -542,6 +543,67 @@ export async function localRoute(req) {
         if(stored.aiConnections?.openai){delete stored.aiConnections.openai;save(stored);}
         await stopOpenAiTunnel();
         return reply(await aiConnectionSnapshot());
+      }
+      // All three software views consume the same verified heartbeat and job ledger.
+      if(path==="/api/local/marketplace/state"&&method==="GET"){
+        const s=state(),gh=s.github||{},org=githubIdentityCurrent(gh)?gh.selectedOrganization:null;
+        const projects=projectSummary(listProjects(org).repositories,s.runners).repositories;
+        const jobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
+        return reply(marketplaceView(s.runners,s.marketplaceOperations||[],jobs,projects));
+      }
+      // One user action queues typed jobs directly. No saved-plan / request / approval chain.
+      if(path==="/api/local/marketplace/install"&&method==="POST"){
+        try{
+          const input=await body(req),s=state(),family=input.family,version=input.version;
+          if(typeof input.request_id!=="string"||!/^[a-zA-Z0-9-]{12,80}$/.test(input.request_id))
+            return deny(422,"An installation request identifier is required");
+          const previous=(s.marketplaceOperations||[]).find(op=>op.requestId===input.request_id);
+          if(previous){
+            if(previous.family!==family||previous.version!==version||
+              JSON.stringify(previous.requestedBuilderIds)!==JSON.stringify(input.builder_ids))
+              return deny(409,"Installation request identifier reused for different targets");
+            const jobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
+            return reply({operation:marketplaceView(s.runners,[previous],jobs).operations[0],replayed:true});
+          }
+          const plan=makeInstallationPlan({family,version,placement:"selected",builder_ids:input.builder_ids},
+            s.runners,session(req).username);
+          const release=releases().find(r=>r.family===family&&r.version===version);
+          if(!release?.installable||!release.installCapabilityId)
+            return deny(422,"This software version does not have a verified installation executor");
+          const targets=plan.targets.map(t=>({...t}));
+          for(const target of targets){
+            const host=s.runners.find(r=>r.id===target.builderId);
+            if(!host||host.decommission||!host.lastSeen||Date.now()-Date.parse(host.lastSeen)>=120000)
+              return deny(409,(host?.name||target.hostname)+" is offline or being removed");
+            if(!Array.isArray(host.fabricCapabilities)||!host.fabricCapabilities.includes(release.installCapabilityId)||
+               !host.fabricObservedAt||Date.now()-Date.parse(host.fabricObservedAt)>=120000)
+              return deny(409,host.name+" has no ready executor for "+release.installCapabilityId);
+          }
+          const existingJobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
+          for(const target of targets){
+            const host=s.runners.find(r=>r.id===target.builderId);
+            if(verifiedInstall(host,release)){target.status="already_installed";continue;}
+            const active=existingJobs.find(j=>j.runner_id===host.id&&j.capability===release.installCapabilityId&&
+              ["queued","running","awaiting_approval"].includes(j.status));
+            if(active){target.status="already_queued";target.jobId=active.id;continue;}
+            try{
+              const jobPlan=fabricCall("maincreate_plan",{
+                capability:release.installCapabilityId,runner_id:host.id,parameters:{}},{runners:s.runners});
+              const job=fabricCall("maincreate_execute",{plan_id:jobPlan.plan_id},{runners:s.runners}).job;
+              target.status=job.status;target.jobId=job.id;
+            }catch(e){target.status="failed";target.error=String(e.message||"Installation scheduling failed").slice(0,240);}
+          }
+          const op={id:randomBytes(16).toString("hex"),requestId:input.request_id,
+            family,version,requestedBuilderIds:[...input.builder_ids],
+            context:typeof input.project==="string"&&/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(input.project)?
+              {project:input.project}:null,
+            createdAt:new Date().toISOString(),targets};
+          s.marketplaceOperations=[...(s.marketplaceOperations||[]).slice(-99),op];
+          save(s);
+          const jobs=fabricCall("maincreate_jobs",{action:"list"}).jobs;
+          return reply({operation:marketplaceView(s.runners,[op],jobs).operations[0],
+            partial:targets.some(t=>t.status==="failed")},202);
+        }catch(e){return deny(e.status||422,e.message);}
       }
       if(path==="/api/local/marketplace/releases"&&method==="GET")
         return reply({families:[...new Set(releases().map(r=>r.family))],releases:releases()});

@@ -37,9 +37,13 @@ test("workspace serves current builder, marketplace, and job experiences",async(
    assert.ok(jobs.includes('id="'+id+'"'),"Jobs missing "+id);
   const marketplace=await page("/marketplace");
   assert.ok(marketplace.includes("Marketplace"));
-  assert.ok(marketplace.includes('id="mcuCatalog"'));
+  for(const id of ["marketplaceRecommended","marketplaceFamilies","marketplaceDetail",
+    "marketplaceInstaller","marketplaceTargets","marketplaceOperations"])
+   assert.ok(marketplace.includes('id="'+id+'"'),"Marketplace missing "+id);
+  assert.ok(!marketplace.includes("Save installation plan"),"Marketplace must not require saving a plan before install");
   const marketplaceJs=await page("/marketplace.js");
-  assert.ok(marketplaceJs.includes("renderMicrocontrollers"));
+  for(const feature of ["openInstaller","renderTargets","renderProgress","/api/local/marketplace/install"])
+   assert.ok(marketplaceJs.includes(feature),"Marketplace script missing "+feature);
   const devices=await page("/devices");
   assert.ok(devices.includes("Devices"));
   assert.ok(devices.includes('id="deviceCompatibilityPanel"'));

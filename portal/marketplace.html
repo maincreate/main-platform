@@ -1,27 +1,25 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marketplace • Main{Create}</title><link rel="icon" type="image/png" sizes="64x64" href="/maincreate-icon.png?v=approved-icon-20261109"><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/marketplace-planning.css"><script src="/appearance.js" defer></script><script src="/account.js" defer></script><script src="/marketplace.js" defer></script></head><body data-theme="cool-mist"><aside class="maincreate-sidebar" aria-label="Main navigation"><div class="maincreate-brand-lockup"><a href="/" class="maincreate-brand">Main<span class="maincreate-brand-brace">{</span>Create<span class="maincreate-brand-brace">}</span></a><span class="maincreate-platform-label">PLATFORM</span></div><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace" aria-current="page">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><div class="maincreate-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button><span id="signoutStatus" role="status"></span></div></header><main class="main inventory-page">
-<p class="eyebrow">CURATED / VERSIONED TOOLCHAINS</p><h1>Marketplace</h1>
-<p>Choose a toolchain family, pin a release, and select the builders at the locations where it belongs.</p>
-<p id="marketplaceNotice" class="home-error" role="status" aria-live="polite"></p>
-<section class="inventory-panel"><div class="panel-heading"><div><h2>Toolchain families</h2><p>Versioned releases and platform compatibility profiles.</p></div></div>
-<div class="inventory-toolbar"><input id="marketplaceSearch" type="search" placeholder="Search toolchains or versions" aria-label="Search marketplace"></div>
-<div id="marketplaceFamilies" class="maincreate-marketplace-grid"></div></section>
-<section class="inventory-panel" aria-labelledby="microcontrollerCatalogTitle">
- <div class="panel-heading"><div><h2 id="microcontrollerCatalogTitle">Microcontroller compatibility library</h2>
- <p>Browse MCU families and candidate SDK versions. Catalog references are not validated installations or flashing approvals.</p></div></div>
- <div class="inventory-toolbar"><input id="mcuSearch" type="search" placeholder="Search chips or SDKs" aria-label="Search microcontroller catalog"></div>
- <div id="mcuCatalog" class="maincreate-marketplace-grid"><p>Loading microcontroller references…</p></div>
-</section>
-<section id="marketplaceDetail" class="inventory-panel" hidden><div class="panel-heading">
-<div><h2 id="marketplaceFamilyTitle"></h2><p>Choose a specific release.</p></div>
-<button id="marketplaceClose" class="plain-button" type="button">Close</button></div>
-<div id="marketplaceVersions"></div>
-<div id="marketplacePlan" hidden><h3 id="marketplaceReleaseTitle"></h3>
-<p><strong>Install target policy</strong></p>
-<label><input type="radio" name="placement" id="placementSelected" checked> Select builders (default)</label>
-<label><input type="radio" name="placement" id="placementAll"> All compatible builders</label>
-<div id="marketplaceTargets"></div><p id="marketplaceTargetCount"></p>
-<button id="marketplaceSubmit" class="action maincreate-cta" type="button">Save installation plan</button>
-<button id="marketplaceRequest" class="action maincreate-cta" type="button" hidden>Request installation</button>
-<p>Saving is planning only. Request installation separately; it creates approval-pending fabric jobs and never installs directly.</p></div></section>
-<section class="inventory-panel"><h2>Installation plans</h2><div id="marketplacePlans"></div></section>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marketplace • Main{Create}</title><link rel="icon" type="image/png" sizes="64x64" href="/maincreate-icon.png?v=approved-icon-20261109"><link rel="stylesheet" href="/dashboard.css"><link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/marketplace-planning.css"><script src="/appearance.js" defer></script><script src="/account.js" defer></script><script src="/marketplace.js" defer></script></head><body data-theme="cool-mist"><aside class="maincreate-sidebar" aria-label="Main navigation"><div class="maincreate-brand-lockup"><a href="/" class="maincreate-brand">Main<span class="maincreate-brand-brace">{</span>Create<span class="maincreate-brand-brace">}</span></a><span class="maincreate-platform-label">PLATFORM</span></div><span class="maincreate-sidebar-label">WORKSPACE</span><nav class="maincreate-nav"><a href="/">Overview</a><a href="/projects">Projects</a><a href="/builders">Builders</a><a href="/devices">Devices</a><a href="/jobs">Jobs</a><a href="/marketplace" aria-current="page">Marketplace</a><a href="/topology">Topology</a><a href="/settings">Settings</a></nav><div class="maincreate-sidebar-bottom">ON-PREM CONTROLLER<small>GitHub Actions · self-hosted</small></div></aside><header class="maincreate-app-topbar"><div class="maincreate-account"><span id="username">administrator</span><button type="button" id="signout" class="plain-button">Sign out</button><span id="signoutStatus" role="status"></span></div></header><main class="main inventory-page mc-store-page">
+ <div class="mc-store-heading"><div><p class="eyebrow">BUILD / CREATE / DEPLOY</p><h1>Marketplace</h1><p>Discover software for your projects, then install the version you need on compatible builders.</p></div><a class="mc-store-quiet-link" href="/builders">Manage builders</a></div>
+ <p id="marketplaceNotice" class="home-error" role="status" aria-live="polite" hidden></p>
+ <div class="mc-store-toolbar"><div class="mc-store-search"><span aria-hidden="true">⌕</span><input id="marketplaceSearch" type="search" placeholder="Search software, SDKs and tools" aria-label="Search software"></div><div class="mc-store-tabs" role="group" aria-label="Marketplace view"><button id="marketplaceBrowse" class="mc-store-tab active" type="button" aria-pressed="true">Discover</button><button id="marketplaceInstalled" class="mc-store-tab" type="button" aria-pressed="false">Installed</button></div></div>
+ <section class="mc-store-section" id="marketplaceRecommendedSection"><div class="mc-store-section-heading"><div><p class="eyebrow">BASED ON YOUR PROJECTS</p><h2>Recommended</h2></div><small id="marketplaceRecommendationInfo">Software suggested by detected project requirements</small></div><div id="marketplaceRecommended" class="mc-store-feature-grid"></div></section>
+ <section class="mc-store-section"><div class="mc-store-section-heading"><div><p class="eyebrow">SOFTWARE CATALOG</p><h2 id="marketplaceBrowseTitle">Explore software</h2></div><span id="marketplaceFamilyCount" class="mc-store-muted"></span></div><div id="marketplaceFamilies" class="mc-store-catalog-grid" aria-live="polite">Loading the versioned catalog…</div></section>
+ <section class="mc-store-section"><div class="mc-store-section-heading"><div><p class="eyebrow">INSTALLATION ACTIVITY</p><h2>Recent installations</h2></div><a href="/jobs" class="mc-store-quiet-link">All jobs</a></div><div id="marketplaceOperations" class="mc-store-activity">Loading installation activity…</div></section>
+ <dialog id="marketplaceDetail" class="mc-store-dialog" aria-labelledby="marketplaceFamilyTitle"><div class="mc-store-dialog-heading"><div><p class="eyebrow" id="marketplaceCategory"></p><h2 id="marketplaceFamilyTitle">Software</h2></div><button class="mc-store-close" id="marketplaceClose" type="button" aria-label="Close software details">×</button></div>
+  <p id="marketplaceDescription" class="mc-store-muted"></p>
+  <div id="marketplaceDetailBadge" class="mc-store-note"></div>
+  <label class="mc-store-label" for="marketplaceVersions">Version</label>
+  <select id="marketplaceVersions" class="mc-store-select"></select>
+  <div class="mc-store-metadata"><div><small>Compatibility</small><strong id="marketplaceCompatibility"></strong></div><div><small>Installed on</small><strong id="marketplaceLocations"></strong></div></div>
+  <div id="marketplaceVersionNote" class="mc-store-note" role="status"></div>
+  <div class="mc-store-footer"><button id="marketplaceManage" type="button" class="action maincreate-cta">Select builders</button><button id="marketplaceDetailCancel" type="button" class="plain-button">Close</button></div>
+ </dialog>
+ <dialog id="marketplaceInstaller" class="mc-store-dialog" aria-labelledby="marketplaceInstallTitle"><div class="mc-store-dialog-heading"><div><p class="eyebrow">DEPLOY SOFTWARE</p><h2 id="marketplaceInstallTitle">Install software</h2></div><button class="mc-store-close" id="marketplaceInstallClose" type="button" aria-label="Close installer">×</button></div>
+  <p class="mc-store-muted">Choose the compatible builders where this software should be available. Installed versions are preserved.</p>
+  <div id="marketplaceTargets" class="mc-store-targets"></div>
+  <p id="marketplaceTargetCount" class="mc-store-note" aria-live="polite"></p>
+  <p id="marketplaceInstallFeedback" role="status" aria-live="polite"></p>
+  <div id="marketplaceInstallProgress" class="mc-store-activity" aria-live="polite"></div>
+  <div class="mc-store-footer"><button id="marketplaceSubmit" class="action maincreate-cta" type="button">Install on selected builders</button><button id="marketplaceInstallCancel" type="button" class="plain-button">Close</button></div>
+ </dialog>
 </main></body></html>

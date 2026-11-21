@@ -1,7 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let csrf=null,selectedOrg=null,projectInventory=[],projectUpdatedAt=null,projectTruncated=false;
-let routes=[],builders=[],devices=[],sdkReleases=[],activeRouteRepo=null;
+let routes=[],builders=[],devices=[],sdkReleases=[],activeRouteRepo=null,marketplaceProjectStates=[];
 async function api(path,payload){
  const options={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){options.method="POST";options.headers={"content-type":"application/json","x-maincreate-csrf":csrf};options.body=JSON.stringify(payload);}
@@ -64,6 +64,30 @@ function renderProjectList(){
       " · Flash: "+flashName+
       (route.autoFlashRequested?" · Auto-flash requested (blocked)":" · Manual flash"),"project-compatibility"));
   }
+  const readiness=marketplaceProjectStates.find(item=>item.name===project.fullName)?.readiness;
+  if(readiness){
+    const label=readiness.status==="ready"?"● Ready · "+readiness.ready+" build-ready host(s)":
+     readiness.status==="setup_needed"?"◐ Setup needed · "+readiness.compatible+" compatible builder(s)":
+     readiness.status==="unavailable"?"○ No compatible builder":"◇ Requirements not classified";
+    const badge=node("span",label,"mc-project-readiness "+readiness.status.replaceAll("_","-"));
+    badge.title=readiness.reason;left.append(badge);
+  }
+  const requirementTool=(req.targets||[]).flatMap(t=>t.tools||[]).find(t=>
+    sdkReleases.some(release=>release.family===t.name));
+  const needed=route?.sdk||requirementTool;
+  if(needed&&!project.archived){
+    const choices=sdkReleases.filter(release=>release.family===needed.family||release.family===needed.name);
+    const matched=choices.find(release=>!needed.version||release.version===needed.version||
+      (needed.version.endsWith(".x")&&release.version.startsWith(needed.version.slice(0,-1))))||choices[0];
+    if(matched){
+      const link=node("a",readiness?.status==="ready"?"Add builders":"Set up software","mc-software-tag");
+      link.href="/marketplace?software="+encodeURIComponent(matched.family)+
+       "&version="+encodeURIComponent(matched.version)+
+       "&project="+encodeURIComponent(project.fullName);
+      link.title="Choose compatible builders and install "+matched.name+" "+matched.version;
+      right.append(link);
+    }
+  }
   if(!project.archived){
     const routeButton=node("button",route?"Edit build / flash route":"Assign build / flash route","plain-button");
     routeButton.type="button";
@@ -94,14 +118,16 @@ async function load(){
   if(!csrf){const overview=await api("/api/local/overview");csrf=overview.csrf;$("username").textContent=overview.username||"administrator";}
   const projects=await api("/api/local/projects");
   selectedOrg=projects.organization;
-  const [savedRoutes,allDevices,catalog]=await Promise.all([
+  const [savedRoutes,allDevices,catalog,software]=await Promise.all([
     selectedOrg?api("/api/local/projects/routes"):Promise.resolve({routes:[]}),
     api("/api/local/devices?mode=all"),
-    api("/api/local/marketplace/releases")
+    api("/api/local/marketplace/releases"),
+    api("/api/local/marketplace/state")
   ]);
   routes=savedRoutes.routes||[];
   devices=allDevices.devices||[];
   sdkReleases=catalog.releases||[];
+  marketplaceProjectStates=software.projects||[];
   const overview=await api("/api/local/overview");
   builders=overview.runners.items||[];
   $("newRepo").disabled=!selectedOrg;
