@@ -23,8 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.5"
-var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install"}
+const version="0.8.6"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -90,6 +90,13 @@ func packages()[]map[string]string{
  }
  if path:=arduinoBinaryPath(runtime.GOARCH);path!=""&&arduinoVersionOK(path){
   result=append(result,map[string]string{"name":"arduino-cli","version":"Arduino CLI 1.5.1"})
+ }
+ if path:=eimBinaryPath(runtime.GOARCH);path!=""&&checkEIMVersion(path)==nil{
+  for _,release:=range []string{"5.5.6","6.1.1"}{
+   if checkESPIdfVersion(path,release)==nil{
+    result=append(result,map[string]string{"name":"esp-idf","version":"ESP-IDF v"+release})
+   }
+  }
  }
  return result
 }
@@ -308,7 +315,7 @@ func main(){
 // filters by declared capabilities, so this process never claims firmware or
 // installer jobs that need their own reviewed adapters.
 type fabricStep struct{ Capability string }
-type fabricJob struct{ ID string; Steps []fabricStep }
+type fabricJob struct{ ID string; Parameters struct{Version string}; Steps []fabricStep }
 
 func hostSnapshot(c config)([]byte,error){
  if runtime.GOOS!="linux"{return nil,errors.New("host snapshot requires Linux")}
@@ -371,6 +378,8 @@ func executeFabricJob(c config,job fabricJob)error{
     message="Host snapshot recorded and SHA-256 verified"
    case "sdk.arduino_cli.install":
     message,err=installArduinoCLI()
+   case "sdk.esp_idf.install":
+    message,err=installESPIdf(job.Parameters.Version)
    default:
     err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
    }
