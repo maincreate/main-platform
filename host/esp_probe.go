@@ -14,6 +14,11 @@ import (
  "time"
 )
 
+// ESP-IDF v5.5.6 bundles the esptool CLI with legacy underscored actions.
+const espToolChipCommand="chip_id"
+const espToolMACCommand="read_mac"
+const espToolFlashCommand="flash_id"
+
 type esp32Probe struct {
  Port string `json:"port"`
  Chip string `json:"chip"`
@@ -89,8 +94,8 @@ func probeESP32ReadOnly(port,esptoolPath string)(esp32Probe,error){
   if len(output)>16*1024{return "",errors.New("ESP32 probe output exceeds limit")}
   return string(output),nil
  }
- chip,err:=run("chip-id");if err!=nil{return esp32Probe{},err}
- mac,err:=run("read-mac");if err!=nil{return esp32Probe{},err}
- flash,err:=run("flash-id");if err!=nil{return esp32Probe{},err}
+ chip,err:=run(espToolChipCommand);if err!=nil{return esp32Probe{},err}
+ mac,err:=run(espToolMACCommand);if err!=nil{return esp32Probe{},err}
+ flash,err:=run(espToolFlashCommand);if err!=nil{return esp32Probe{},err}
  return parseESP32ProbeThree(port,chip,mac,flash)
 }
