@@ -90,14 +90,31 @@ func extractPinnedEIM(raw []byte,r eimRelease)([]byte,error){
  reader,err:=zip.NewReader(bytes.NewReader(raw),int64(len(raw)));if err!=nil{return nil,err}
  if len(reader.File)>2000{return nil,errors.New("unexpected EIM archive contents")}
  var exe []byte
+ aliasSeen:=false
  for _,file:=range reader.File{
   name:=file.Name
   if filepath.IsAbs(name)||strings.Contains(name,"\\")||
    strings.HasPrefix(name,"../")||strings.Contains(name,"/../")||
-   strings.ContainsRune(name,'\x00')||file.Mode()&os.ModeSymlink!=0{
-   return nil,errors.New("EIM archive contains unsafe file")
+   strings.ContainsRune(name,'\x00'){
+   return nil,errors.New("EIM archive contains unsafe path")
   }
-  if filepath.Base(name)!="eim"||file.FileInfo().IsDir(){continue}
+  // Official EIM 0.21.1 distributes a versioned ELF plus an 'eim' alias
+  // symlink to it. Validate the alias but never extract, follow, or create it.
+  if file.Mode()&os.ModeSymlink!=0{
+   if aliasSeen||name!="eim"||file.UncompressedSize64!=uint64(len("eim_v"+eimVersion)){
+    return nil,errors.New("EIM archive contains unexpected symlink")
+   }
+   aliasSeen=true
+   f,e:=file.Open();if e!=nil{return nil,e}
+   link,e:=io.ReadAll(io.LimitReader(f,128));f.Close()
+   if e!=nil{return nil,e}
+   if string(link)!="eim_v"+eimVersion{return nil,errors.New("EIM alias points outside expected executable")}
+   continue
+  }
+  if filepath.Base(name)!="eim_v"+eimVersion{continue}
+  if name!="eim_v"+eimVersion||file.FileInfo().IsDir(){
+   return nil,errors.New("EIM executable has unexpected archive path")
+  }
   if exe!=nil{return nil,errors.New("duplicate EIM executable")}
   if file.UncompressedSize64<1024||file.UncompressedSize64>uint64(maxEIMExecutable){
    return nil,errors.New("EIM executable exceeds allowed size")
