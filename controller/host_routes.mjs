@@ -33,7 +33,13 @@ export function supportsRemoteHostUpgrade(version) {
 // Development workspaces keep managed agents current without an extra approval click.
 // Failed or in-flight upgrades are never automatically retried; checksum and host
 // rollback protections remain enforced by the installed Host Service.
-export function queueManagedHostUpgrade(s,host,rnd,{now=Date.now(),binaryHash=null}={}){
+export function pendingHostUpgrade(s,runnerId,now=Date.now()){
+ return !!(s.hostActions||[]).some(a=>a.runnerId===runnerId&&a.type==='host.upgrade'&&
+  ['queued','claimed'].includes(a.status)&&Number.isFinite(Date.parse(a.expiresAt))&&
+  Date.parse(a.expiresAt)>now);
+}
+export function queueManagedHostUpgrade(s,host,rnd,{now=Date.now(),binaryHash=null,fabricBusy=false}={}){
+ if(fabricBusy)return null; // Never interrupt a claimed or executable queued Fabric job.
  if(!host||host.os!=='linux'||!['arm64','x64'].includes(host.arch)||host.decommission||
     !supportsRemoteHostUpgrade(host.hostVersion))return null;
  const current=parseHostVersion(host.hostVersion),target=parseHostVersion(HOST_RELEASE);
