@@ -44,14 +44,17 @@ func TestEIMReleasePinsAndArchitecture(t *testing.T){
   if _,err=hex.DecodeString(r.sha256);err!=nil{t.Fatal(err)}
   if len(r.sha256)!=64{t.Fatal("missing SHA-256 pin")}
   if !strings.Contains(eimBinaryPath(tc.arch),"0.21.1"){t.Fatal("install path not versioned")}
-  zipFile:=testEIMZip(t,[]struct{name string;data []byte;mode os.FileMode}{
-   {"cli/eim",fakeEIMElf(tc.machine),0755},
+  // Exact official archive layout: a versioned executable and a harmless
+  // alias symlink. The extractor validates but does not materialize the alias.
+  official:=testEIMZip(t,[]struct{name string;data []byte;mode os.FileMode}{
+   {"eim_v0.21.1",fakeEIMElf(tc.machine),0755},
+   {"eim",[]byte("eim_v0.21.1"),os.ModeSymlink|0755},
   })
-  exe,err:=extractPinnedEIM(zipFile,r)
+  exe,err:=extractPinnedEIM(official,r)
   if err!=nil{t.Fatal(err)}
   if len(exe)!=4096{t.Fatal("executable changed")}
   invalid:=testEIMZip(t,[]struct{name string;data []byte;mode os.FileMode}{
-   {"cli/eim",fakeEIMElf(1),0755},
+   {"eim_v0.21.1",fakeEIMElf(1),0755},
   })
   if _,err=extractPinnedEIM(invalid,r);err==nil{t.Fatal("wrong ELF architecture accepted")}
  }
@@ -60,18 +63,23 @@ func TestEIMReleasePinsAndArchitecture(t *testing.T){
 }
 func TestEIMArchiveRejectsUnsafeEntries(t *testing.T){
  r,_:=eimReleaseFor("amd64")
- for _,v:=range []struct{name string;mode os.FileMode}{
-  {"../eim",0755},{"/eim",0755},{"sub/../../eim",0755},
-  {"eim",os.ModeSymlink|0755},
+ for _,v:=range []struct{name string;mode os.FileMode;data []byte}{
+  {"../eim_v0.21.1",0755,fakeEIMElf(r.machine)},
+  {"/eim_v0.21.1",0755,fakeEIMElf(r.machine)},
+  {"sub/../../eim_v0.21.1",0755,fakeEIMElf(r.machine)},
+  {"sub/eim_v0.21.1",0755,fakeEIMElf(r.machine)},
+  {"eim_v0.21.1",os.ModeSymlink|0755,[]byte("eim_v0.21.1")},
+  {"eim",os.ModeSymlink|0755,[]byte("../etc/shadow")},
+  {"other-symlink",os.ModeSymlink|0755,[]byte("eim_v0.21.1")},
  }{
   archive:=testEIMZip(t,[]struct{name string;data []byte;mode os.FileMode}{
-   {v.name,fakeEIMElf(r.machine),v.mode},
+   {v.name,v.data,v.mode},
   })
   if _,err:=extractPinnedEIM(archive,r);err==nil{t.Fatalf("accepted unsafe %q",v.name)}
  }
  duplicate:=testEIMZip(t,[]struct{name string;data []byte;mode os.FileMode}{
-  {"eim",fakeEIMElf(r.machine),0755},
-  {"sub/eim",fakeEIMElf(r.machine),0755},
+  {"eim_v0.21.1",fakeEIMElf(r.machine),0755},
+  {"eim_v0.21.1",fakeEIMElf(r.machine),0755},
  })
  if _,err:=extractPinnedEIM(duplicate,r);err==nil{t.Fatal("duplicate installer executable accepted")}
 }
