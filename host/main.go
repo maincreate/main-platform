@@ -23,7 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.2"
+const version="0.8.3"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -87,6 +88,9 @@ func packages()[]map[string]string{
   cmd:=exec.Command(parts[0],parts[1:]...);cmd.WaitDelay=time.Second;data,e:=cmd.Output()
   if e==nil{v:=strings.TrimSpace(strings.SplitN(string(data),"\n",2)[0]);if len(v)>90{v=v[:90]};result=append(result,map[string]string{"name":name,"version":v})}
  }
+ if path:=arduinoBinaryPath(runtime.GOARCH);path!=""&&arduinoVersionOK(path){
+  result=append(result,map[string]string{"name":"arduino-cli","version":"Arduino CLI 1.5.1"})
+ }
  return result
 }
 func advertise()func(){
@@ -105,6 +109,7 @@ func run()error{
  sig:=make(chan os.Signal,1);signal.Notify(sig,syscall.SIGTERM,syscall.SIGINT);stopAdvertising:=advertise();defer stopAdvertising()
  tick:=time.NewTicker(10*time.Second);defer tick.Stop()
  storageBusy:=make(chan struct{},1)
+ fabricBusy:=make(chan struct{},1)
  lastHeartbeat:=time.Time{};lastInventory:=time.Time{};lastDevices:=time.Time{}
  for {select{
  case <-sig:return nil
@@ -112,8 +117,8 @@ func run()error{
   c,e:=load();if e!=nil{continue}
   if time.Since(lastHeartbeat)>30*time.Second{
    if time.Since(lastInventory)>2*time.Minute{
-    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":[]string{"host.snapshot"},"packages":packages()},nil);lastInventory=time.Now()
-   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":[]string{"host.snapshot"}},nil)}
+    e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":nativeFabricCapabilities,"packages":packages()},nil);lastInventory=time.Now()
+   }else{e=post(c.Controller,"/api/agent/heartbeat",c.Token,map[string]any{"id":c.ID,"hostVersion":version,"fabricCapabilities":nativeFabricCapabilities},nil)}
    if e!=nil{log.Printf("heartbeat: %v",e)};lastHeartbeat=time.Now()
   }
   // Read-only discovery occurs on startup and every minute. An unreadable
@@ -129,7 +134,13 @@ func run()error{
    lastDevices=time.Now()
   }
   if len(storageBusy)>0{continue}
-  if err:=pollFabric(c);err!=nil{log.Printf("fabric job polling: %v",err)}
+  if len(fabricBusy)==0{
+   fabricBusy<-struct{}{}
+   go func(host config){
+    defer func(){<-fabricBusy}()
+    if err:=pollFabric(host);err!=nil{log.Printf("fabric job polling: %v",err)}
+   }(c)
+  }
   var out struct{Action *action `json:"action"`}
   if e=post(c.Controller,"/api/agent/actions/claim",c.Token,map[string]string{"id":c.ID},&out);e!=nil{log.Printf("action polling: %v",e);continue}
   if out.Action==nil{continue}
@@ -349,14 +360,22 @@ func executeFabricJob(c config,job fabricJob)error{
  logLines:=[]string{}
  for _,step:=range job.Steps{
   status:="completed"
-  if failed{status="skipped"}else if step.Capability!="host.snapshot"{
-   status="failed";failed=true;logLines=append(logLines,"Unsupported Fabric capability: "+step.Capability)
-  }else{
-   data,err:=hostSnapshot(c)
-   if err==nil{err=uploadFabricSnapshot(c,job.ID,data)}
-   if err!=nil{
-    status="failed";failed=true;logLines=append(logLines,"Host snapshot failed: "+err.Error())
-   }else{logLines=append(logLines,"Host snapshot recorded and SHA-256 verified")}
+  if failed{status="skipped"}else{
+   var err error
+   var message string
+   switch step.Capability{
+   case "host.snapshot":
+    var data []byte
+    data,err=hostSnapshot(c)
+    if err==nil{err=uploadFabricSnapshot(c,job.ID,data)}
+    message="Host snapshot recorded and SHA-256 verified"
+   case "sdk.arduino_cli.install":
+    message,err=installArduinoCLI()
+   default:
+    err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
+   }
+   if err!=nil{status="failed";failed=true;logLines=append(logLines,err.Error())}
+   if err==nil{logLines=append(logLines,message)}
   }
   statuses=append(statuses,map[string]string{"capability":step.Capability,"status":status})
  }
@@ -370,7 +389,7 @@ func executeFabricJob(c config,job fabricJob)error{
 }
 func pollFabric(c config)error{
  var response struct{Job *fabricJob}
- request:=map[string]any{"id":c.ID,"capabilities":[]string{"host.snapshot"}}
+ request:=map[string]any{"id":c.ID,"capabilities":nativeFabricCapabilities}
  if err:=post(c.Controller,"/api/agent/jobs/claim",c.Token,request,&response);err!=nil{return err}
  if response.Job==nil{return nil}
  return executeFabricJob(c,*response.Job)
