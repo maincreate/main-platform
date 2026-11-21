@@ -249,3 +249,34 @@ test("runner artifacts can be uploaded only to its own running job",()=>{
   steps:[{capability:"host.snapshot",status:"completed"}]}).job;
  assert(completed.asset_ids.includes(a.id));
 });
+
+test("running flash job may read only immutable, explicitly bound firmware source assets",()=>{
+ const data=Buffer.from("verified source build bytes");
+ const buildPlan=invoke("maincreate_plan",{capability:"firmware.esp_idf.smoke_build",runner_id:runner.id,
+  parameters:{version:"5.5.6"}});
+ const build=invoke("maincreate_execute",{plan_id:buildPlan.plan_id}).job;
+ const asset=invoke("maincreate_assets",{action:"begin",name:"esp32s3-firmware.bin",
+  size:data.length,mime:"application/octet-stream"}).asset;
+ invoke("maincreate_assets",{action:"chunk",asset_id:asset.id,offset:0,content_base64:data.toString("base64")});
+ invoke("maincreate_assets",{action:"finish",asset_id:asset.id,sha256:createHash("sha256").update(data).digest("hex")});
+ const flashPlan=invoke("maincreate_plan",snapshot);
+ const flash=invoke("maincreate_execute",{plan_id:flashPlan.plan_id}).job;
+ const file=join(dir,"fabric.json"),s=JSON.parse(readFileSync(file,"utf8"));
+ const source=s.jobs.find(x=>x.id===build.id),target=s.jobs.find(x=>x.id===flash.id);
+ source.status="completed";source.assetIds=[asset.id];
+ target.status="running";target.capability="firmware.esp_idf.flash";target.parameters={source_job_id:build.id};
+ s.assets.find(x=>x.id===asset.id).jobId=build.id;
+ writeFileSync(file,JSON.stringify(s));
+ const granted=agentAsset(runner,{job_id:flash.id,action:"source_get",source_job_id:build.id,
+  name:"esp32s3-firmware.bin",offset:0,length:data.length});
+ assert.equal(Buffer.from(granted.content_base64,"base64").toString(),data.toString());
+ for(const bad of [{source_job_id:"0".repeat(32)},{name:"../../secrets"},{name:"esp32s3-other.bin"}]){
+  assert.throws(()=>agentAsset(runner,{job_id:flash.id,action:"source_get",
+   source_job_id:build.id,name:"esp32s3-firmware.bin",...bad}),/not authorized|not approved/);
+ }
+ assert.throws(()=>agentAsset(other,{job_id:flash.id,action:"source_get",source_job_id:build.id,
+  name:"esp32s3-firmware.bin"}),/does not own/);
+ target.capability="host.snapshot";writeFileSync(file,JSON.stringify(s));
+ assert.throws(()=>agentAsset(runner,{job_id:flash.id,action:"source_get",source_job_id:build.id,
+  name:"esp32s3-firmware.bin"}),/not authorized/);
+});
