@@ -21,6 +21,7 @@ func TestBackupConstantsRemainWithinFabricUploadLimit(t *testing.T){
   t.Fatal("backup is not evenly split into permitted Fabric asset sizes")
  }
  if espBackupVersion!="5.5.6"{t.Fatal("backup must use the vetted installed esptool")}
+ if backupSerialBaud!="460800"{t.Fatal("backup must use fixed, tested 460800 baud")}
 }
 func TestExpectedDeviceIdentityRequiresCanonicalMAC(t *testing.T){
  for _,mac:=range []string{"","44:BD:8D:78:15:E8","44:bd:8d:78:15:e8;sh","44:bd:8d:78:15","zz:bd:8d:78:15:e8"}{
