@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync,readFileSync,existsSync,rmSync} from "node:fs";
+import {mkdtempSync,readFileSync,writeFileSync,existsSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createHash} from "node:crypto";
@@ -60,7 +60,7 @@ test("Arduino installation requests are queued for compatible builders",()=>{
  assert.deepEqual(jobs.map(j=>j.status),["queued","queued"]);
  for(const job of jobs)assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:job.id}).job.status,"cancelled");
 });
-test("composed workflow is one approval with pinned ordered actions",()=>{
+test("composed workflow queues ordered pinned actions",()=>{
  const p=invoke("maincreate_plan",{capability:"workflow.esp_idf.preflight_build",runner_id:other.id,
   parameters:{repository:"MainCreate/WaymarkerOS",revision:"a".repeat(40)}});
  assert.deepEqual(p.steps.map(x=>x.capability),["host.snapshot","firmware.esp_idf.build"]);
@@ -82,6 +82,19 @@ test("queued jobs may be cancelled before claim; handled jobs cannot be approved
  const j2=invoke("maincreate_execute",{plan_id:p2.plan_id}).job;
  assert.throws(()=>approveJob(j2.id,"reject"),/already handled/);
  assert.equal(invoke("maincreate_jobs",{action:"cancel",job_id:j2.id}).job.status,"cancelled");
+});
+test("pre-upgrade awaiting approval jobs are resumed without an approval click",()=>{
+ const plan=invoke("maincreate_plan",snapshot),created=invoke("maincreate_execute",{plan_id:plan.plan_id}).job;
+ const file=join(dir,"fabric.json"),saved=JSON.parse(readFileSync(file,"utf8"));
+ const legacy=saved.jobs.find(j=>j.id===created.id);
+ assert(legacy);
+ legacy.status="awaiting_approval";
+ writeFileSync(file,JSON.stringify(saved));
+ const claimed=claimJob(runner).job;
+ assert.equal(claimed.id,created.id);
+ const result=reportJob(runner,{job_id:created.id,success:true,logs:"Legacy job migrated",
+  steps:[{capability:"host.snapshot",status:"completed"}]});
+ assert.equal(result.job.status,"completed");
 });
 test("assets preserve offsets, digests, ownership and access boundaries",()=>{
  const payload=Buffer.from("original local test artifact");
