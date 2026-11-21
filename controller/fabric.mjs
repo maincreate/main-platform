@@ -278,6 +278,16 @@ export function approveJob(id,decision){
  if(decision==="reject")j.completedAt=new Date().toISOString();
  save(s);return {job:publicJob(j)};
 }
+export function runnerHasExecutableFabricWork(runner){
+ if(!runner?.id)return false;
+ const supported=new Set(Array.isArray(runner.fabricCapabilities)?runner.fabricCapabilities:[]);
+ return store().jobs.some(job=>job.runnerId===runner.id&&(
+  job.status==="running"||
+  (["queued","awaiting_approval"].includes(job.status)&&
+   Array.isArray(job.steps)&&job.steps.length>0&&
+   job.steps.every(step=>supported.has(step.capability)))
+ ));
+}
 export function claimJob(runner,supported=null){
  const s=store();
  if(s.jobs.some(j=>j.runnerId===runner.id&&j.status==="running"))return {job:null};
