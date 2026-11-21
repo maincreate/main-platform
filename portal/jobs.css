@@ -52,3 +52,6 @@
 .maincreate-flash-dialog menu{display:flex;gap:10px;justify-content:flex-end;padding:0}
 .maincreate-flash-dialog p{color:var(--muted);font-size:13px}
 .maincreate-flash-dialog button:disabled{opacity:.45;cursor:not-allowed}
+
+.maincreate-flash-dialog input{display:block;width:100%;margin:8px 0 16px;padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font:inherit;box-sizing:border-box}
+.maincreate-flash-dialog label{display:block;font-weight:600;font-size:12px;margin-top:12px}

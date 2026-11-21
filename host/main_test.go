@@ -52,7 +52,7 @@ func TestManagedFabricSnapshotLifecycle(t *testing.T){
   switch r.URL.Path{
   case "/api/agent/jobs/claim":
    caps,ok:=body["capabilities"].([]any)
-   if !ok||len(caps)!=7||caps[0]!="host.snapshot"||caps[1]!="sdk.arduino_cli.install"||caps[2]!="sdk.esp_idf.install"||caps[3]!="firmware.esp_idf.smoke_build"||caps[4]!="firmware.esp_idf.probe"||caps[5]!="firmware.esp_idf.backup"||caps[6]!="firmware.esp_idf.security_preflight"{t.Errorf("unexpected capability filter: %v",body["capabilities"])}
+   if !ok||len(caps)!=8||caps[0]!="host.snapshot"||caps[1]!="sdk.arduino_cli.install"||caps[2]!="sdk.esp_idf.install"||caps[3]!="firmware.esp_idf.smoke_build"||caps[4]!="firmware.esp_idf.probe"||caps[5]!="firmware.esp_idf.backup"||caps[6]!="firmware.esp_idf.security_preflight"||caps[7]!="firmware.esp_idf.flash"{t.Errorf("unexpected capability filter: %v",body["capabilities"])}
    _=json.NewEncoder(w).Encode(map[string]any{"job":map[string]any{
     "id":jobID,"steps":[]map[string]string{{"capability":"host.snapshot"}}}})
   case "/api/agent/assets":

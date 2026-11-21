@@ -281,18 +281,52 @@
   },
   {
     "id": "firmware.esp_idf.flash",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "kind": "action",
     "risk": "device-write",
-    "state": "unavailable",
-    "description": "Reserved for future explicit-approval USB flashing adapter. Not executable.",
-    "platforms": [],
+    "state": "available",
+    "description": "Admin-approved exact ESP32-S3 write of a completed immutable ESP-IDF 5.5.6 firmware build. Requires same-device complete 16MiB SHA-256 verified recovery backup and disabled secure boot/encryption report. Host rechecks chip/MAC/security, flashes only three reviewed offsets, then byte-verifies each image.",
+    "platforms": [
+      "linux"
+    ],
     "parameters": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB[0-9]+|ttyACM[0-9]+)$"
+        },
+        "expected_mac": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{2}(:[a-f0-9]{2}){5}$"
+        },
+        "source_job_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "backup_job_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "security_job_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        }
+      },
+      "required": [
+        "port",
+        "expected_mac",
+        "source_job_id",
+        "backup_job_id",
+        "security_job_id"
+      ],
       "additionalProperties": false
     },
-    "steps": []
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.flash"
+      }
+    ]
   },
   {
     "id": "deployment.release",
