@@ -1321,11 +1321,11 @@ export async function localRoute(req) {
         if(path==="/api/agent/jobs/claim"){
           runner.lastSeen=new Date().toISOString();save(s);
           if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return reply({job:null,executionEnabled:false});
-          if(pendingHostUpgrade(s,runner.id))return reply({job:null,executionEnabled:true,hostUpgradePending:true});
           const caps=b.capabilities;
           if(caps!==undefined&&(!Array.isArray(caps)||caps.length>12||
              !caps.every(v=>typeof v==="string"&&/^[a-z][a-z0-9_.]{2,80}$/.test(v))))
             return deny(422,"Invalid executor capability filter");
+          if(pendingHostUpgrade(s,runner.id))return reply({job:null,executionEnabled:true,hostUpgradePending:true});
           return reply({...claimJob(runner,caps===undefined?null:[...new Set(caps)]),executionEnabled:true});
         }
         if(process.env.MAIN_ENABLE_FABRIC_EXECUTION==="0")return deny(403,"Runner execution disabled");
