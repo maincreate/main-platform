@@ -212,6 +212,40 @@
     ]
   },
   {
+    "id": "firmware.esp_idf.backup",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "device-read",
+    "state": "available",
+    "description": "Read and preserve the complete 16 MiB ESP32-S3 device flash after active MAC/chip/flash-size revalidation; publish four SHA-256 verified private 4MiB chunks and a full-image manifest. No device writes.",
+    "platforms": [
+      "linux"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB[0-9]+|ttyACM[0-9]+)$"
+        },
+        "expected_mac": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{2}(:[a-f0-9]{2}){5}$"
+        }
+      },
+      "required": [
+        "port",
+        "expected_mac"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.backup"
+      }
+    ]
+  },
+  {
     "id": "firmware.esp_idf.flash",
     "version": "0.0.0",
     "kind": "action",

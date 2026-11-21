@@ -23,8 +23,8 @@ import (
  "time"
 )
 
-const version="0.8.11"
-var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe"}
+const version="0.8.12"
+var nativeFabricCapabilities=[]string{"host.snapshot","sdk.arduino_cli.install","sdk.esp_idf.install","firmware.esp_idf.smoke_build","firmware.esp_idf.probe","firmware.esp_idf.backup"}
 var dataDir=getenv("MAIN_HOST_DATA_DIR","/var/lib/maincreate")
 var configPath=filepath.Join(dataDir,"host.json")
 var httpClient=&http.Client{Timeout:35*time.Second}
@@ -315,7 +315,7 @@ func main(){
 // filters by declared capabilities, so this process never claims firmware or
 // installer jobs that need their own reviewed adapters.
 type fabricStep struct{ Capability string }
-type fabricJob struct{ ID string; Parameters struct{Version string;Port string}; Steps []fabricStep }
+type fabricJob struct{ ID string; Parameters struct{Version string;Port string;ExpectedMAC string `json:"expected_mac"`}; Steps []fabricStep }
 
 func hostSnapshot(c config)([]byte,error){
  if runtime.GOOS!="linux"{return nil,errors.New("host snapshot requires Linux")}
@@ -387,6 +387,8 @@ func executeFabricJob(c config,job fabricJob)error{
     message,err=buildESPIdfSmoke(c,job.ID,job.Parameters.Version)
    case "firmware.esp_idf.probe":
     message,err=probeESP32Managed(c,job.ID,job.Parameters.Port)
+   case "firmware.esp_idf.backup":
+    message,err=backupESP32Managed(c,job.ID,job.Parameters.Port,job.Parameters.ExpectedMAC)
    default:
     err=fmt.Errorf("Unsupported Fabric capability: %s",step.Capability)
    }
