@@ -346,6 +346,48 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal((await json(base,"/api/local/approval-settings",{buildApproval:"automatic",flashApproval:"always"},resetHeaders)).status,200);
    const storedPrefs=await (await fetch(base+"/api/local/approval-settings",{headers:{cookie:resetHeaders.cookie}})).json();
    assert.equal(storedPrefs.buildApproval,"automatic");
+   // End-to-end authenticated Marketplace scheduling against a simulated managed host.
+   // This is an isolated test fixture: real host installation is validated separately.
+   const managedState=JSON.parse(readFileSync(join(dir,"state.json"),"utf8"));
+   const simulatedHost=managedState.runners.find(x=>x.id===enrolled.data.id);
+   assert(simulatedHost);
+   simulatedHost.managedHost={host:"test-linux-arm64"};
+   writeFileSync(join(dir,"state.json"),JSON.stringify(managedState));
+   const sdkHeartbeat={id:enrolled.data.id,hostVersion:"0.8.5",
+    fabricCapabilities:["host.snapshot","sdk.arduino_cli.install"],
+    packages:[{name:"python3",version:"Python 3.13.5"}]};
+   assert.equal((await json(base,"/api/agent/heartbeat",sdkHeartbeat,
+    {authorization:"Bearer "+enrolled.data.token})).status,200);
+   const installInput={request_id:"marketplace-e2e-test-001",family:"arduino-cli",version:"1.5.1",
+    builder_ids:[enrolled.data.id]};
+   const installedRequest=await json(base,"/api/local/marketplace/install",installInput,resetHeaders);
+   assert.equal(installedRequest.status,202);
+   assert.equal(installedRequest.data.operation.targets.length,1);
+   assert.equal(installedRequest.data.operation.targets[0].state,"queued");
+   const createdJob=installedRequest.data.operation.targets[0].job_id;
+   assert.match(createdJob,/^[a-f0-9]{32}$/);
+   const replay=await json(base,"/api/local/marketplace/install",installInput,resetHeaders);
+   assert.equal(replay.status,200);
+   assert.equal(replay.data.replayed,true);
+   assert.equal(replay.data.operation.targets[0].job_id,createdJob);
+   const conflict=await json(base,"/api/local/marketplace/install",
+    {...installInput,version:"5.5.6"},resetHeaders);
+   assert.equal(conflict.status,409);
+   const verified=await json(base,"/api/agent/heartbeat",
+    {...sdkHeartbeat,packages:[{name:"arduino-cli",version:"Arduino CLI 1.5.1"}]},
+    {authorization:"Bearer "+enrolled.data.token});
+   assert.equal(verified.status,200);
+   const inventory=await (await fetch(base+"/api/local/marketplace/state",
+    {headers:{cookie:resetHeaders.cookie}})).json();
+   assert.equal(inventory.hosts.find(x=>x.id===enrolled.data.id).installed
+    .some(x=>x.family==="arduino-cli"&&x.version==="1.5.1"),true);
+   assert.equal(inventory.operations.find(x=>x.id===installedRequest.data.operation.id)
+    .targets[0].state,"installed");
+   const already=await json(base,"/api/local/marketplace/install",
+    {...installInput,request_id:"marketplace-e2e-test-002"},resetHeaders);
+   assert.equal(already.status,202);
+   assert.equal(already.data.operation.targets[0].state,"installed");
+   assert.equal(already.data.operation.targets[0].job_id,null);
    assert.equal((await json(base,"/api/local/installation/reset",{password:"wrong",confirm:"RESET MAINCREATE"},resetHeaders)).status,401);
    assert.equal((await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"incorrect"},resetHeaders)).status,422);
    const reset=await json(base,"/api/local/installation/reset",{password:"new-long-credential-987654",confirm:"RESET MAINCREATE"},resetHeaders);
