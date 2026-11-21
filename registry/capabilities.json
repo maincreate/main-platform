@@ -5,7 +5,7 @@
     "kind": "action",
     "risk": "host-modify",
     "state": "available",
-    "description": "Install Arduino CLI 1.5.1 from an immutable official GitHub release tarball with an architecture-specific SHA-256 pin. Explicit runner opt-in and portal approval are required; installation is per-user and never flashes devices.",
+    "description": "Install Arduino CLI 1.5.1 from an immutable official GitHub release tarball with an architecture-specific SHA-256 pin. Execution queues on any enrolled Linux host that advertises this native installer; downloads are SHA-256 pinned and installation never flashes devices.",
     "platforms": ["linux"],
     "parameters": {"type":"object","properties":{},"required":[],"additionalProperties":false},
     "steps": [{"capability":"sdk.arduino_cli.install"}]
