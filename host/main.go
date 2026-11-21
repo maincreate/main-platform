@@ -325,7 +325,6 @@ func hostSnapshot(c config)([]byte,error){
 }
 func uploadFabricSnapshot(c config,jobID string,payload []byte)error{
  if len(payload)<1||len(payload)>8*1024*1024{return errors.New("host snapshot exceeds artifact limit")}
- base:=map[string]any{"id":c.ID,"job_id":jobID}
  var begin struct{Asset struct{ID string};MaxChunkBytes int}
  start:=map[string]any{"id":c.ID,"job_id":jobID,"action":"begin",
   "name":"host-snapshot.json","mime":"application/json","size":len(payload)}
