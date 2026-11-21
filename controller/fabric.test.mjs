@@ -14,7 +14,7 @@ const ctx={runners:[runner,other],workspace:{name:"Test",githubOrganization:"Exa
 const invoke=(tool,args)=>fabricCall(tool,args,ctx);
 const snapshot={capability:"host.snapshot",runner_id:runner.id,parameters:{}};
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
-test("stable registry discovers real capabilities and marks flashing unavailable",()=>{
+test("registry exposes approved device-write capability without automatic execution",()=>{
  const {capabilities,workspace,runners}=invoke("maincreate_discover",{resource:"all"});
  assert.equal(workspace.githubOrganization,"Example");
  assert.equal(runners.length,2);
@@ -22,8 +22,8 @@ test("stable registry discovers real capabilities and marks flashing unavailable
  assert(capabilities.some(c=>c.id==="firmware.esp_idf.build"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="sdk.arduino_cli.install"&&c.state==="available"));
  assert(capabilities.some(c=>c.id==="workflow.esp_idf.preflight_build"&&c.kind==="workflow"));
- assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="unavailable"));
- assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
+ assert(capabilities.some(c=>c.id==="firmware.esp_idf.flash"&&c.state==="available"));
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/Missing parameter: port/);
 });
 test("versioned Marketplace registry advertises compatibility without enabling unimplemented SDK execution",()=>{
  const result=invoke("maincreate_discover",{resource:"toolkits"});
@@ -76,7 +76,7 @@ test("read-only ESP32 probe is typed and does not enable writes",()=>{
  }
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{}}),/Missing parameter: port/);
  assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.probe",runner_id:runner.id,parameters:{port:"/dev/ttyUSB0",command:"flash"}}),/Unsupported parameter/);
- assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/not available/);
+ assert.throws(()=>invoke("maincreate_plan",{capability:"firmware.esp_idf.flash",runner_id:runner.id,parameters:{}}),/Missing parameter: port/);
 });
 test("ESP32 full-chip backup is read-only, bound to a canonical MAC and cannot substitute for flashing",()=>{
  const caps=invoke("maincreate_discover",{resource:"capabilities"}).capabilities;
@@ -94,7 +94,7 @@ test("ESP32 full-chip backup is read-only, bound to a canonical MAC and cannot s
   parameters:{port:"/dev/ttyACM0"}}),/Missing parameter: expected_mac/);
  assert.throws(()=>invoke("maincreate_plan",{capability:cap.id,runner_id:runner.id,
   parameters:{port:"/dev/ttyACM0",expected_mac:"44:bd:8d:78:15:e8",command:"write_flash"}}),/Unsupported parameter/);
- assert.equal(caps.find(c=>c.id==="firmware.esp_idf.flash").state,"unavailable");
+ assert.equal(caps.find(c=>c.id==="firmware.esp_idf.flash").state,"available");
 });
 test("security interrogation is read-only, MAC-bound and cannot enable a firmware write",()=>{
  const c=invoke("maincreate_discover",{resource:"capabilities"}).capabilities.find(x=>x.id==="firmware.esp_idf.security_preflight");
@@ -108,7 +108,7 @@ test("security interrogation is read-only, MAC-bound and cannot enable a firmwar
   assert.throws(()=>invoke("maincreate_plan",{capability:c.id,runner_id:runner.id,
    parameters:{port:"/dev/ttyACM0",expected_mac}}),/Invalid parameter: expected_mac/);
  }
- assert.equal(invoke("maincreate_discover",{resource:"capabilities"}).capabilities.find(x=>x.id==="firmware.esp_idf.flash").state,"unavailable");
+ assert.equal(invoke("maincreate_discover",{resource:"capabilities"}).capabilities.find(x=>x.id==="firmware.esp_idf.flash").state,"available");
 });
 test("MCP reports observed host release state and never invents missing GitHub versions",()=>{
  const enriched={...runner,hostVersion:"0.8.2",hostVersionObservedAt:new Date().toISOString(),
