@@ -6,7 +6,7 @@ const root=new URL("../",import.meta.url);
 test("both architectures share one checked installer and version",()=>{
  const script=readFileSync(new URL("scripts/install-linux.sh",root),"utf8");
  const dockerfile=readFileSync(new URL("Dockerfile",root),"utf8");
- assert.equal(HOST_RELEASE,"0.8.5");
+ assert.equal(HOST_RELEASE,"0.8.6");
  assert.match(script,/MAIN_EXPECTED_ARCH/);
  assert.match(script,/aarch64\|arm64/);
  assert.match(script,/x86_64\|amd64/);
