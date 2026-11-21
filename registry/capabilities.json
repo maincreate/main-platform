@@ -183,6 +183,35 @@
     ]
   },
   {
+    "id": "firmware.esp_idf.probe",
+    "version": "1.0.0",
+    "kind": "action",
+    "risk": "read",
+    "state": "available",
+    "description": "Identify an attached ESP32 using fixed, read-only EIM-managed esptool commands; upload a bounded SHA-256-verified chip/MAC/flash report. Does not verify security state or enable flashing.",
+    "platforms": [
+      "linux"
+    ],
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "pattern": "^/dev/(ttyUSB[0-9]+|ttyACM[0-9]+)$"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "additionalProperties": false
+    },
+    "steps": [
+      {
+        "capability": "firmware.esp_idf.probe"
+      }
+    ]
+  },
+  {
     "id": "firmware.esp_idf.flash",
     "version": "0.0.0",
     "kind": "action",

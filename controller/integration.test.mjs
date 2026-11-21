@@ -225,15 +225,15 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(inspectReady.data.fabric_ready,true);
    assert.deepEqual(inspectReady.data.executor_capabilities,["host.snapshot"]);
    assert.equal(inspectReady.data.host_service.installed_version,"0.8.8");
-   assert.equal(inspectReady.data.host_service.expected_version,"0.8.8");
-   assert.equal(inspectReady.data.host_service.version_status,"current");
+   assert.equal(inspectReady.data.host_service.expected_version,"0.8.9");
+   assert.equal(inspectReady.data.host_service.version_status,"update_available");
    assert.equal(inspectReady.data.github_runner.name,null);
    assert.equal(inspectReady.data.github_runner.lookup_status,"not_registered");
    assert.equal("installed_version" in inspectReady.data.github_runner,false);
    assert.deepEqual(inspectReady.data.packages,[{name:"node",version:"v22.0.0"}]);
    assert.equal("tokenHash" in inspectReady.data,false);
    const discoveredRunners=await fabricCall("maincreate_discover",{resource:"runners"});
-   assert.equal(discoveredRunners.data.runners[0].host_service.version_status,"current");
+   assert.equal(discoveredRunners.data.runners[0].host_service.version_status,"update_available");
    const jobRequest=await fabricCall("maincreate_execute",{plan_id:planned.data.plan_id});
    assert.equal(jobRequest.status,200);
    assert.equal(jobRequest.data.job.status,"queued");
