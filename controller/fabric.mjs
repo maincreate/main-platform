@@ -29,6 +29,8 @@ function validateRegistry(){
 }
 validateRegistry();
 const uid=()=>randomBytes(16).toString("hex");
+// Enrolled hosts currently use 12-byte (24 hex) IDs; accept legacy 16-byte IDs as well.
+const validRunnerId=id=>typeof id==="string"&&/^(?:[a-f0-9]{24}|[a-f0-9]{32})$/.test(id);
 const sha=x=>createHash("sha256").update(x).digest("hex");
 const error=(code,message)=>Object.assign(new Error(message),{status:code});
 function store(){if(!existsSync(database))return {version:1,plans:[],jobs:[],assets:[]};
@@ -289,7 +291,7 @@ export function approveJob(id,decision,confirmedMAC=null){
  */
 /** Resolve observed MAC from an authenticated security probe; never from USB product text. */
 export function observedFlashIdentity({runnerId,port}){
- if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+ if(!validRunnerId(runnerId)||
   !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||""))
   throw error(422,"Exact enrolled device attachment required");
  const s=store(),now=Date.now();
@@ -309,7 +311,7 @@ export function observedFlashIdentity({runnerId,port}){
  throw error(409,"Connected device requires a recent authenticated ESP32-S3 identity/security preflight");
 }
 export function findDeploymentEvidence({runnerId,port,mac,sourceJobId}){
- if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+ if(!validRunnerId(runnerId)||
   !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
   !/^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(mac||"")||
   !/^[a-f0-9]{32}$/.test(sourceJobId||""))
@@ -439,7 +441,7 @@ export function importReviewedFirmwareBuild({repository,revision,runId,runnerId,
   !Number.isSafeInteger(runId)||runId<1||
   !/^[a-f0-9]{64}$/.test(sourceSha256||""))
   throw error(422,"Verified GitHub Actions firmware provenance required");
- if(!/^[a-f0-9]{32}$/.test(runnerId||""))throw error(422,"Existing runner ID required");
+ if(!validRunnerId(runnerId))throw error(422,"Existing runner ID required");
  const expected=["esp32s3-firmware.bin","esp32s3-bootloader.bin","esp32s3-partitions.bin"];
  if(Object.keys(images||{}).length!==3)throw error(422,"Exactly three firmware images required");
  for(const name of expected){
