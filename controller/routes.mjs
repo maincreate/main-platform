@@ -366,6 +366,9 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
   const mac=observed.mac;
   const current=activeDeviceFlash({runnerId:runner.id,mac});
   if(current){
+   if(current.source_repository!==expressionRepo||
+      current.source_capability!=="firmware.esp_idf.import_build")
+    throw Object.assign(new Error("Another firmware write is already active on this device; refusing to approve or replace an unrelated firmware image"),{status:409});
    if(current.status==="awaiting_approval"&&delegationStatus(original,mac,expressionRepo)){
     const granted=approveJob(current.id,"approve",mac);
     return {deployment:granted.job,reused:true,authorization:"scoped_mcp_delegation",
