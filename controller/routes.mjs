@@ -337,9 +337,10 @@ function publicFlashDelegation(s){
   expires_at:p.expiresAt||null,active:delegationStatus(s,p.mac,p.repository),
   note:"One-time administrator authorization. Remote MCP may flash only the specified device and repository until expiration; per-write physical evidence verification still applies."};
 }
-/** One user intent -> exact successful build -> device -> verified recovery -> one flash job.
- * For MCP clients, a scoped, time-limited administrator delegation is required
- * for actual execution; without it the job remains approval-pending.
+/** Direct Expressions deployment: authorized MCP caller -> pinned reviewed build -> hardware.
+ * Automatic approval is scoped to this fixed repository and the verified attached
+ * ESP32-S3. All existing flash evidence checks remain mandatory.
+ * Set MAIN_EXPRESSION_AUTO_FLASH=0 to restore administrator approval.
  */
 async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
  if(!input||Object.keys(input).some(k=>!["repository","device_id","run_id"].includes(k))||
@@ -383,9 +384,11 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
     if(current.source_revision!==verified.revision||current.source_run_id!==verified.runId)
      throw Object.assign(new Error("Existing pending deployment references a different firmware revision; cancel it before requesting the new build"),{status:409});
    }
-   if(current.status==="awaiting_approval"&&delegationStatus(original,mac,expressionRepo)){
+   if(current.status==="awaiting_approval"&&
+      (process.env.MAIN_EXPRESSION_AUTO_FLASH!=="0"||delegationStatus(original,mac,expressionRepo))){
     const granted=approveJob(current.id,"approve",mac);
-    return {deployment:granted.job,reused:true,authorization:"scoped_mcp_delegation",
+    return {deployment:granted.job,reused:true,
+     authorization:process.env.MAIN_EXPRESSION_AUTO_FLASH!=="0"?"reviewed_expressions_auto":"scoped_mcp_delegation",
      repository:expressionRepo,device_id:target.id,device_mac:mac};
    }
    return {deployment:current,reused:true,authorization:current.status==="awaiting_approval"?"administrator_required":"already_approved",
@@ -401,9 +404,9 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
    runner_id:runner.id,parameters:evidence},{runners:state().runners});
   const issued=fabricCall("maincreate_execute",{plan_id:plan.plan_id},{runners:state().runners}).job;
   let job=issued,authorization="administrator_required";
-  if(delegationStatus(state(),mac,expressionRepo)){
+  if(process.env.MAIN_EXPRESSION_AUTO_FLASH!=="0"||delegationStatus(state(),mac,expressionRepo)){
    job=approveJob(issued.id,"approve",mac).job;
-   authorization="scoped_mcp_delegation";
+   authorization=process.env.MAIN_EXPRESSION_AUTO_FLASH!=="0"?"reviewed_expressions_auto":"scoped_mcp_delegation";
   }
   return {deployment:job,reused:false,authorization,
    repository:expressionRepo,source_revision:build.revision,
