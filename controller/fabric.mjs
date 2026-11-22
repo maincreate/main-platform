@@ -284,6 +284,47 @@ export function approveJob(id,decision,confirmedMAC=null){
  if(decision==="reject")j.completedAt=new Date().toISOString();
  save(s);return {job:publicJob(j)};
 }
+/** Select the newest, fully verified same-device backup and security report.
+ * Selection is infrastructure work, never caller-supplied artifact identity.
+ */
+export function findDeploymentEvidence({runnerId,port,mac,sourceJobId}){
+ if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+  !/^\\/dev\\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
+  !/^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(mac||"")||
+  !/^[a-f0-9]{32}$/.test(sourceJobId||""))
+  throw error(422,"Exact enrolled runner, device port, MAC and source required");
+ const s=store(),source=s.jobs.find(j=>j.id===sourceJobId&&
+  j.capability==="firmware.esp_idf.import_build"&&j.status==="completed");
+ if(!source||source.runnerId!==runnerId)
+  throw error(409,"Verified GitHub firmware build must be imported on the target builder");
+ const eligible=cap=>s.jobs.filter(j=>j.capability===cap&&
+   j.status==="completed"&&j.runnerId===runnerId&&
+   j.parameters?.port===port&&j.parameters?.expected_mac===mac)
+  .sort((a,b)=>String(b.completedAt).localeCompare(String(a.completedAt)));
+ const backup=eligible("firmware.esp_idf.backup");
+ const security=eligible("firmware.esp_idf.security_preflight");
+ let reason="No matching, recent, fully verified 16MB backup and security report";
+ for(const b of backup)for(const sec of security){
+  const synthetic={id:uid(),capability:"firmware.esp_idf.flash",
+   runnerId,status:"awaiting_approval",parameters:{
+    port,expected_mac:mac,source_job_id:sourceJobId,
+    backup_job_id:b.id,security_job_id:sec.id}};
+  try{
+   verifyFlashEvidence({flashJob:synthetic,jobs:s.jobs,assets:s.assets,
+    readAsset:a=>readFileSync(assetFile(a.id))});
+   return {backup_job_id:b.id,security_job_id:sec.id,source_job_id:source.id,
+    port,expected_mac:mac};
+  }catch(e){reason=e.message;}
+ }
+ throw error(409,"Deployment preflight not ready: "+reason);
+}
+/** Reuse a pending/running write rather than scheduling duplicate writes. */
+export function activeDeviceFlash({runnerId,mac}){
+ const s=store(),found=s.jobs.find(j=>j.capability==="firmware.esp_idf.flash"&&
+  j.runnerId===runnerId&&j.parameters?.expected_mac===mac&&
+  ["awaiting_approval","queued","running"].includes(j.status));
+ return found?publicJob(found):null;
+}
 export function runnerHasExecutableFabricWork(runner){
  if(!runner?.id)return false;
  const supported=new Set(Array.isArray(runner.fabricCapabilities)?runner.fabricCapabilities:[]);
