@@ -744,8 +744,15 @@ export async function localRoute(req) {
         if(id)sessions.delete(id);
         return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
       }
-      if(path==="/api/local/deployment-delegation"&&method==="GET")
-        return reply(publicFlashDelegation(state()));
+      if(path==="/api/local/deployment-delegation"&&method==="GET"){
+        const devices=listDevices({mode:"visible"}).devices.filter(d=>d.lifecycle==="connected");
+        const available_devices=devices.flatMap(d=>{
+         try{const identity=observedFlashIdentity({runnerId:d.runnerId,port:d.port});
+           return [{id:d.id,name:d.label||d.product||"ESP32-S3",runner:d.runnerName,
+             mac:identity.mac,port:d.port}];}catch{return [];}
+        });
+        return reply({...publicFlashDelegation(state()),available_devices});
+      }
       if(path==="/api/local/deployment-delegation"&&method==="POST"){
         const b=await body(req),stored=state(),admin=stored.admin;
         if(limited("deployment-delegation:"+session(req).username,5))
