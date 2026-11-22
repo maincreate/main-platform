@@ -356,7 +356,7 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
  if(activeDeploymentRequests.has(key))return activeDeploymentRequests.get(key);
  const task=(async()=>{
   const original=state(),runner=original.runners.find(r=>r.id===target.runnerId);
-  if(!runner||runner.managedHost!==true||runner.hostVersion!==HOST_RELEASE||
+  if(!runner||!runner.managedHost||runner.hostVersion!==HOST_RELEASE||
    Date.now()-Date.parse(runner.lastSeen||"")>=120000||
    !Array.isArray(runner.fabricCapabilities)||!runner.fabricCapabilities.includes("firmware.esp_idf.flash"))
    throw Object.assign(new Error("Selected builder must be online, managed, current, and flash-capable"),{status:409});
