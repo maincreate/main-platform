@@ -3,11 +3,11 @@ const $=id=>document.getElementById(id);
 let csrf=null,currentJobs=[],currentAssets=[],devices=[];
 function el(tag,text,cls){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;}
 function message(value){$("notification").textContent=value||"";}
-async function api(path,payload){
+async function api(path,payload,{allowUnauthorizedError=false}={}){
  const req={credentials:"same-origin",cache:"no-store"};
  if(payload!==undefined){req.method="POST";req.headers={"content-type":"application/json","x-maincreate-csrf":csrf};req.body=JSON.stringify(payload);}
  const response=await fetch(path,req);
- if(response.status===401){location.replace("/setup");throw Error("Sign in required");}
+ if(response.status===401&&!allowUnauthorizedError){location.replace("/setup");throw Error("Sign in required");}
  const data=await response.json().catch(()=>({}));
  if(!response.ok)throw Error(data.error||"Request failed");
  return data;
@@ -83,6 +83,7 @@ async function showFlash(job){
 async function showFlashApproval(job){
  pendingFlashApproval=job;
  $("confirmFlashMAC").value="";$("flashAdminPassword").value="";
+ $("flashApprovalFeedback").textContent="";
  $("flashApproveDetails").textContent="Target MAC: "+(job.target_mac||"unknown")+
   " · Job "+job.id.slice(0,12)+". This write may replace the device's current application.";
  $("flashApproveDialog").showModal();
@@ -196,13 +197,31 @@ $("requestFlash").addEventListener("click",async()=>{
 $("cancelFlashApprove").addEventListener("click",()=>{$("flashAdminPassword").value="";$("flashApproveDialog").close();});
 $("approveFlashWrite").addEventListener("click",async()=>{
  if(!pendingFlashApproval)return;
- const button=$("approveFlashWrite");button.disabled=true;
+ const button=$("approveFlashWrite"),feedback=$("flashApprovalFeedback");
+ const expected=pendingFlashApproval.target_mac||"";
+ const entered=$("confirmFlashMAC").value.trim().toLowerCase();
+ feedback.textContent="";
+ if(entered!==expected.toLowerCase()){
+  feedback.textContent="Device MAC does not match. Enter the target MAC shown above, not a product serial number.";
+  $("confirmFlashMAC").focus();return;
+ }
+ if(!$("flashAdminPassword").value){
+  feedback.textContent="Enter your Main{Create} administrator password.";
+  $("flashAdminPassword").focus();return;
+ }
+ button.disabled=true;button.textContent="Approving…";
  try{
-  await api("/api/local/jobs/approval",{job_id:pendingFlashApproval.id,decision:"approve",
-   confirm_mac:$("confirmFlashMAC").value.trim(),password:$("flashAdminPassword").value});
-  $("flashAdminPassword").value="";$("flashApproveDialog").close();await load();
-  message("Approved device write queued. Keep the ESP32 powered and connected.");
- }catch(e){message(e.message);}finally{button.disabled=false;}
+  const result=await api("/api/local/jobs/approval",{job_id:pendingFlashApproval.id,decision:"approve",
+   confirm_mac:expected,password:$("flashAdminPassword").value},{allowUnauthorizedError:true});
+  if(!["queued","running","completed"].includes(result.job?.status)){
+   throw Error("Approval response did not confirm a queued device write.");
+  }
+  $("flashAdminPassword").value="";$("flashApproveDialog").close();pendingFlashApproval=null;
+  await load();message("Approved device write queued. Keep the ESP32 powered and connected.");
+ }catch(e){
+  feedback.textContent="Approval failed: "+e.message;
+  $("flashAdminPassword").value="";
+ }finally{button.disabled=false;button.textContent="Approve device write";}
 });
 $("closeFlash").addEventListener("click",()=>$("flashDialog").close());
 load();
