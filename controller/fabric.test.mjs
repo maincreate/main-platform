@@ -316,7 +316,7 @@ test("authenticated external Arduino source becomes immutable, completed flash e
   "esp32s3-firmware.bin":Buffer.alloc(4096,3),
  };
  const args={repository:"BuilderBench/esp32-expression",revision:"a".repeat(40),
-  runId:44961900475,runnerId:"b".repeat(32),images,sourceSha256:"c".repeat(64)};
+  runId:44961900475,runnerId:"b".repeat(24),images,sourceSha256:"c".repeat(64)};
  const imported=importReviewedFirmwareBuild(args);
  assert.equal(imported.created,true);
  assert.equal(imported.job.capability,"firmware.esp_idf.import_build");
