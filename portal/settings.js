@@ -106,6 +106,7 @@ async function load(){
   await loadStorage();
   await loadRepositoryPreferences();
   await loadApprovalPreferences();
+  await loadDeploymentDelegation();
   await refreshAiConnection(true);
   $("executionStatus").textContent=(d.jobs?.pending||0)+
    " job(s) awaiting review. Each job requires explicit approval; track progress in Builders & Jobs.";
@@ -194,6 +195,55 @@ $("approvalForm").addEventListener("submit",async event=>{
   $("approvalNotice").textContent="Saved. Firmware flashing will continue to require separate approval.";
  }catch(e){$("approvalNotice").textContent=e.message;}
  finally{button.disabled=false;}
+});
+async function loadDeploymentDelegation(){
+ const data=await api("/api/local/deployment-delegation");
+ const select=$("delegationDevice"),previous=select.value;
+ select.replaceChildren();
+ const placeholder=document.createElement("option");
+ placeholder.value="";placeholder.textContent="Select connected ESP32-S3";select.append(placeholder);
+ for(const d of data.available_devices||[]){
+  const o=document.createElement("option");o.value=d.mac;
+  o.textContent=d.name+" · "+d.mac+" · "+d.runner;
+  select.append(o);
+ }
+ if((data.available_devices||[]).some(d=>d.mac===(data.mac||previous))){
+  select.value=data.mac||previous;
+ }else if((data.available_devices||[]).length===1){
+  select.value=data.available_devices[0].mac;
+ }
+ $("delegationState").textContent=data.active?
+   "Authorized for "+data.repository+" on "+data.mac+
+   " until "+new Date(data.expires_at).toLocaleString()+". Commands from the connected ChatGPT MCP app can queue an approved flash.":
+   "Remote device writes are disabled. Normal portal approval is still required.";
+ $("revokeDelegation").disabled=!data.enabled;
+}
+$("delegationForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const button=$("enableDelegation");
+ if(!window.confirm("Allow the connected ChatGPT MCP client to flash the selected ESP32-S3 without another portal approval until this permission expires? Every flash will still verify the source, backup, target and security state."))return;
+ button.disabled=true;
+ try{
+  await api("/api/local/deployment-delegation",{
+   enabled:true,repository:"BuilderBench/esp32-expression",
+   mac:$("delegationDevice").value,
+   expires_days:Number($("delegationDuration").value),
+   password:$("delegationPassword").value
+  });
+  $("delegationPassword").value="";
+  $("delegationNotice").textContent="Device-scoped authorization enabled.";
+  await loadDeploymentDelegation();
+ }catch(e){$("delegationNotice").textContent=e.message;}
+ finally{button.disabled=false;}
+});
+$("revokeDelegation").addEventListener("click",async()=>{
+ const password=window.prompt("Administrator password required to revoke remote flash access");
+ if(!password)return;
+ try{
+  await api("/api/local/deployment-delegation",{enabled:false,password});
+  $("delegationNotice").textContent="Remote device-write permission revoked.";
+  await loadDeploymentDelegation();
+ }catch(e){$("delegationNotice").textContent=e.message;}
 });
 $("resetForm").addEventListener("submit",async event=>{
  event.preventDefault();
