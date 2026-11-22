@@ -37,6 +37,13 @@ export async function fetchVerifiedExpressionFirmware({token,runId,fetchImpl=fet
   run=await json("/actions/runs/"+run.id);
  }
  if(!success(run))throw err("Run must be successful, non-fork, main-branch Expressions build");
+ if(!runId){
+  const branch=await json("/branches/main");
+  if(!/^[a-f0-9]{40}$/.test(branch?.commit?.sha||"")||
+     branch.commit.sha!==run.head_sha)
+   throw err("A newer main-branch source revision has not passed the production build; refusing to flash older firmware",409);
+ }
+
  const listing=await json("/actions/runs/"+run.id+"/artifacts?per_page=100");
  const matching=(listing.artifacts||[]).filter(a=>a.name===ARTIFACT&&!a.expired);
  if(matching.length!==1||!Number.isSafeInteger(matching[0].id)||
