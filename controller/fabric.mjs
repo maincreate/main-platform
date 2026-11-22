@@ -284,6 +284,71 @@ export function approveJob(id,decision,confirmedMAC=null){
  if(decision==="reject")j.completedAt=new Date().toISOString();
  save(s);return {job:publicJob(j)};
 }
+/** Select the newest, fully verified same-device backup and security report.
+ * Selection is infrastructure work, never caller-supplied artifact identity.
+ */
+/** Resolve observed MAC from an authenticated security probe; never from USB product text. */
+export function observedFlashIdentity({runnerId,port}){
+ if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+  !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||""))
+  throw error(422,"Exact enrolled device attachment required");
+ const s=store(),now=Date.now();
+ for(const j of [...s.jobs].reverse()){
+  if(j.capability!=="firmware.esp_idf.security_preflight"||
+   j.status!=="completed"||j.runnerId!==runnerId||j.parameters?.port!==port)continue;
+  const stamped=Date.parse(j.completedAt||"");
+  if(!Number.isFinite(stamped)||stamped>now||now-stamped>7*86400000)continue;
+  const a=s.assets.find(a=>a.jobId===j.id&&a.name==="esp32-security-info.json"&&a.complete&&j.assetIds?.includes(a.id));
+  if(!a||sha(readFileSync(assetFile(a.id)))!==a.sha256)continue;
+  let report;try{report=JSON.parse(readFileSync(assetFile(a.id),"utf8"))}catch{continue}
+  if(report.schema===1&&report.chip==="ESP32-S3"&&report.flash_size==="16MB"&&
+   report.port===port&&report.mac===j.parameters?.expected_mac&&
+   /^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(report.mac))
+    return {mac:report.mac,security_job_id:j.id,observed_at:j.completedAt};
+ }
+ throw error(409,"Connected device requires a recent authenticated ESP32-S3 identity/security preflight");
+}
+export function findDeploymentEvidence({runnerId,port,mac,sourceJobId}){
+ if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+  !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
+  !/^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(mac||"")||
+  !/^[a-f0-9]{32}$/.test(sourceJobId||""))
+  throw error(422,"Exact enrolled runner, device port, MAC and source required");
+ const s=store(),source=s.jobs.find(j=>j.id===sourceJobId&&
+  j.capability==="firmware.esp_idf.import_build"&&j.status==="completed");
+ if(!source||source.runnerId!==runnerId)
+  throw error(409,"Verified GitHub firmware build must be imported on the target builder");
+ const eligible=cap=>s.jobs.filter(j=>j.capability===cap&&
+   j.status==="completed"&&j.runnerId===runnerId&&
+   j.parameters?.port===port&&j.parameters?.expected_mac===mac)
+  .sort((a,b)=>String(b.completedAt).localeCompare(String(a.completedAt)));
+ const backup=eligible("firmware.esp_idf.backup");
+ const security=eligible("firmware.esp_idf.security_preflight");
+ let reason="No matching, recent, fully verified 16MB backup and security report";
+ for(const b of backup)for(const sec of security){
+  const synthetic={id:uid(),capability:"firmware.esp_idf.flash",
+   runnerId,status:"awaiting_approval",parameters:{
+    port,expected_mac:mac,source_job_id:sourceJobId,
+    backup_job_id:b.id,security_job_id:sec.id}};
+  try{
+   verifyFlashEvidence({flashJob:synthetic,jobs:s.jobs,assets:s.assets,
+    readAsset:a=>readFileSync(assetFile(a.id))});
+   return {backup_job_id:b.id,security_job_id:sec.id,source_job_id:source.id,
+    port,expected_mac:mac};
+  }catch(e){reason=e.message;}
+ }
+ throw error(409,"Deployment preflight not ready: "+reason);
+}
+/** Reuse a pending/running write rather than scheduling duplicate writes. */
+export function activeDeviceFlash({runnerId,mac}){
+ const s=store(),found=s.jobs.find(j=>j.capability==="firmware.esp_idf.flash"&&
+  j.runnerId===runnerId&&j.parameters?.expected_mac===mac&&
+  ["awaiting_approval","queued","running"].includes(j.status));
+ if(!found)return null;
+ const source=s.jobs.find(j=>j.id===found.parameters?.source_job_id);
+ return {...publicJob(found),source_repository:source?.parameters?.repository||null,
+  source_capability:source?.capability||null};
+}
 export function runnerHasExecutableFabricWork(runner){
  if(!runner?.id)return false;
  const supported=new Set(Array.isArray(runner.fabricCapabilities)?runner.fabricCapabilities:[]);

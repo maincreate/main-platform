@@ -34,6 +34,12 @@ const tools=[
     description:{type:"string",description:"Optional repository description"},
     visibility:{type:"string",enum:["private","public"],description:"Optional override of organization default"},
     organization:{type:"string",description:"Optional organization identity; must match connected organization"}},["name"])},
+ {name:"maincreate_deploy_firmware",title:"Build and flash a connected device",
+  description:"One-command deployment: find the newest successful signed-off GitHub Expressions build (or exact run), import and SHA-256 verify artifacts, resolve the sole connected ESP32-S3, validate its existing full-chip backup and security preflight, and queue a flash. If a time-limited administrator delegation for this exact repo and device is active, flash proceeds automatically; otherwise the job remains awaiting approval. Never bypasses hardware/restore checks.",
+  annotations:{readOnlyHint:false,destructiveHint:true,idempotentHint:true},
+  inputSchema:object({repository:{type:"string",enum:["BuilderBench/esp32-expression"]},
+    device_id:{type:"string",description:"Optional discovered device ID; omit when exactly one device connected"},
+    run_id:{type:"integer",description:"Optional successful main-branch GitHub Actions run ID; defaults to latest successful run"}},["repository"])},
  {name:"maincreate_assets",title:"Transfer bounded assets",description:"List, upload in ordered base64 chunks, finish with optional sha256 verification or read artifacts in chunks. Files are isolated in Main{Create} storage; no filesystem paths.",
   annotations:{readOnlyHint:false,destructiveHint:false},inputSchema:object({action:{type:"string",enum:["list","begin","chunk","finish","get"]},job_id:idField,
    asset_id:idField,name:textField,size:{type:"integer"},mime:textField,offset:{type:"integer"},
@@ -42,7 +48,7 @@ const tools=[
 async function get(path,opts={}){
  const u=new URL(path,controller);
  if(u.origin!==new URL(controller).origin)throw new Error("Invalid controller URL");
- const r=await fetch(u,{...opts,signal:AbortSignal.timeout(15000)});
+ const r=await fetch(u,{...opts,signal:opts.signal||AbortSignal.timeout(15000)});
  const data=await r.json().catch(()=>({error:"Invalid controller response"}));
  if(!r.ok)throw new Error(data.error||"Controller returned HTTP "+r.status);
  return data;
@@ -63,6 +69,11 @@ async function legacy(name,args){
  throw new Error("Unknown tool");
 }
 async function call(name,args){
+ if(name==="maincreate_deploy_firmware"){
+  return get("/api/internal/deploy/firmware",{method:"POST",
+   headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},
+   body:JSON.stringify(args),signal:AbortSignal.timeout(90000)});
+ }
  if(name==="maincreate_github_repository_request"){
    return get("/api/internal/github/repository/request",{method:"POST",
      headers:{"content-type":"application/json",authorization:"Bearer "+serviceToken},

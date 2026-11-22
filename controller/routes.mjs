@@ -4,8 +4,9 @@ import {readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSyn
 import {join} from "node:path";
 import {HOST_RELEASE,supportsRemoteHostUpgrade,hostDistributionRoute,adminHostRoute,agentHostRoute,removalActivity,queueManagedHostUpgrade,pendingHostUpgrade} from "./host_routes.mjs";
 import {storageRoute} from "./storage.mjs";
-import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats,runnerHasExecutableFabricWork,importReviewedFirmwareBuild} from "./fabric.mjs";
+import {fabricCall,approveJob,claimJob,reportJob,agentAsset,fabricStats,runnerHasExecutableFabricWork,importReviewedFirmwareBuild,observedFlashIdentity,findDeploymentEvidence,activeDeviceFlash} from "./fabric.mjs";
 import {decodeFirmwareZip,validateExpressionArtifacts} from "./github_firmware_import.mjs";
+import {fetchVerifiedExpressionFirmware} from "./firmware_deployment_source.mjs";
 import {reportDevices,listDevices,renameDevice,deviceOverview} from "./devices.mjs";
 import {internalMcpServiceToken,validOpenAiTunnelId,validOpenAiRuntimeKey,startOpenAiTunnel,stopOpenAiTunnel,openAiRuntimeStatus} from "./openai_tunnel_runtime.mjs";
 import {microcontrollerCatalog,compatibilityForDevice} from "./microcontrollers.mjs";
@@ -23,6 +24,7 @@ const masterKeyFile = join(dataDir, "master.key");
 const scryptAsync = promisify(scrypt);
 let bootstrapBusy = false;
 const provisioningNames=new Set();
+const activeDeploymentRequests=new Map();
 const SCRYPT_PARAMS = {N:32768,r:8,p:1,maxmem:64*1024*1024};
 const sessions = new Map();
 const failures = new Map();
@@ -319,6 +321,91 @@ async function provisionRepository(input,actor){
    save(next);
    return created;
  }finally{provisioningNames.delete(lock);}
+}
+
+const expressionRepo="BuilderBench/esp32-expression";
+const isMAC=s=>typeof s==="string"&&/^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(s);
+function delegationStatus(s,mac,repository,now=Date.now()){
+ const p=s?.flashDelegation;
+ return !!(p?.enabled===true&&p.repository===repository&&p.mac===mac&&
+  typeof p.expiresAt==="string"&&Date.parse(p.expiresAt)>now&&
+  Date.parse(p.expiresAt)<=Date.parse(p.createdAt)+30*86400000);
+}
+function publicFlashDelegation(s){
+ const p=s.flashDelegation||{};
+ return {enabled:p.enabled===true,repository:p.repository||null,mac:p.mac||null,
+  expires_at:p.expiresAt||null,active:delegationStatus(s,p.mac,p.repository),
+  note:"One-time administrator authorization. Remote MCP may flash only the specified device and repository until expiration; per-write physical evidence verification still applies."};
+}
+/** One user intent -> exact successful build -> device -> verified recovery -> one flash job.
+ * For MCP clients, a scoped, time-limited administrator delegation is required
+ * for actual execution; without it the job remains approval-pending.
+ */
+async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
+ if(!input||Object.keys(input).some(k=>!["repository","device_id","run_id"].includes(k))||
+  input.repository!==expressionRepo||
+  (input.run_id!==undefined&&(!Number.isSafeInteger(input.run_id)||input.run_id<1))||
+  (input.device_id!==undefined&&typeof input.device_id!=="string"))
+  throw Object.assign(new Error("Only the reviewed Expressions repository and a valid optional target/run are accepted"),{status:422});
+ const all=listDevices({mode:"visible"}).devices;
+ const connected=all.filter(d=>d.lifecycle==="connected");
+ const target=input.device_id?connected.find(d=>d.id===input.device_id):
+  connected.length===1?connected[0]:null;
+ if(!target)throw Object.assign(new Error("Select exactly one connected target device; ambiguous or offline devices cannot be flashed"),{status:409});
+ const key=target.runnerId+":"+target.port;
+ if(activeDeploymentRequests.has(key))return activeDeploymentRequests.get(key);
+ const task=(async()=>{
+  const original=state(),runner=original.runners.find(r=>r.id===target.runnerId);
+  if(!runner||runner.managedHost!==true||runner.hostVersion!==HOST_RELEASE||
+   Date.now()-Date.parse(runner.lastSeen||"")>=120000||
+   !Array.isArray(runner.fabricCapabilities)||!runner.fabricCapabilities.includes("firmware.esp_idf.flash"))
+   throw Object.assign(new Error("Selected builder must be online, managed, current, and flash-capable"),{status:409});
+  if(!/^\/dev\/(ttyACM|ttyUSB)[0-9]+$/.test(target.port||""))
+   throw Object.assign(new Error("Unrecognized device attachment"),{status:422});
+  const observed=observedFlashIdentity({runnerId:runner.id,port:target.port});
+  const mac=observed.mac;
+  const current=activeDeviceFlash({runnerId:runner.id,mac});
+  if(current){
+   if(current.source_repository!==expressionRepo||
+      current.source_capability!=="firmware.esp_idf.import_build")
+    throw Object.assign(new Error("Another firmware write is already active on this device; refusing to approve or replace an unrelated firmware image"),{status:409});
+   if(current.status==="awaiting_approval"&&delegationStatus(original,mac,expressionRepo)){
+    const granted=approveJob(current.id,"approve",mac);
+    return {deployment:granted.job,reused:true,authorization:"scoped_mcp_delegation",
+     repository:expressionRepo,device_id:target.id,device_mac:mac};
+   }
+   return {deployment:current,reused:true,authorization:current.status==="awaiting_approval"?"administrator_required":"already_approved",
+    repository:expressionRepo,device_id:target.id,device_mac:mac};
+  }
+  await refreshGithubAuthorization();
+  const gh=state().github||{};
+  if(!githubIdentityCurrent(gh)||gh.selectedOrganization!=="BuilderBench"||!gh.oauthToken)
+   throw Object.assign(new Error("Main{Create} must be connected to BuilderBench GitHub"),{status:409});
+  const build=await fetchVerifiedExpressionFirmware({
+   token:unseal(gh.oauthToken),runId:input.run_id});
+  const source=importReviewedFirmwareBuild({repository:expressionRepo,
+   revision:build.revision,runId:build.runId,runnerId:runner.id,
+   images:build.images,sourceSha256:build.sourceSha256}).job;
+  const evidence=findDeploymentEvidence({runnerId:runner.id,port:target.port,mac,
+   sourceJobId:source.id});
+  const plan=fabricCall("maincreate_plan",{capability:"firmware.esp_idf.flash",
+   runner_id:runner.id,parameters:evidence},{runners:state().runners});
+  const issued=fabricCall("maincreate_execute",{plan_id:plan.plan_id},{runners:state().runners}).job;
+  let job=issued,authorization="administrator_required";
+  if(delegationStatus(state(),mac,expressionRepo)){
+   job=approveJob(issued.id,"approve",mac).job;
+   authorization="scoped_mcp_delegation";
+  }
+  return {deployment:job,reused:false,authorization,
+   repository:expressionRepo,source_revision:build.revision,
+   github_run_id:build.runId,source_job_id:source.id,
+   device_id:target.id,device_mac:mac,
+   note:authorization==="administrator_required"?
+    "Firmware is imported and verified but the device write is pending a scoped administrator delegation or one-time portal approval.":
+    "Flash is queued. Follow deployment ID for device verification results."};
+ })();
+ activeDeploymentRequests.set(key,task);
+ try{return await task}finally{if(activeDeploymentRequests.get(key)===task)activeDeploymentRequests.delete(key)}
 }
 function repositoryRequests(s){return Array.isArray(s.github?.repositoryRequests)?s.github.repositoryRequests:[];}
 function applyApprovalPreference(tool,args,context){
@@ -659,6 +746,43 @@ export async function localRoute(req) {
         const id=(req.headers.get("cookie")||"").match(/ttsid=([a-f0-9]+)/)?.[1];
         if(id)sessions.delete(id);
         return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
+      }
+      if(path==="/api/local/deployment-delegation"&&method==="GET"){
+        const devices=listDevices({mode:"visible"}).devices.filter(d=>d.lifecycle==="connected");
+        const available_devices=devices.flatMap(d=>{
+         try{const identity=observedFlashIdentity({runnerId:d.runnerId,port:d.port});
+           return [{id:d.id,name:d.label||d.product||"ESP32-S3",runner:d.runnerName,
+             mac:identity.mac,port:d.port}];}catch{return [];}
+        });
+        return reply({...publicFlashDelegation(state()),available_devices});
+      }
+      if(path==="/api/local/deployment-delegation"&&method==="POST"){
+        const b=await body(req),stored=state(),admin=stored.admin;
+        if(limited("deployment-delegation:"+session(req).username,5))
+         return deny(429,"Too many deployment-authorization attempts");
+        if(!admin||typeof b.password!=="string"||
+           !(await verifyPassword(b.password,admin.password)))
+         return deny(401,"Administrator password required to change remote device-write authorization");
+        if(b.enabled===false){
+         delete stored.flashDelegation;save(stored);
+         return reply(publicFlashDelegation(stored));
+        }
+        if(b.enabled!==true||b.repository!==expressionRepo||!isMAC(b.mac)||
+           !Number.isInteger(b.expires_days)||b.expires_days<1||b.expires_days>30)
+         return deny(422,"Authorize an exact repository, device MAC and 1–30 day window");
+        const identity=listDevices({mode:"visible"}).devices.filter(d=>
+         d.lifecycle==="connected"&&/^\/dev\/(ttyACM|ttyUSB)[0-9]+$/.test(d.port||""));
+        const eligible=identity.some(d=>{
+         try{return observedFlashIdentity({runnerId:d.runnerId,port:d.port}).mac===b.mac}
+         catch{return false}
+        });
+        if(!eligible)return deny(409,"Physical target is not connected with matching verified MAC evidence");
+        const createdAt=new Date().toISOString();
+        stored.flashDelegation={enabled:true,repository:expressionRepo,mac:b.mac,
+         createdAt,expiresAt:new Date(Date.now()+b.expires_days*86400000).toISOString(),
+         createdBy:session(req).username};
+        save(stored);
+        return reply(publicFlashDelegation(stored));
       }
       if(path==="/api/local/approval-settings"&&method==="GET"){
         const settings=state().approvalSettings||{};
@@ -1400,6 +1524,14 @@ export async function localRoute(req) {
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
         return reply(agentAsset(runner,b));
       }catch(e){return deny(e.status||422,e.message);}
+    }
+    if(path==="/api/internal/deploy/firmware"&&method==="POST"){
+      if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
+      if(limited("mcp-deploy:firmware",12))return deny(429,"Too many deployment requests");
+      try{
+       const input=await body(req);
+       return reply(await deployExpressionFirmware(input),202);
+      }catch(e){return deny(e.status||422,e.message||"Deployment refused");}
     }
     if(path==="/api/internal/github/repository/request"&&method==="POST"){
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");

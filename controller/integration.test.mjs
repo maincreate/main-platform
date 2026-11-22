@@ -312,7 +312,15 @@ test("controller configuration persists, secrets stay encrypted, runners enroll 
    assert.equal(init.status,200);
    assert.equal(init.data.result.serverInfo.name,"maincreate");
    const list=await json(mcp,"/mcp",{jsonrpc:"2.0",id:2,method:"tools/list"},authorized);
-   assert.deepEqual(list.data.result.tools.map(t=>t.name),["maincreate_discover","maincreate_inspect","maincreate_plan","maincreate_execute","maincreate_jobs","maincreate_github_repository_request","maincreate_assets"]);
+   assert.deepEqual(list.data.result.tools.map(t=>t.name),["maincreate_discover","maincreate_inspect","maincreate_plan","maincreate_execute","maincreate_jobs","maincreate_github_repository_request","maincreate_deploy_firmware","maincreate_assets"]);
+   const deployTool=list.data.result.tools.find(t=>t.name==="maincreate_deploy_firmware");
+   assert.equal(deployTool.annotations.destructiveHint,true);
+   assert.deepEqual(deployTool.inputSchema.properties.repository.enum,["BuilderBench/esp32-expression"]);
+   const deploymentWithoutConnectedTarget=await json(mcp,"/mcp",{
+     jsonrpc:"2.0",id:14,method:"tools/call",params:{name:"maincreate_deploy_firmware",
+       arguments:{repository:"BuilderBench/esp32-expression"}}},authorized);
+   assert.equal(deploymentWithoutConnectedTarget.data.result.isError,true);
+   assert.match(deploymentWithoutConnectedTarget.data.result.content[0].text,/connected target device/i);
    const runners=await json(mcp,"/mcp",{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"maincreate_list_runners",arguments:{}}},authorized);
    assert.equal(runners.data.result.isError,false);
    assert.match(runners.data.result.content[0].text,/build-pi/);

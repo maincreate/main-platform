@@ -168,11 +168,30 @@
   <strong id="buildApprovalLabel">Ask before starting</strong>
   <p id="buildApprovalExplanation">Review Main{Create}-initiated jobs before they start.</p>
   <label for="flashApproval">Flashing devices</label>
-  <div class="maincreate-policy-locked"><span>Always ask before flashing</span><span class="inventory-badge">Safety requirement</span></div>
-  <p>Device flashing is not enabled yet. A future trusted-device mode will require verified firmware and a matching device before any automatic operation.</p>
+  <div class="maincreate-policy-locked"><span>Approval required unless a device-scoped, time-limited administrator delegation is active</span></div>
+  <p>Remote chat deployment can be enabled for a specific trusted device below. Normal untrusted flashes remain approval-gated.</p>
   <button class="plain-button" type="submit">Save approval preferences</button>
   <p id="approvalNotice" role="status" aria-live="polite"></p>
  </form>
+</section>
+<section class="settings-panel" aria-labelledby="delegationTitle">
+ <h2 id="delegationTitle">Let ChatGPT deploy firmware</h2>
+ <p>Authorize Main{Create}'s connected MCP client to build and flash one trusted device from one approved project. This is a one-time, revocable, time-limited permission, not permission for arbitrary shell commands or other devices.</p>
+ <p><strong>Every flash still requires a successful verified firmware build, a matching live chip/MAC, a recent verified 16 MB backup, disabled boot/encryption protections, and post-flash byte verification.</strong></p>
+ <p id="delegationState" role="status">Reading device-write authorization…</p>
+ <form id="delegationForm" class="settings-form">
+  <label for="delegationRepository">Approved project</label>
+  <input id="delegationRepository" value="BuilderBench/esp32-expression" readonly>
+  <label for="delegationDevice">Trusted connected device</label>
+  <select id="delegationDevice" required><option value="">Reading connected devices…</option></select>
+  <label for="delegationDuration">Authorization duration</label>
+  <select id="delegationDuration"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+  <label for="delegationPassword">Administrator password (required once)</label>
+  <input id="delegationPassword" type="password" autocomplete="current-password" required>
+  <button id="enableDelegation" type="submit" class="action">Authorize ChatGPT to flash this device</button>
+ </form>
+ <button id="revokeDelegation" type="button" class="plain-button">Revoke remote flash access</button>
+ <p id="delegationNotice" role="status" aria-live="polite"></p>
 </section>
 <section class="settings-panel maincreate-danger-zone" aria-labelledby="resetTitle">
  <h2 id="resetTitle">Reset this Main{Create} installation</h2>
