@@ -287,6 +287,27 @@ export function approveJob(id,decision,confirmedMAC=null){
 /** Select the newest, fully verified same-device backup and security report.
  * Selection is infrastructure work, never caller-supplied artifact identity.
  */
+/** Resolve observed MAC from an authenticated security probe; never from USB product text. */
+export function observedFlashIdentity({runnerId,port}){
+ if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
+  !/^\\/dev\\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||""))
+  throw error(422,"Exact enrolled device attachment required");
+ const s=store(),now=Date.now();
+ for(const j of [...s.jobs].reverse()){
+  if(j.capability!=="firmware.esp_idf.security_preflight"||
+   j.status!=="completed"||j.runnerId!==runnerId||j.parameters?.port!==port)continue;
+  const stamped=Date.parse(j.completedAt||"");
+  if(!Number.isFinite(stamped)||stamped>now||now-stamped>7*86400000)continue;
+  const a=s.assets.find(a=>a.jobId===j.id&&a.name==="esp32-security-info.json"&&a.complete&&j.assetIds?.includes(a.id));
+  if(!a||sha(readFileSync(assetFile(a.id)))!==a.sha256)continue;
+  let report;try{report=JSON.parse(readFileSync(assetFile(a.id),"utf8"))}catch{continue}
+  if(report.schema===1&&report.chip==="ESP32-S3"&&report.flash_size==="16MB"&&
+   report.port===port&&report.mac===j.parameters?.expected_mac&&
+   /^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(report.mac))
+    return {mac:report.mac,security_job_id:j.id,observed_at:j.completedAt};
+ }
+ throw error(409,"Connected device requires a recent authenticated ESP32-S3 identity/security preflight");
+}
 export function findDeploymentEvidence({runnerId,port,mac,sourceJobId}){
  if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
   !/^\\/dev\\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
