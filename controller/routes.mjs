@@ -744,6 +744,36 @@ export async function localRoute(req) {
         if(id)sessions.delete(id);
         return reply({ok:true},200,{"set-cookie":sessionCookie(req,"",0)});
       }
+      if(path==="/api/local/deployment-delegation"&&method==="GET")
+        return reply(publicFlashDelegation(state()));
+      if(path==="/api/local/deployment-delegation"&&method==="POST"){
+        const b=await body(req),stored=state(),admin=stored.admin;
+        if(limited("deployment-delegation:"+session(req).username,5))
+         return deny(429,"Too many deployment-authorization attempts");
+        if(!admin||typeof b.password!=="string"||
+           !(await verifyPassword(b.password,admin.password)))
+         return deny(401,"Administrator password required to change remote device-write authorization");
+        if(b.enabled===false){
+         delete stored.flashDelegation;save(stored);
+         return reply(publicFlashDelegation(stored));
+        }
+        if(b.enabled!==true||b.repository!==expressionRepo||!isMAC(b.mac)||
+           !Number.isInteger(b.expires_days)||b.expires_days<1||b.expires_days>30)
+         return deny(422,"Authorize an exact repository, device MAC and 1–30 day window");
+        const identity=listDevices({mode:"visible"}).devices.filter(d=>
+         d.lifecycle==="connected"&&/^\\/dev\\/(ttyACM|ttyUSB)[0-9]+$/.test(d.port||""));
+        const eligible=identity.some(d=>{
+         try{return observedFlashIdentity({runnerId:d.runnerId,port:d.port}).mac===b.mac}
+         catch{return false}
+        });
+        if(!eligible)return deny(409,"Physical target is not connected with matching verified MAC evidence");
+        const createdAt=new Date().toISOString();
+        stored.flashDelegation={enabled:true,repository:expressionRepo,mac:b.mac,
+         createdAt,expiresAt:new Date(Date.now()+b.expires_days*86400000).toISOString(),
+         createdBy:session(req).username};
+        save(stored);
+        return reply(publicFlashDelegation(stored));
+      }
       if(path==="/api/local/approval-settings"&&method==="GET"){
         const settings=state().approvalSettings||{};
         return reply({buildApproval:settings.buildApproval==="automatic"?"automatic":"review",
@@ -1484,6 +1514,14 @@ export async function localRoute(req) {
         if(path==="/api/agent/jobs/complete")return reply(reportJob(runner,b));
         return reply(agentAsset(runner,b));
       }catch(e){return deny(e.status||422,e.message);}
+    }
+    if(path==="/api/internal/deploy/firmware"&&method==="POST"){
+      if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
+      if(limited("mcp-deploy:firmware",12))return deny(429,"Too many deployment requests");
+      try{
+       const input=await body(req);
+       return reply(await deployExpressionFirmware(input),202);
+      }catch(e){return deny(e.status||422,e.message||"Deployment refused");}
     }
     if(path==="/api/internal/github/repository/request"&&method==="POST"){
       if(!internalServiceAuthorized(req))return deny(401,"Unauthorized");
