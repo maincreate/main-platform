@@ -347,7 +347,9 @@ export function activeDeviceFlash({runnerId,mac}){
  if(!found)return null;
  const source=s.jobs.find(j=>j.id===found.parameters?.source_job_id);
  return {...publicJob(found),source_repository:source?.parameters?.repository||null,
-  source_capability:source?.capability||null};
+  source_capability:source?.capability||null,
+  source_revision:source?.parameters?.revision||null,
+  source_run_id:source?.parameters?.run_id||null};
 }
 export function runnerHasExecutableFabricWork(runner){
  if(!runner?.id)return false;
