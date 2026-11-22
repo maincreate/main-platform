@@ -344,7 +344,10 @@ export function activeDeviceFlash({runnerId,mac}){
  const s=store(),found=s.jobs.find(j=>j.capability==="firmware.esp_idf.flash"&&
   j.runnerId===runnerId&&j.parameters?.expected_mac===mac&&
   ["awaiting_approval","queued","running"].includes(j.status));
- return found?publicJob(found):null;
+ if(!found)return null;
+ const source=s.jobs.find(j=>j.id===found.parameters?.source_job_id);
+ return {...publicJob(found),source_repository:source?.parameters?.repository||null,
+  source_capability:source?.capability||null};
 }
 export function runnerHasExecutableFabricWork(runner){
  if(!runner?.id)return false;
