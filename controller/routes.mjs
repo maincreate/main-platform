@@ -364,11 +364,25 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
    throw Object.assign(new Error("Unrecognized device attachment"),{status:422});
   const observed=observedFlashIdentity({runnerId:runner.id,port:target.port});
   const mac=observed.mac;
+  async function resolveBuild(){
+   await refreshGithubAuthorization();
+   const gh=state().github||{};
+   if(!githubIdentityCurrent(gh)||gh.selectedOrganization!=="BuilderBench"||!gh.oauthToken)
+    throw Object.assign(new Error("Main{Create} must be connected to BuilderBench GitHub"),{status:409});
+   return fetchVerifiedExpressionFirmware({token:unseal(gh.oauthToken),runId:input.run_id});
+  }
   const current=activeDeviceFlash({runnerId:runner.id,mac});
   if(current){
    if(current.source_repository!==expressionRepo||
       current.source_capability!=="firmware.esp_idf.import_build")
     throw Object.assign(new Error("Another firmware write is already active on this device; refusing to approve or replace an unrelated firmware image"),{status:409});
+   // A saved pending job may refer to an older build. Never approve it
+   // without matching the caller's exact requested or latest main revision.
+   if(current.status==="awaiting_approval"){
+    const verified=await resolveBuild();
+    if(current.source_revision!==verified.revision||current.source_run_id!==verified.runId)
+     throw Object.assign(new Error("Existing pending deployment references a different firmware revision; cancel it before requesting the new build"),{status:409});
+   }
    if(current.status==="awaiting_approval"&&delegationStatus(original,mac,expressionRepo)){
     const granted=approveJob(current.id,"approve",mac);
     return {deployment:granted.job,reused:true,authorization:"scoped_mcp_delegation",
@@ -377,12 +391,7 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
    return {deployment:current,reused:true,authorization:current.status==="awaiting_approval"?"administrator_required":"already_approved",
     repository:expressionRepo,device_id:target.id,device_mac:mac};
   }
-  await refreshGithubAuthorization();
-  const gh=state().github||{};
-  if(!githubIdentityCurrent(gh)||gh.selectedOrganization!=="BuilderBench"||!gh.oauthToken)
-   throw Object.assign(new Error("Main{Create} must be connected to BuilderBench GitHub"),{status:409});
-  const build=await fetchVerifiedExpressionFirmware({
-   token:unseal(gh.oauthToken),runId:input.run_id});
+  const build=await resolveBuild();
   const source=importReviewedFirmwareBuild({repository:expressionRepo,
    revision:build.revision,runId:build.runId,runnerId:runner.id,
    images:build.images,sourceSha256:build.sourceSha256}).job;
