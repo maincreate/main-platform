@@ -290,7 +290,7 @@ export function approveJob(id,decision,confirmedMAC=null){
 /** Resolve observed MAC from an authenticated security probe; never from USB product text. */
 export function observedFlashIdentity({runnerId,port}){
  if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
-  !/^\\/dev\\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||""))
+  !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||""))
   throw error(422,"Exact enrolled device attachment required");
  const s=store(),now=Date.now();
  for(const j of [...s.jobs].reverse()){
@@ -310,7 +310,7 @@ export function observedFlashIdentity({runnerId,port}){
 }
 export function findDeploymentEvidence({runnerId,port,mac,sourceJobId}){
  if(!/^[a-f0-9]{32}$/.test(runnerId||"")||
-  !/^\\/dev\\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
+  !/^\/dev\/(ttyUSB[0-9]+|ttyACM[0-9]+)$/.test(port||"")||
   !/^[a-f0-9]{2}(:[a-f0-9]{2}){5}$/.test(mac||"")||
   !/^[a-f0-9]{32}$/.test(sourceJobId||""))
   throw error(422,"Exact enrolled runner, device port, MAC and source required");
