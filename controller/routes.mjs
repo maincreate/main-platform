@@ -360,7 +360,7 @@ async function deployExpressionFirmware(input,actor="mcp:authorized-client"){
    Date.now()-Date.parse(runner.lastSeen||"")>=120000||
    !Array.isArray(runner.fabricCapabilities)||!runner.fabricCapabilities.includes("firmware.esp_idf.flash"))
    throw Object.assign(new Error("Selected builder must be online, managed, current, and flash-capable"),{status:409});
-  if(!/^\\/dev\\/(ttyACM|ttyUSB)[0-9]+$/.test(target.port||""))
+  if(!/^\/dev\/(ttyACM|ttyUSB)[0-9]+$/.test(target.port||""))
    throw Object.assign(new Error("Unrecognized device attachment"),{status:422});
   const observed=observedFlashIdentity({runnerId:runner.id,port:target.port});
   const mac=observed.mac;
@@ -771,7 +771,7 @@ export async function localRoute(req) {
            !Number.isInteger(b.expires_days)||b.expires_days<1||b.expires_days>30)
          return deny(422,"Authorize an exact repository, device MAC and 1–30 day window");
         const identity=listDevices({mode:"visible"}).devices.filter(d=>
-         d.lifecycle==="connected"&&/^\\/dev\\/(ttyACM|ttyUSB)[0-9]+$/.test(d.port||""));
+         d.lifecycle==="connected"&&/^\/dev\/(ttyACM|ttyUSB)[0-9]+$/.test(d.port||""));
         const eligible=identity.some(d=>{
          try{return observedFlashIdentity({runnerId:d.runnerId,port:d.port}).mac===b.mac}
          catch{return false}
